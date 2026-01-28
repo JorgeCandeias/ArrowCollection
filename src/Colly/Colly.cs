@@ -10,12 +10,13 @@ namespace Colly;
 /// A frozen generic collection that compresses data using Apache Arrow columnar format.
 /// This collection is immutable after creation and materializes items on-the-fly during enumeration.
 /// </summary>
-/// <typeparam name="T">The type of items in the collection.</typeparam>
-public sealed class Colly<T> : IEnumerable<T> where T : new()
+/// <typeparam name="T">The type of items in the collection. Must have a parameterless constructor.</typeparam>
+public sealed class Colly<T> : IEnumerable<T>, IDisposable where T : new()
 {
     private readonly RecordBatch _recordBatch;
     private readonly PropertyInfo[] _properties;
     private readonly int _count;
+    private bool _disposed;
 
     internal Colly(RecordBatch recordBatch, PropertyInfo[] properties, int count)
     {
@@ -34,12 +35,25 @@ public sealed class Colly<T> : IEnumerable<T> where T : new()
     /// </summary>
     public IEnumerator<T> GetEnumerator()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         return new CollyEnumerator(_recordBatch, _properties, _count);
     }
 
     IEnumerator IEnumerable.GetEnumerator()
     {
         return GetEnumerator();
+    }
+
+    /// <summary>
+    /// Releases the resources used by this collection.
+    /// </summary>
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _recordBatch?.Dispose();
+            _disposed = true;
+        }
     }
 
     private sealed class CollyEnumerator : IEnumerator<T>

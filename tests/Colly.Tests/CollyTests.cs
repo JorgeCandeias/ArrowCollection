@@ -43,7 +43,7 @@ public class CollyTests
         };
 
         // Act
-        var colly = items.ToColly();
+        using var colly = items.ToColly();
 
         // Assert
         Assert.Equal(3, colly.Count);
@@ -97,7 +97,7 @@ public class CollyTests
         };
 
         // Act
-        var colly = items.ToColly();
+        using var colly = items.ToColly();
 
         // Assert
         var result = colly.ToList();
@@ -127,7 +127,7 @@ public class CollyTests
         };
 
         // Act
-        var colly = items.ToColly();
+        using var colly = items.ToColly();
 
         // Assert
         var result = colly.ToList();
@@ -153,7 +153,7 @@ public class CollyTests
         var items = Array.Empty<SimpleItem>();
 
         // Act
-        var colly = items.ToColly();
+        using var colly = items.ToColly();
 
         // Assert
         Assert.Equal(0, colly.Count);
@@ -171,7 +171,7 @@ public class CollyTests
         };
 
         // Act
-        var colly = items.ToColly();
+        using var colly = items.ToColly();
 
         // Assert - enumerate twice
         var firstEnumeration = colly.ToList();
@@ -205,7 +205,7 @@ public class CollyTests
         };
 
         // Act
-        var colly = items.ToColly();
+        using var colly = items.ToColly();
 
         // Modify original data
         items[0].Name = "Modified";
@@ -229,7 +229,7 @@ public class CollyTests
         }).ToList();
 
         // Act
-        var colly = items.ToColly();
+        using var colly = items.ToColly();
 
         // Assert
         Assert.Equal(1000, colly.Count);
@@ -249,5 +249,40 @@ public class CollyTests
         Assert.Equal(1000, result[999].Id);
         Assert.Equal("Item 1000", result[999].Name);
         Assert.Equal(1500.0, result[999].Value);
+    }
+
+    [Fact]
+    public void Dispose_PreventsEnumeration()
+    {
+        // Arrange
+        var items = new[]
+        {
+            new SimpleItem { Id = 1, Name = "Item 1", Value = 10.5 }
+        };
+
+        var colly = items.ToColly();
+
+        // Act
+        colly.Dispose();
+
+        // Assert
+        Assert.Throws<ObjectDisposedException>(() => colly.GetEnumerator());
+    }
+
+    [Fact]
+    public void Dispose_CanBeCalledMultipleTimes()
+    {
+        // Arrange
+        var items = new[]
+        {
+            new SimpleItem { Id = 1, Name = "Item 1", Value = 10.5 }
+        };
+
+        var colly = items.ToColly();
+
+        // Act & Assert - should not throw
+        colly.Dispose();
+        colly.Dispose();
+        colly.Dispose();
     }
 }

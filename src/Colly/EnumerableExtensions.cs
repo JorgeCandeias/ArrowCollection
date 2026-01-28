@@ -14,9 +14,13 @@ public static class EnumerableExtensions
     /// Converts an IEnumerable to a Colly frozen collection.
     /// The collection compresses the data using Apache Arrow columnar format.
     /// </summary>
-    /// <typeparam name="T">The type of items in the collection.</typeparam>
+    /// <typeparam name="T">The type of items in the collection. Must have a parameterless constructor and public readable/writable instance properties.</typeparam>
     /// <param name="source">The source enumerable.</param>
     /// <returns>A frozen Colly collection.</returns>
+    /// <remarks>
+    /// The returned collection implements IDisposable and should be disposed when no longer needed to free unmanaged resources.
+    /// All DateTime values are stored as UTC timestamps in the Arrow format.
+    /// </remarks>
     public static Colly<T> ToColly<T>(this IEnumerable<T> source) where T : new()
     {
         if (source == null)
@@ -299,7 +303,7 @@ public static class EnumerableExtensions
 
     private static StringArray BuildStringArray<T>(List<T> items, PropertyInfo property, MemoryAllocator allocator)
     {
-        var builder = new StringArray.Builder();
+        var builder = new StringArray.Builder().Reserve(items.Count);
         foreach (var item in items)
         {
             var value = property.GetValue(item);
