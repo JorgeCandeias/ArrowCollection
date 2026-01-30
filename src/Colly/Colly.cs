@@ -102,7 +102,7 @@ public sealed class Colly<T> : IEnumerable<T>, IDisposable where T : new()
             {
                 var property = properties[i];
                 var array = recordBatch.Column(i);
-                var value = ExtractValue(array, index, property.PropertyType);
+                var value = ExtractValue(array, index);
 
                 if (value != null || !property.PropertyType.IsValueType || Nullable.GetUnderlyingType(property.PropertyType) != null)
                 {
@@ -113,19 +113,12 @@ public sealed class Colly<T> : IEnumerable<T>, IDisposable where T : new()
             return item;
         }
 
-        private static object? ExtractValue(IArrowArray array, int index, Type targetType)
+        private static object? ExtractValue(IArrowArray array, int index)
         {
             // Handle null values
             if (array.IsNull(index))
             {
                 return null;
-            }
-
-            // Handle nullable types
-            var underlyingType = Nullable.GetUnderlyingType(targetType);
-            if (underlyingType != null)
-            {
-                targetType = underlyingType;
             }
 
             // Extract value based on Arrow array type
