@@ -358,6 +358,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
+
         sb.AppendLine($"{indent}    internal static global::ArrowCollection.ArrowCollection<{record.FullTypeName}> Create(global::System.Collections.Generic.IEnumerable<{record.FullTypeName}> source)");
         sb.AppendLine($"{indent}    {{");
         sb.AppendLine($"{indent}        var statsStopwatch = global::System.Diagnostics.Stopwatch.StartNew();");
@@ -365,46 +366,29 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}        var count = items.Count;");
         sb.AppendLine();
         
-        // Generate statistics collectors for each field
-        sb.AppendLine($"{indent}        // Initialize statistics collectors");
+        // Generate value buffers and statistics collectors for each field
+        sb.AppendLine($"{indent}        // Phase 1: Collect all values and statistics");
         for (int i = 0; i < record.Fields.Count; i++)
         {
             var field = record.Fields[i];
+            sb.AppendLine($"{indent}        var values{i} = new global::System.Collections.Generic.List<{field.FieldTypeName}>(count);");
             sb.AppendLine($"{indent}        var statsCollector{i} = new global::ArrowCollection.ColumnStatisticsCollector<{field.FieldTypeName}>(\"{field.MemberName}\");");
         }
         sb.AppendLine();
         
-        sb.AppendLine($"{indent}        // Build Arrow schema");
-        sb.AppendLine($"{indent}        var fields = new global::System.Collections.Generic.List<Field>");
+        // Single pass to collect all values
+        sb.AppendLine($"{indent}        foreach (var item in items)");
         sb.AppendLine($"{indent}        {{");
-
         for (int i = 0; i < record.Fields.Count; i++)
         {
-            var field = record.Fields[i];
-            var arrowType = GetArrowTypeExpression(field.UnderlyingTypeName);
-            var nullable = field.IsNullable ? "true" : "false";
-            var comma = i < record.Fields.Count - 1 ? "," : "";
-            sb.AppendLine($"{indent}            new Field(\"{field.MemberName}\", {arrowType}, {nullable}){comma}");
+            sb.AppendLine($"{indent}            var v{i} = _getter{i}(item);");
+            sb.AppendLine($"{indent}            values{i}.Add(v{i});");
+            sb.AppendLine($"{indent}            statsCollector{i}.Record(v{i});");
         }
-
-        sb.AppendLine($"{indent}        }};");
-        sb.AppendLine($"{indent}        var schema = new Schema(fields, null);");
+        sb.AppendLine($"{indent}        }}");
         sb.AppendLine();
-        sb.AppendLine($"{indent}        // Build Arrow arrays");
-        sb.AppendLine($"{indent}        var allocator = new NativeMemoryAllocator();");
-        sb.AppendLine($"{indent}        var arrays = new global::System.Collections.Generic.List<IArrowArray>();");
-        sb.AppendLine();
-
-        // Generate array builders for each field
-        for (int i = 0; i < record.Fields.Count; i++)
-        {
-            var field = record.Fields[i];
-            GenerateArrayBuilder(sb, field, i, indent + "        ");
-            sb.AppendLine();
-        }
-
-        sb.AppendLine($"{indent}        statsStopwatch.Stop();");
-        sb.AppendLine();
+        
+        // Collect statistics
         sb.AppendLine($"{indent}        // Collect build statistics");
         sb.AppendLine($"{indent}        var columnStats = new global::System.Collections.Generic.Dictionary<string, global::ArrowCollection.ColumnStatistics>");
         sb.AppendLine($"{indent}        {{");
@@ -415,6 +399,27 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}            {{ \"{field.MemberName}\", statsCollector{i}.GetStatistics() }}{comma}");
         }
         sb.AppendLine($"{indent}        }};");
+        sb.AppendLine();
+        sb.AppendLine($"{indent}        statsStopwatch.Stop();");
+        sb.AppendLine();
+        
+        // Phase 2: Build arrays with optimal encoding
+        sb.AppendLine($"{indent}        // Phase 2: Build arrays with optimal encoding based on statistics");
+        sb.AppendLine($"{indent}        var allocator = new NativeMemoryAllocator();");
+        sb.AppendLine($"{indent}        var arrays = new global::System.Collections.Generic.List<IArrowArray>();");
+        sb.AppendLine($"{indent}        var schemaFields = new global::System.Collections.Generic.List<Field>();");
+        sb.AppendLine();
+        
+        // Generate array building with dictionary encoding support
+        for (int i = 0; i < record.Fields.Count; i++)
+        {
+            var field = record.Fields[i];
+            GenerateOptimalArrayBuilder(sb, field, i, indent + "        ");
+            sb.AppendLine();
+        }
+        
+        sb.AppendLine($"{indent}        // Build schema from actual array types");
+        sb.AppendLine($"{indent}        var schema = new Schema(schemaFields, null);");
         sb.AppendLine();
         sb.AppendLine($"{indent}        var buildStatistics = new global::ArrowCollection.ArrowCollectionBuildStatistics");
         sb.AppendLine($"{indent}        {{");
@@ -440,22 +445,76 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
 
     private static void GenerateFieldRead(StringBuilder sb, ArrowFieldInfo field, int columnIndex, string indent, bool isValueType)
     {
-        var arrayType = GetArrowArrayType(field.UnderlyingTypeName);
-        var varName = $"array{columnIndex}";
+        var varName = $"col{columnIndex}";
+        
+        // For dictionary-supported types, use the helper that handles both dictionary and primitive arrays
+        if (SupportsDictionaryEncoding(field.UnderlyingTypeName))
+        {
+            GenerateDictionaryAwareFieldRead(sb, field, columnIndex, indent, isValueType, varName);
+        }
+        else
+        {
+            // For other types, use the original approach
+            var arrayType = GetArrowArrayType(field.UnderlyingTypeName);
+            sb.AppendLine($"{indent}var {varName} = (recordBatch.Column({columnIndex}) as {arrayType})!;");
 
-        sb.AppendLine($"{indent}var {varName} = (recordBatch.Column({columnIndex}) as {arrayType})!;");
+            if (field.IsNullable)
+            {
+                sb.AppendLine($"{indent}if (!{varName}.IsNull(index))");
+                sb.AppendLine($"{indent}{{");
+                if (isValueType)
+                {
+                    sb.AppendLine($"{indent}    _setter{columnIndex}(ref item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
+                }
+                else
+                {
+                    sb.AppendLine($"{indent}    _setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
+                }
+                sb.AppendLine($"{indent}}}");
+            }
+            else
+            {
+                if (isValueType)
+                {
+                    sb.AppendLine($"{indent}_setter{columnIndex}(ref item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
+                }
+                else
+                {
+                    sb.AppendLine($"{indent}_setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
+                }
+            }
+        }
+    }
 
-        if (field.IsNullable)
+    private static bool SupportsDictionaryEncoding(string underlyingTypeName)
+    {
+        return underlyingTypeName is "string" or "int" or "double" or "decimal";
+    }
+
+    private static void GenerateDictionaryAwareFieldRead(StringBuilder sb, ArrowFieldInfo field, int columnIndex, string indent, bool isValueType, string varName)
+    {
+        sb.AppendLine($"{indent}var {varName} = recordBatch.Column({columnIndex});");
+        
+        var getValue = field.UnderlyingTypeName switch
+        {
+            "string" => $"global::ArrowCollection.DictionaryArrayBuilder.GetStringValue({varName}, index)",
+            "int" => $"global::ArrowCollection.DictionaryArrayBuilder.GetInt32Value({varName}, index)",
+            "double" => $"global::ArrowCollection.DictionaryArrayBuilder.GetDoubleValue({varName}, index)",
+            "decimal" => $"global::ArrowCollection.DictionaryArrayBuilder.GetDecimalValue({varName}, index)",
+            _ => throw new NotSupportedException($"Type {field.UnderlyingTypeName} does not support dictionary encoding.")
+        };
+
+        if (field.IsNullable || field.UnderlyingTypeName == "string")
         {
             sb.AppendLine($"{indent}if (!{varName}.IsNull(index))");
             sb.AppendLine($"{indent}{{");
             if (isValueType)
             {
-                sb.AppendLine($"{indent}    _setter{columnIndex}(ref item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
+                sb.AppendLine($"{indent}    _setter{columnIndex}(ref item, {getValue});");
             }
             else
             {
-                sb.AppendLine($"{indent}    _setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
+                sb.AppendLine($"{indent}    _setter{columnIndex}(item, {getValue});");
             }
             sb.AppendLine($"{indent}}}");
         }
@@ -463,11 +522,11 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         {
             if (isValueType)
             {
-                sb.AppendLine($"{indent}_setter{columnIndex}(ref item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
+                sb.AppendLine($"{indent}_setter{columnIndex}(ref item, {getValue});");
             }
             else
             {
-                sb.AppendLine($"{indent}_setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
+                sb.AppendLine($"{indent}_setter{columnIndex}(item, {getValue});");
             }
         }
     }
@@ -579,6 +638,171 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
 
         sb.AppendLine($"{indent}}}");
         sb.AppendLine($"{indent}arrays.Add({builderVarName}.Build(allocator));");
+    }
+
+    /// <summary>
+    /// Generates code that builds arrays with optimal encoding (dictionary vs primitive) based on statistics.
+    /// </summary>
+    private static void GenerateOptimalArrayBuilder(StringBuilder sb, ArrowFieldInfo field, int index, string indent)
+    {
+        var stats = $"columnStats[\"{field.MemberName}\"]";
+        var nullable = field.IsNullable ? "true" : "false";
+
+        // For nullable types, we can't use dictionary encoding directly - use primitive
+        if (field.IsNullable)
+        {
+            GeneratePrimitiveArrayBuilder(sb, field, index, indent, nullable);
+            return;
+        }
+
+        // For types that support dictionary encoding, generate conditional code
+        switch (field.UnderlyingTypeName)
+        {
+            case "string":
+                GenerateStringArrayBuilder(sb, field, index, indent, stats, nullable);
+                break;
+            case "int":
+                GenerateInt32ArrayBuilder(sb, field, index, indent, stats, nullable);
+                break;
+            case "double":
+                GenerateDoubleArrayBuilder(sb, field, index, indent, stats, nullable);
+                break;
+            case "decimal":
+                GenerateDecimalArrayBuilder(sb, field, index, indent, stats, nullable);
+                break;
+            default:
+                // For other types, use primitive encoding
+                GeneratePrimitiveArrayBuilder(sb, field, index, indent, nullable);
+                break;
+        }
+    }
+
+    private static void GenerateStringArrayBuilder(StringBuilder sb, ArrowFieldInfo field, int index, string indent, string stats, string nullable)
+    {
+        sb.AppendLine($"{indent}// Build string array with optional dictionary encoding");
+        sb.AppendLine($"{indent}{{");
+        sb.AppendLine($"{indent}    var array{index} = global::ArrowCollection.DictionaryArrayBuilder.BuildStringArray(values{index}, {stats}, allocator);");
+        sb.AppendLine($"{indent}    arrays.Add(array{index});");
+        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.MemberName}\", array{index}.Data.DataType, {nullable}));");
+        sb.AppendLine($"{indent}}}");
+    }
+
+    private static void GenerateInt32ArrayBuilder(StringBuilder sb, ArrowFieldInfo field, int index, string indent, string stats, string nullable)
+    {
+        sb.AppendLine($"{indent}// Build int32 array with optional dictionary encoding");
+        sb.AppendLine($"{indent}{{");
+        sb.AppendLine($"{indent}    var array{index} = global::ArrowCollection.DictionaryArrayBuilder.BuildInt32Array(values{index}, {stats}, allocator);");
+        sb.AppendLine($"{indent}    arrays.Add(array{index});");
+        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.MemberName}\", array{index}.Data.DataType, {nullable}));");
+        sb.AppendLine($"{indent}}}");
+    }
+
+    private static void GenerateDoubleArrayBuilder(StringBuilder sb, ArrowFieldInfo field, int index, string indent, string stats, string nullable)
+    {
+        sb.AppendLine($"{indent}// Build double array with optional dictionary encoding");
+        sb.AppendLine($"{indent}{{");
+        sb.AppendLine($"{indent}    var array{index} = global::ArrowCollection.DictionaryArrayBuilder.BuildDoubleArray(values{index}, {stats}, allocator);");
+        sb.AppendLine($"{indent}    arrays.Add(array{index});");
+        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.MemberName}\", array{index}.Data.DataType, {nullable}));");
+        sb.AppendLine($"{indent}}}");
+    }
+
+    private static void GenerateDecimalArrayBuilder(StringBuilder sb, ArrowFieldInfo field, int index, string indent, string stats, string nullable)
+    {
+        sb.AppendLine($"{indent}// Build decimal array with optional dictionary encoding");
+        sb.AppendLine($"{indent}{{");
+        sb.AppendLine($"{indent}    var array{index} = global::ArrowCollection.DictionaryArrayBuilder.BuildDecimalArray(values{index}, {stats}, allocator);");
+        sb.AppendLine($"{indent}    arrays.Add(array{index});");
+        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.MemberName}\", array{index}.Data.DataType, {nullable}));");
+        sb.AppendLine($"{indent}}}");
+    }
+
+    private static void GeneratePrimitiveArrayBuilder(StringBuilder sb, ArrowFieldInfo field, int index, string indent, string nullable)
+    {
+        var builderType = GetArrowBuilderType(field.UnderlyingTypeName);
+        var arrowType = GetArrowTypeExpression(field.UnderlyingTypeName);
+        
+        sb.AppendLine($"{indent}// Build primitive array for {field.UnderlyingTypeName}");
+        sb.AppendLine($"{indent}{{");
+        
+        if (field.UnderlyingTypeName == "System.DateTime")
+        {
+            sb.AppendLine($"{indent}    var builder{index} = new {builderType}(new TimestampType(TimeUnit.Millisecond, global::System.TimeZoneInfo.Utc)).Reserve(count);");
+            sb.AppendLine($"{indent}    foreach (var value in values{index})");
+            if (field.IsNullable)
+            {
+                sb.AppendLine($"{indent}    {{");
+                sb.AppendLine($"{indent}        if (value == null)");
+                sb.AppendLine($"{indent}            builder{index}.AppendNull();");
+                sb.AppendLine($"{indent}        else");
+                sb.AppendLine($"{indent}            builder{index}.Append(new global::System.DateTimeOffset(value.Value, global::System.TimeSpan.Zero));");
+                sb.AppendLine($"{indent}    }}");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}        builder{index}.Append(new global::System.DateTimeOffset(value, global::System.TimeSpan.Zero));");
+            }
+        }
+        else if (field.UnderlyingTypeName == "string")
+        {
+            // Strings are reference types - handle null without .Value
+            sb.AppendLine($"{indent}    var builder{index} = new {builderType}();");
+            sb.AppendLine($"{indent}    foreach (var value in values{index})");
+            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        if (value == null)");
+            sb.AppendLine($"{indent}            builder{index}.AppendNull();");
+            sb.AppendLine($"{indent}        else");
+            sb.AppendLine($"{indent}            builder{index}.Append(value);");
+            sb.AppendLine($"{indent}    }}");
+        }
+        else if (field.UnderlyingTypeName == "byte[]")
+        {
+            sb.AppendLine($"{indent}    var builder{index} = new {builderType}();");
+            sb.AppendLine($"{indent}    foreach (var value in values{index})");
+            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        if (value == null)");
+            sb.AppendLine($"{indent}            builder{index}.AppendNull();");
+            sb.AppendLine($"{indent}        else");
+            sb.AppendLine($"{indent}            builder{index}.Append(value);");
+            sb.AppendLine($"{indent}    }}");
+        }
+        else if (field.IsNullable)
+        {
+            // Nullable value types use .Value
+            if (field.UnderlyingTypeName == "decimal")
+            {
+                sb.AppendLine($"{indent}    var builder{index} = new {builderType}(new Decimal128Type(29, 6)).Reserve(count);");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}    var builder{index} = new {builderType}().Reserve(count);");
+            }
+            sb.AppendLine($"{indent}    foreach (var value in values{index})");
+            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        if (value == null)");
+            sb.AppendLine($"{indent}            builder{index}.AppendNull();");
+            sb.AppendLine($"{indent}        else");
+            sb.AppendLine($"{indent}            builder{index}.Append(value.Value);");
+            sb.AppendLine($"{indent}    }}");
+        }
+        else
+        {
+            // Non-nullable value types
+            if (field.UnderlyingTypeName == "decimal")
+            {
+                sb.AppendLine($"{indent}    var builder{index} = new {builderType}(new Decimal128Type(29, 6)).Reserve(count);");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}    var builder{index} = new {builderType}().Reserve(count);");
+            }
+            sb.AppendLine($"{indent}    foreach (var value in values{index})");
+            sb.AppendLine($"{indent}        builder{index}.Append(value);");
+        }
+        
+        sb.AppendLine($"{indent}    arrays.Add(builder{index}.Build(allocator));");
+        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.MemberName}\", {arrowType}, {nullable}));");
+        sb.AppendLine($"{indent}}}");
     }
 
     private static string GetArrowTypeExpression(string underlyingType)
