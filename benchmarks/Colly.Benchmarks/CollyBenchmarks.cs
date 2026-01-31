@@ -217,7 +217,7 @@ public class CollyBenchmarks
     #endregion
 }
 
-public class BenchmarkItem
+public sealed record BenchmarkItem
 {
     public int Id { get; set; }
     public string Category1 { get; set; } = "";
