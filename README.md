@@ -1,21 +1,21 @@
-# Colly - Frozen Collection with Apache Arrow Compression
+# ArrowCollection - Frozen Collection with Apache Arrow Compression
 
-Colly is a .NET library that implements a frozen generic collection with columnar compression using Apache Arrow. It's designed for scenarios where you need significant in-memory compression savings for massive datasets, while accepting the performance trade-off of reconstructing items on-the-fly during enumeration.
+ArrowCollection is a .NET library that implements a frozen generic collection with columnar compression using Apache Arrow. It's designed for scenarios where you need significant in-memory compression savings for massive datasets, while accepting the performance trade-off of reconstructing items on-the-fly during enumeration.
 
 ## Features
 
 - **Immutable/Frozen**: Once created, the collection cannot be modified
 - **Columnar Compression**: Uses Apache Arrow format for efficient compression
 - **Type-Safe**: Strongly typed generic collection
-- **Simple API**: Easy to use with the `.ToColly()` extension method
+- **Simple API**: Easy to use with the `.ToArrowCollection()` extension method
 - **Property-Based**: Automatically captures all public instance properties
 
 ## Installation
 
-Add the Colly library to your project:
+Add the ArrowCollection library to your project:
 
 ```bash
-dotnet add reference path/to/Colly/Colly.csproj
+dotnet add reference path/to/ArrowCollection/ArrowCollection.csproj
 ```
 
 ## Usage
@@ -23,7 +23,7 @@ dotnet add reference path/to/Colly/Colly.csproj
 ### Basic Example
 
 ```csharp
-using Colly;
+using ArrowCollection;
 
 public class Person
 {
@@ -41,17 +41,17 @@ var people = new[]
     new Person { Id = 3, Name = "Charlie", Age = 35, BirthDate = new DateTime(1989, 3, 10) }
 };
 
-// Convert to Colly (frozen collection)
-var colly = people.ToColly();
+// Convert to ArrowCollection (frozen collection)
+var collection = people.ToArrowCollection();
 
 // Enumerate the collection (items are materialized on-the-fly)
-foreach (var person in colly)
+foreach (var person in collection)
 {
     Console.WriteLine($"{person.Name} is {person.Age} years old");
 }
 
 // Get count
-Console.WriteLine($"Total people: {colly.Count}");
+Console.WriteLine($"Total people: {collection.Count}");
 ```
 
 ### Large Dataset Example
@@ -67,17 +67,17 @@ var largeDataset = Enumerable.Range(1, 1_000_000)
         BirthDate = DateTime.Now.AddYears(-(20 + (i % 60)))
     });
 
-// Convert to Colly - data is compressed using Apache Arrow columnar format
-var colly = largeDataset.ToColly();
+// Convert to ArrowCollection - data is compressed using Apache Arrow columnar format
+var collection = largeDataset.ToArrowCollection();
 
 // The data is now stored in a compressed columnar format
 // Items are reconstructed on-the-fly during enumeration
-var adults = colly.Where(p => p.Age >= 18).Take(10);
+var adults = collection.Where(p => p.Age >= 18).Take(10);
 ```
 
 ### Supported Data Types
 
-Colly supports the following property types:
+ArrowCollection supports the following property types:
 
 - Integers: `int`, `long`, `short`, `sbyte`, `uint`, `ulong`, `ushort`, `byte`
 - Floating Point: `float`, `double`
@@ -102,7 +102,7 @@ var data = new[]
     new OptionalData { OptionalId = null, OptionalName = null, OptionalDate = null },
 };
 
-var colly = data.ToColly();
+var collection = data.ToArrowCollection();
 ```
 
 ## Performance Characteristics
@@ -119,7 +119,7 @@ var colly = data.ToColly();
 
 ## Use Cases
 
-Colly is ideal for:
+ArrowCollection is ideal for:
 
 - **Caching large datasets** that are infrequently accessed
 - **In-memory analytics** where memory is constrained
@@ -128,7 +128,7 @@ Colly is ideal for:
 
 ## Requirements
 
-- .NET 8.0 or later
+- .NET 10.0 or later
 - Apache.Arrow NuGet package (automatically included)
 
 ## License
