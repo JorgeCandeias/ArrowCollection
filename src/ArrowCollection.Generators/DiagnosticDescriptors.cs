@@ -8,7 +8,7 @@ namespace ArrowCollection.Generators;
 internal static class DiagnosticDescriptors
 {
     public static readonly DiagnosticDescriptor NoArrowArrayProperties = new(
-        id: "ARROW001",
+        id: "ARROWCOL001",
         title: "No ArrowArray properties",
         messageFormat: "Type '{0}' marked with [ArrowRecord] has no properties marked with [ArrowArray]",
         category: "ArrowCollection",
@@ -16,7 +16,7 @@ internal static class DiagnosticDescriptors
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor UnsupportedPropertyType = new(
-        id: "ARROW002",
+        id: "ARROWCOL002",
         title: "Unsupported property type",
         messageFormat: "Property '{0}' on type '{1}' has unsupported type '{2}'. Supported types: int, long, short, sbyte, uint, ulong, ushort, byte, float, double, bool, string, DateTime and their nullable variants.",
         category: "ArrowCollection",
@@ -24,7 +24,7 @@ internal static class DiagnosticDescriptors
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor MissingParameterlessConstructor = new(
-        id: "ARROW003",
+        id: "ARROWCOL003",
         title: "Missing parameterless constructor",
         messageFormat: "Type '{0}' marked with [ArrowRecord] must have a public parameterless constructor",
         category: "ArrowCollection",
