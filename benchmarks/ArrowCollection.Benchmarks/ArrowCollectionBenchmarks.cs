@@ -1,12 +1,12 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
 
-namespace Colly.Benchmarks;
+namespace ArrowCollection.Benchmarks;
 
 [ShortRunJob]
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
-public class CollyBenchmarks
+public class ArrowCollectionBenchmarks
 {
     private List<BenchmarkItem> _items10K = null!;
     private List<BenchmarkItem> _items100K = null!;
@@ -16,9 +16,9 @@ public class CollyBenchmarks
     private List<BenchmarkItem> _list100K = null!;
     private List<BenchmarkItem> _list1M = null!;
 
-    private Colly<BenchmarkItem> _colly10K = null!;
-    private Colly<BenchmarkItem> _colly100K = null!;
-    private Colly<BenchmarkItem> _colly1M = null!;
+    private ArrowCollection<BenchmarkItem> _collection10K = null!;
+    private ArrowCollection<BenchmarkItem> _collection100K = null!;
+    private ArrowCollection<BenchmarkItem> _collection1M = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -32,18 +32,18 @@ public class CollyBenchmarks
         _list100K = [.. _items100K];
         _list1M = [.. _items1M];
 
-        // Pre-built Colly collections for enumeration benchmarks
-        _colly10K = _items10K.ToColly();
-        _colly100K = _items100K.ToColly();
-        _colly1M = _items1M.ToColly();
+        // Pre-built collection collections for enumeration benchmarks
+        _collection10K = _items10K.ToArrowCollection();
+        _collection100K = _items100K.ToArrowCollection();
+        _collection1M = _items1M.ToArrowCollection();
     }
 
     [GlobalCleanup]
     public void Cleanup()
     {
-        _colly10K?.Dispose();
-        _colly100K?.Dispose();
-        _colly1M?.Dispose();
+        _collection10K?.Dispose();
+        _collection100K?.Dispose();
+        _collection1M?.Dispose();
     }
 
     private static List<BenchmarkItem> GenerateItems(int count)
@@ -83,11 +83,11 @@ public class CollyBenchmarks
 
     [Benchmark]
     [BenchmarkCategory("Construction", "10K")]
-    public Colly<BenchmarkItem> Colly_Construction_10K()
+    public ArrowCollection<BenchmarkItem> Colly_Construction_10K()
     {
-        var colly = _items10K.ToColly();
-        colly.Dispose();
-        return colly;
+        var collection = _items10K.ToArrowCollection();
+        collection.Dispose();
+        return collection;
     }
 
     #endregion
@@ -103,11 +103,11 @@ public class CollyBenchmarks
 
     [Benchmark]
     [BenchmarkCategory("Construction", "100K")]
-    public Colly<BenchmarkItem> Colly_Construction_100K()
+    public ArrowCollection<BenchmarkItem> Colly_Construction_100K()
     {
-        var colly = _items100K.ToColly();
-        colly.Dispose();
-        return colly;
+        var collection = _items100K.ToArrowCollection();
+        collection.Dispose();
+        return collection;
     }
 
     #endregion
@@ -123,11 +123,11 @@ public class CollyBenchmarks
 
     [Benchmark]
     [BenchmarkCategory("Construction", "1M")]
-    public Colly<BenchmarkItem> Colly_Construction_1M()
+    public ArrowCollection<BenchmarkItem> Colly_Construction_1M()
     {
-        var colly = _items1M.ToColly();
-        colly.Dispose();
-        return colly;
+        var collection = _items1M.ToArrowCollection();
+        collection.Dispose();
+        return collection;
     }
 
     #endregion
@@ -151,7 +151,7 @@ public class CollyBenchmarks
     public int Colly_Enumeration_10K()
     {
         int count = 0;
-        foreach (var item in _colly10K)
+        foreach (var item in _collection10K)
         {
             count += item.Id;
         }
@@ -179,7 +179,7 @@ public class CollyBenchmarks
     public int Colly_Enumeration_100K()
     {
         int count = 0;
-        foreach (var item in _colly100K)
+        foreach (var item in _collection100K)
         {
             count += item.Id;
         }
@@ -207,7 +207,7 @@ public class CollyBenchmarks
     public int Colly_Enumeration_1M()
     {
         int count = 0;
-        foreach (var item in _colly1M)
+        foreach (var item in _collection1M)
         {
             count += item.Id;
         }
@@ -227,3 +227,5 @@ public sealed record BenchmarkItem
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
 }
+
+

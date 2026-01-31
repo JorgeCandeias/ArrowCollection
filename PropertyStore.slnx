@@ -1,14 +1,14 @@
 <Solution>
   <Folder Name="/benchmarks/">
-    <Project Path="benchmarks/Colly.Benchmarks/Colly.Benchmarks.csproj" />
+    <Project Path="benchmarks/ArrowCollection.Benchmarks/ArrowCollection.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/samples/">
-    <Project Path="samples/Colly.Sample/Colly.Sample.csproj" />
+    <Project Path="samples/ArrowCollection.Sample/ArrowCollection.Sample.csproj" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Colly/Colly.csproj" />
+    <Project Path="src/ArrowCollection/ArrowCollection.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Colly.Tests/Colly.Tests.csproj" />
+    <Project Path="tests/ArrowCollection.Tests/ArrowCollection.Tests.csproj" />
   </Folder>
 </Solution>

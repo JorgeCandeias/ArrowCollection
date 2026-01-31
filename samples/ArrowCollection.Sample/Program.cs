@@ -1,6 +1,6 @@
-using Colly;
+using ArrowCollection;
 
-Console.WriteLine("Colly - Frozen Collection Demo\n");
+Console.WriteLine("ArrowCollection - Frozen Collection Demo\n");
 Console.WriteLine("================================\n");
 
 // Example 1: Basic usage
@@ -15,12 +15,12 @@ var weatherData = new[]
     new WeatherData { Id = 4, Location = "Sydney", Temperature = 68.4, Humidity = 55.8, Timestamp = DateTime.UtcNow, IsRaining = false },
 };
 
-using (var colly = weatherData.ToColly())
+using (var collection = weatherData.ToArrowCollection())
 {
-    Console.WriteLine($"Created Colly collection with {colly.Count} items");
+    Console.WriteLine($"Created collection collection with {collection.Count} items");
     Console.WriteLine("\nEnumerating weather data:");
     
-    foreach (var data in colly)
+    foreach (var data in collection)
     {
         var rain = data.IsRaining ? "Rainy" : "Clear";
         Console.WriteLine($"  {data.Location}: {data.Temperature}°F, {data.Humidity}% humidity - {rain}");
@@ -45,14 +45,14 @@ var largeDataset = Enumerable.Range(1, 100_000).Select(i => new WeatherData
 
 Console.WriteLine($"Created {largeDataset.Count:N0} weather readings");
 
-using (var colly = largeDataset.ToColly())
+using (var collection = largeDataset.ToArrowCollection())
 {
-    Console.WriteLine($"Compressed into Colly collection: {colly.Count:N0} items");
+    Console.WriteLine($"Compressed into collection collection: {collection.Count:N0} items");
     Console.WriteLine("\nData is stored in Apache Arrow columnar format for compression.");
     Console.WriteLine("Items are reconstructed on-the-fly during enumeration.\n");
     
     // Sample the data
-    var rainyDays = colly.Where(w => w.IsRaining).Take(5);
+    var rainyDays = collection.Where(w => w.IsRaining).Take(5);
     Console.WriteLine("Sample: First 5 rainy locations:");
     foreach (var data in rainyDays)
     {
@@ -73,18 +73,18 @@ var data3 = new[]
     new WeatherData { Id = 3, Location = "Miami", Temperature = 85.8, Humidity = 88.2, Timestamp = DateTime.UtcNow, IsRaining = false },
 };
 
-using (var colly = data3.ToColly())
+using (var collection = data3.ToArrowCollection())
 {
     // First enumeration
     Console.WriteLine("First enumeration:");
-    foreach (var d in colly)
+    foreach (var d in collection)
     {
         Console.WriteLine($"  {d.Location}");
     }
     
     // Second enumeration
     Console.WriteLine("\nSecond enumeration (same data):");
-    foreach (var d in colly)
+    foreach (var d in collection)
     {
         Console.WriteLine($"  {d.Location}");
     }
@@ -103,3 +103,5 @@ public class WeatherData
     public DateTime Timestamp { get; set; }
     public bool IsRaining { get; set; }
 }
+
+

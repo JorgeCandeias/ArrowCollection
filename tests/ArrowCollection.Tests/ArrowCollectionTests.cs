@@ -1,6 +1,6 @@
-namespace Colly.Tests;
+namespace ArrowCollection.Tests;
 
-public class CollyTests
+public class ArrowCollectionTests
 {
     public class SimpleItem
     {
@@ -30,7 +30,7 @@ public class CollyTests
     }
 
     [Fact]
-    public void ToColly_WithSimpleItems_CanEnumerateAll()
+    public void ToArrowCollection_WithSimpleItems_CanEnumerateAll()
     {
         // Arrange
         var items = new[]
@@ -41,12 +41,12 @@ public class CollyTests
         };
 
         // Act
-        using var colly = items.ToColly();
+        using var collection = items.ToArrowCollection();
 
         // Assert
-        Assert.Equal(3, colly.Count);
+        Assert.Equal(3, collection.Count);
 
-        var result = colly.ToList();
+        var result = collection.ToList();
         Assert.Equal(3, result.Count);
 
         Assert.Equal(1, result[0].Id);
@@ -63,7 +63,7 @@ public class CollyTests
     }
 
     [Fact]
-    public void ToColly_WithComplexTypes_PreservesAllDataTypes()
+    public void ToArrowCollection_WithComplexTypes_PreservesAllDataTypes()
     {
         // Arrange
         var items = new[]
@@ -95,10 +95,10 @@ public class CollyTests
         };
 
         // Act
-        using var colly = items.ToColly();
+        using var collection = items.ToArrowCollection();
 
         // Assert
-        var result = colly.ToList();
+        var result = collection.ToList();
         Assert.Equal(2, result.Count);
 
         var first = result[0];
@@ -114,7 +114,7 @@ public class CollyTests
     }
 
     [Fact]
-    public void ToColly_WithNullableValues_HandlesNullsCorrectly()
+    public void ToArrowCollection_WithNullableValues_HandlesNullsCorrectly()
     {
         // Arrange
         var items = new[]
@@ -125,10 +125,10 @@ public class CollyTests
         };
 
         // Act
-        using var colly = items.ToColly();
+        using var collection = items.ToArrowCollection();
 
         // Assert
-        var result = colly.ToList();
+        var result = collection.ToList();
         Assert.Equal(3, result.Count);
 
         Assert.Equal(42, result[0].NullableInt);
@@ -145,21 +145,21 @@ public class CollyTests
     }
 
     [Fact]
-    public void ToColly_WithEmptyCollection_ReturnsEmptyColly()
+    public void ToArrowCollection_WithEmptyCollection_ReturnsEmptyColly()
     {
         // Arrange
         var items = Array.Empty<SimpleItem>();
 
         // Act
-        using var colly = items.ToColly();
+        using var collection = items.ToArrowCollection();
 
         // Assert
-        Assert.Equal(0, colly.Count);
-        Assert.Empty(colly);
+        Assert.Equal(0, collection.Count);
+        Assert.Empty(collection);
     }
 
     [Fact]
-    public void ToColly_CanEnumerateMultipleTimes()
+    public void ToArrowCollection_CanEnumerateMultipleTimes()
     {
         // Arrange
         var items = new[]
@@ -169,11 +169,11 @@ public class CollyTests
         };
 
         // Act
-        using var colly = items.ToColly();
+        using var collection = items.ToArrowCollection();
 
         // Assert - enumerate twice
-        var firstEnumeration = colly.ToList();
-        var secondEnumeration = colly.ToList();
+        var firstEnumeration = collection.ToList();
+        var secondEnumeration = collection.ToList();
 
         Assert.Equal(2, firstEnumeration.Count);
         Assert.Equal(2, secondEnumeration.Count);
@@ -183,17 +183,17 @@ public class CollyTests
     }
 
     [Fact]
-    public void ToColly_WithNullSource_ThrowsArgumentNullException()
+    public void ToArrowCollection_WithNullSource_ThrowsArgumentNullException()
     {
         // Arrange
         IEnumerable<SimpleItem>? items = null;
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => items!.ToColly());
+        Assert.Throws<ArgumentNullException>(() => items!.ToArrowCollection());
     }
 
     [Fact]
-    public void ToColly_IsImmutable_OriginalDataChangesDoNotAffectColly()
+    public void ToArrowCollection_IsImmutable_OriginalDataChangesDoNotAffectColly()
     {
         // Arrange
         var items = new List<SimpleItem>
@@ -203,20 +203,20 @@ public class CollyTests
         };
 
         // Act
-        using var colly = items.ToColly();
+        using var collection = items.ToArrowCollection();
 
         // Modify original data
         items[0].Name = "Modified";
         items.Add(new SimpleItem { Id = 3, Name = "Item 3", Value = 30.5 });
 
-        // Assert - Colly should contain original data
-        var result = colly.ToList();
+        // Assert - collection should contain original data
+        var result = collection.ToList();
         Assert.Equal(2, result.Count); // Still 2 items, not 3
         Assert.Equal("Item 1", result[0].Name); // Name not changed
     }
 
     [Fact]
-    public void ToColly_WithLargeDataset_HandlesCorrectly()
+    public void ToArrowCollection_WithLargeDataset_HandlesCorrectly()
     {
         // Arrange
         var items = Enumerable.Range(1, 1000).Select(i => new SimpleItem
@@ -227,12 +227,12 @@ public class CollyTests
         }).ToList();
 
         // Act
-        using var colly = items.ToColly();
+        using var collection = items.ToArrowCollection();
 
         // Assert
-        Assert.Equal(1000, colly.Count);
+        Assert.Equal(1000, collection.Count);
 
-        var result = colly.ToList();
+        var result = collection.ToList();
         Assert.Equal(1000, result.Count);
 
         // Spot check a few items
@@ -258,13 +258,13 @@ public class CollyTests
             new SimpleItem { Id = 1, Name = "Item 1", Value = 10.5 }
         };
 
-        var colly = items.ToColly();
+        var collection = items.ToArrowCollection();
 
         // Act
-        colly.Dispose();
+        collection.Dispose();
 
         // Assert
-        Assert.Throws<ObjectDisposedException>(() => colly.GetEnumerator());
+        Assert.Throws<ObjectDisposedException>(() => collection.GetEnumerator());
     }
 
     [Fact]
@@ -276,11 +276,13 @@ public class CollyTests
             new SimpleItem { Id = 1, Name = "Item 1", Value = 10.5 }
         };
 
-        var colly = items.ToColly();
+        var collection = items.ToArrowCollection();
 
         // Act & Assert - should not throw
-        colly.Dispose();
-        colly.Dispose();
-        colly.Dispose();
+        collection.Dispose();
+        collection.Dispose();
+        collection.Dispose();
     }
 }
+
+
