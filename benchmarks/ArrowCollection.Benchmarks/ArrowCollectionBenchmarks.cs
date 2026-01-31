@@ -218,7 +218,7 @@ public class ArrowCollectionBenchmarks
 }
 
 [ArrowRecord]
-public sealed record BenchmarkItem
+public class BenchmarkItem
 {
     [ArrowArray]
     public int Id { get; set; }
