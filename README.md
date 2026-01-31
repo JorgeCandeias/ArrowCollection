@@ -1,4 +1,4 @@
-# ArrowCollection - Frozen Collection with Apache Arrow Compression
+﻿# ArrowCollection - Frozen Collection with Apache Arrow Compression
 
 ArrowCollection is a .NET library that implements a frozen generic collection with columnar compression using Apache Arrow. It's designed for scenarios where you need significant in-memory compression savings for massive datasets, while accepting the performance trade-off of reconstructing items on-the-fly during enumeration.
 
@@ -8,7 +8,8 @@ ArrowCollection is a .NET library that implements a frozen generic collection wi
 - **Columnar Compression**: Uses Apache Arrow format for efficient compression
 - **Type-Safe**: Strongly typed generic collection
 - **Simple API**: Easy to use with the `.ToArrowCollection()` extension method
-- **Property-Based**: Automatically captures all public instance properties
+- **Source Generator**: Compile-time code generation for optimal performance
+- **IDisposable**: Properly releases unmanaged Arrow memory when disposed
 
 ## Installation
 
@@ -18,18 +19,27 @@ Add the ArrowCollection library to your project:
 dotnet add reference path/to/ArrowCollection/ArrowCollection.csproj
 ```
 
+The library includes an embedded source generator that processes your types at compile time.
+
 ## Usage
 
 ### Basic Example
 
+Types must be decorated with `[ArrowRecord]` at the class level, and each field/property to include must be decorated with `[ArrowArray]`:
+
 ```csharp
 using ArrowCollection;
 
+[ArrowRecord]
 public class Person
 {
+    [ArrowArray]
     public int Id { get; set; }
-    public string Name { get; set; }
+    [ArrowArray]
+    public string Name { get; set; } = string.Empty;
+    [ArrowArray]
     public int Age { get; set; }
+    [ArrowArray]
     public DateTime BirthDate { get; set; }
 }
 
@@ -42,7 +52,8 @@ var people = new[]
 };
 
 // Convert to ArrowCollection (frozen collection)
-var collection = people.ToArrowCollection();
+// Remember to dispose when done to release unmanaged memory
+using var collection = people.ToArrowCollection();
 
 // Enumerate the collection (items are materialized on-the-fly)
 foreach (var person in collection)
@@ -68,7 +79,7 @@ var largeDataset = Enumerable.Range(1, 1_000_000)
     });
 
 // Convert to ArrowCollection - data is compressed using Apache Arrow columnar format
-var collection = largeDataset.ToArrowCollection();
+using var collection = largeDataset.ToArrowCollection();
 
 // The data is now stored in a compressed columnar format
 // Items are reconstructed on-the-fly during enumeration
@@ -77,22 +88,27 @@ var adults = collection.Where(p => p.Age >= 18).Take(10);
 
 ### Supported Data Types
 
-ArrowCollection supports the following property types:
+ArrowCollection supports the following property/field types:
 
-- Integers: `int`, `long`, `short`, `sbyte`, `uint`, `ulong`, `ushort`, `byte`
-- Floating Point: `float`, `double`
-- Boolean: `bool`
-- String: `string`
-- DateTime: `DateTime`
-- Nullable versions of all the above
+- **Signed Integers**: `int`, `long`, `short`, `sbyte`
+- **Unsigned Integers**: `uint`, `ulong`, `ushort`, `byte`
+- **Floating Point**: `float`, `double`
+- **Boolean**: `bool`
+- **String**: `string`
+- **DateTime**: `DateTime` (stored as UTC timestamps in milliseconds)
+- **Nullable versions**: All of the above types can be nullable (`int?`, `string?`, `DateTime?`, etc.)
 
 ### Working with Nullable Properties
 
 ```csharp
+[ArrowRecord]
 public class OptionalData
 {
+    [ArrowArray]
     public int? OptionalId { get; set; }
+    [ArrowArray]
     public string? OptionalName { get; set; }
+    [ArrowArray]
     public DateTime? OptionalDate { get; set; }
 }
 
@@ -102,20 +118,84 @@ var data = new[]
     new OptionalData { OptionalId = null, OptionalName = null, OptionalDate = null },
 };
 
-var collection = data.ToArrowCollection();
+using var collection = data.ToArrowCollection();
 ```
+
+### Using Fields Instead of Properties
+
+You can also use the `[ArrowArray]` attribute directly on fields:
+
+```csharp
+[ArrowRecord]
+public class FieldBasedItem
+{
+    [ArrowArray]
+    public int Id;
+    [ArrowArray]
+    public string Name = string.Empty;
+}
+```
+
+**Note**: Manual properties (properties with custom getter/setter logic) are **not supported**. The `[ArrowArray]` attribute only works on:
+- Auto-properties (the compiler-generated backing field is accessed directly)
+- Fields (accessed directly)
+
+### Workaround for Manual Properties
+
+If you need custom logic in your property getter or setter, annotate a backing field with `[ArrowArray]` and leave the property without the attribute:
+
+```csharp
+[ArrowRecord]
+public class ItemWithManualProperty
+{
+    [ArrowArray]
+    private string _name = string.Empty;
+
+    // Manual property with custom logic - NOT annotated
+    public string Name
+    {
+        get => _name;
+        set => _name = value?.Trim() ?? string.Empty;
+    }
+
+    [ArrowArray]
+    public int Id { get; set; }
+}
+```
+
+In this example, the `_name` field is stored in the Arrow format, while the `Name` property provides the custom getter/setter logic. When items are reconstructed during enumeration, the field is populated directly, bypassing the property setter.
+
+## What's Not Supported
+
+- **Complex types**: Nested objects, collections, arrays, enums, or custom structs
+- **Manual properties**: Properties with custom getter/setter implementations
+- **Structs as record types**: Only classes can be marked with `[ArrowRecord]`
+- **Types without parameterless constructors**: The target type must have a public parameterless constructor
+- **Indexer access**: No direct index-based access to items (use LINQ `.ElementAt()` if needed)
+
+## Diagnostic Errors
+
+The source generator produces helpful diagnostic errors:
+
+| Code | Description |
+|------|-------------|
+| `ARROWCOL001` | Type has `[ArrowRecord]` but no properties/fields marked with `[ArrowArray]` |
+| `ARROWCOL002` | Property/field has an unsupported type |
+| `ARROWCOL003` | Type is missing a public parameterless constructor |
+| `ARROWCOL004` | `[ArrowArray]` on a manual property (not an auto-property) |
 
 ## Performance Characteristics
 
 ### Advantages
 - **Memory Efficiency**: Significant compression for large datasets using Apache Arrow's columnar format
 - **Multiple Enumerations**: Can enumerate the collection multiple times
-- **Immutability**: Thread-safe for reading
+- **Immutability**: Thread-safe for reading (data is frozen after creation)
+- **Source-Generated**: Zero reflection at runtime for item creation (IL-emitted field accessors)
 
 ### Trade-offs
-- **Enumeration Cost**: Items are reconstructed on-the-fly, which is slower than in-memory objects
+- **Enumeration Cost**: Items are reconstructed on-the-fly, which is slower than iterating in-memory objects
 - **Not for Frequent Access**: Best suited for scenarios where data is enumerated infrequently but needs to be kept in memory
-- **Property Limitation**: Only works with types that have public instance properties with getters and setters
+- **Construction Cost**: Initial creation requires copying all data into Arrow format
 
 ## Use Cases
 
@@ -125,6 +205,21 @@ ArrowCollection is ideal for:
 - **In-memory analytics** where memory is constrained
 - **Reference data** that needs to be kept in memory but rarely accessed
 - **Historical data** that must be available but isn't frequently queried
+
+## Project Structure
+
+```
+ArrowCollection/
+├── src/
+│   ├── ArrowCollection/              # Core library
+│   └── ArrowCollection.Generators/   # Source generator
+├── tests/
+│   └── ArrowCollection.Tests/        # Unit tests
+├── benchmarks/
+│   └── ArrowCollection.Benchmarks/   # Performance benchmarks
+└── samples/
+    └── ArrowCollection.Sample/       # Sample application
+```
 
 ## Requirements
 
