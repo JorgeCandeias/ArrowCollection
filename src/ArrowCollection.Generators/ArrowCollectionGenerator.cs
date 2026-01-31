@@ -457,6 +457,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             "double" => $"{varName}.GetValue(index)!.Value",
             "System.Half" => $"{varName}.GetValue(index)!.Value",
             "bool" => $"{varName}.GetValue(index)!.Value",
+            "decimal" => $"(decimal){varName}.GetValue(index)!.Value",
             "string" => $"{varName}.GetString(index)!",
             "byte[]" => $"{varName}.GetBytes(index).ToArray()",
             "System.DateTime" => $"global::System.DateTimeOffset.FromUnixTimeMilliseconds({varName}.GetValue(index)!.Value).DateTime",
@@ -472,6 +473,10 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         if (field.UnderlyingTypeName == "System.DateTime")
         {
             sb.AppendLine($"{indent}var {builderVarName} = new {builderType}(new TimestampType(TimeUnit.Millisecond, global::System.TimeZoneInfo.Utc)).Reserve(count);");
+        }
+        else if (field.UnderlyingTypeName == "decimal")
+        {
+            sb.AppendLine($"{indent}var {builderVarName} = new {builderType}(new Decimal128Type(29, 6)).Reserve(count);");
         }
         else
         {
@@ -497,6 +502,11 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
                 // Half value - use .Value to unwrap from nullable
                 sb.AppendLine($"{indent}        {builderVarName}.Append(value{index}.Value);");
             }
+            else if (field.UnderlyingTypeName == "decimal")
+            {
+                // Decimal value - Decimal128Array.Builder accepts decimal directly
+                sb.AppendLine($"{indent}        {builderVarName}.Append(value{index}.Value);");
+            }
             else if (field.UnderlyingTypeName == "string" || field.UnderlyingTypeName == "byte[]")
             {
                 // Reference types don't need .Value
@@ -512,6 +522,11 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             if (field.UnderlyingTypeName == "System.DateTime")
             {
                 sb.AppendLine($"{indent}    {builderVarName}.Append(new global::System.DateTimeOffset(_getter{index}(item), global::System.TimeSpan.Zero));");
+            }
+            else if (field.UnderlyingTypeName == "decimal")
+            {
+                // Decimal value - Decimal128Array.Builder accepts decimal directly
+                sb.AppendLine($"{indent}    {builderVarName}.Append(_getter{index}(item));");
             }
             else if (field.UnderlyingTypeName == "string" || field.UnderlyingTypeName == "byte[]")
             {
@@ -548,6 +563,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             "double" => "DoubleType.Default",
             "System.Half" => "HalfFloatType.Default",
             "bool" => "BooleanType.Default",
+            "decimal" => "new Decimal128Type(29, 6)",
             "string" => "StringType.Default",
             "byte[]" => "BinaryType.Default",
             "System.DateTime" => "new TimestampType(TimeUnit.Millisecond, global::System.TimeZoneInfo.Utc)",
@@ -571,6 +587,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             "double" => "DoubleArray",
             "System.Half" => "HalfFloatArray",
             "bool" => "BooleanArray",
+            "decimal" => "Decimal128Array",
             "string" => "StringArray",
             "byte[]" => "BinaryArray",
             "System.DateTime" => "TimestampArray",
@@ -594,6 +611,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             "double" => "DoubleArray.Builder",
             "System.Half" => "HalfFloatArray.Builder",
             "bool" => "BooleanArray.Builder",
+            "decimal" => "Decimal128Array.Builder",
             "string" => "StringArray.Builder",
             "byte[]" => "BinaryArray.Builder",
             "System.DateTime" => "TimestampArray.Builder",

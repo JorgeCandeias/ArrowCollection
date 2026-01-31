@@ -93,11 +93,12 @@ ArrowCollection supports the following property/field types:
 - **Signed Integers**: `int`, `long`, `short`, `sbyte`
 - **Unsigned Integers**: `uint`, `ulong`, `ushort`, `byte`
 - **Floating Point**: `float`, `double`, `Half`
+- **Decimal**: `decimal` (stored as Arrow Decimal128 with precision 29, scale 6)
 - **Boolean**: `bool`
 - **String**: `string`
 - **Binary**: `byte[]` (variable-length binary data)
 - **DateTime**: `DateTime` (stored as UTC timestamps in milliseconds)
-- **Nullable versions**: All of the above types can be nullable (`int?`, `string?`, `DateTime?`, `Half?`, `byte[]?`, etc.)
+- **Nullable versions**: All of the above types can be nullable (`int?`, `string?`, `DateTime?`, `Half?`, `decimal?`, `byte[]?`, etc.)
 
 ### Working with Nullable Properties
 
