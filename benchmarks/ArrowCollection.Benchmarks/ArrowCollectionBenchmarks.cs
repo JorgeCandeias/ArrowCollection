@@ -245,7 +245,7 @@ public class StructVsClassBenchmarks
         var baseDate = DateTime.UtcNow;
         var categories = Enumerable.Range(0, 100).Select(i => $"Category_{i}").ToArray();
 
-        _classItems = Enumerable.Range(0, ItemCount).Select(i => new BenchmarkItem
+        _classItems = [.. Enumerable.Range(0, ItemCount).Select(i => new BenchmarkItem
         {
             Id = i,
             Category1 = categories[i % categories.Length],
@@ -254,9 +254,9 @@ public class StructVsClassBenchmarks
             Value = i * 1.5,
             IsActive = i % 2 == 0,
             CreatedAt = baseDate.AddSeconds(-i)
-        }).ToList();
+        })];
 
-        _structItems = Enumerable.Range(0, ItemCount).Select(i => new BenchmarkStruct
+        _structItems = [.. Enumerable.Range(0, ItemCount).Select(i => new BenchmarkStruct
         {
             Id = i,
             Category1 = categories[i % categories.Length],
@@ -265,9 +265,9 @@ public class StructVsClassBenchmarks
             Value = i * 1.5,
             IsActive = i % 2 == 0,
             CreatedAt = baseDate.AddSeconds(-i)
-        }).ToList();
+        })];
 
-        _readonlyStructItems = Enumerable.Range(0, ItemCount).Select(i => new BenchmarkReadonlyStruct
+        _readonlyStructItems = [.. Enumerable.Range(0, ItemCount).Select(i => new BenchmarkReadonlyStruct
         {
             Id = i,
             Category1 = categories[i % categories.Length],
@@ -276,7 +276,7 @@ public class StructVsClassBenchmarks
             Value = i * 1.5,
             IsActive = i % 2 == 0,
             CreatedAt = baseDate.AddSeconds(-i)
-        }).ToList();
+        })];
 
         // Pre-build collections for enumeration benchmarks
         _classCollection = _classItems.ToArrowCollection();

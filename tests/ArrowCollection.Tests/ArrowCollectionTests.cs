@@ -822,7 +822,7 @@ public class ArrowCollectionStructTests
         var items = new SimpleStruct[]
         {
             default,
-            new SimpleStruct { Id = 1, Name = "Item", Value = 10.0 }
+            new() { Id = 1, Name = "Item", Value = 10.0 }
         };
 
         // Act

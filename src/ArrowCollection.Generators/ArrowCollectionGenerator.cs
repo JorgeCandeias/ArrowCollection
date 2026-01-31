@@ -34,7 +34,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(compilationAndClasses, static (spc, source) =>
         {
             var (compilation, arrowRecords) = source;
-            Execute(spc, compilation, arrowRecords);
+            Execute(spc, arrowRecords);
         });
     }
 
@@ -158,7 +158,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
     {
         // An auto-property has both getter and setter (or is get-only with init)
         // and neither accessor has user-defined code (they're compiler-generated)
-        
+
         // Must have a getter
         if (property.GetMethod is null)
             return false;
@@ -166,18 +166,18 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         // Check if the getter is compiler-synthesized
         // Auto-properties have synthesized accessors that are associated with a backing field
         var getter = property.GetMethod;
-        
+
         // If the property has an associated field, it's an auto-property
         // We can check this by looking at the containing type's members for the backing field
         var backingFieldName = $"<{property.Name}>k__BackingField";
         var containingType = property.ContainingType;
-        
+
         foreach (var member in containingType.GetMembers())
         {
             if (member is IFieldSymbol field && field.Name == backingFieldName)
             {
                 // Found the backing field - check if it's compiler-generated
-                return field.IsImplicitlyDeclared || 
+                return field.IsImplicitlyDeclared ||
                        field.GetAttributes().Any(attr =>
                            attr.AttributeClass?.ToDisplayString() == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");
             }
@@ -205,7 +205,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         return type.ToDisplayString();
     }
 
-    private static void Execute(SourceProductionContext context, Compilation compilation, ImmutableArray<ArrowRecordInfo> arrowRecords)
+    private static void Execute(SourceProductionContext context, ImmutableArray<ArrowRecordInfo> arrowRecords)
     {
         if (arrowRecords.IsDefaultOrEmpty)
             return;
@@ -268,7 +268,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         // Generate the concrete ArrowCollection implementation
         sb.AppendLine($"{indent}internal sealed class GeneratedArrowCollection_{record.ClassName} : global::ArrowCollection.ArrowCollection<{record.FullTypeName}>");
         sb.AppendLine($"{indent}{{");
-        
+
         // Generate static field accessors (cached for performance)
         // For structs, we use RefFieldSetter to avoid copying
         for (int i = 0; i < record.Fields.Count; i++)
@@ -336,7 +336,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine($"{indent}internal static class ArrowCollectionBuilder_{record.ClassName}");
         sb.AppendLine($"{indent}{{");
-        
+
         // Generate static field getters (cached for performance)
         for (int i = 0; i < record.Fields.Count; i++)
         {
@@ -420,11 +420,11 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}{{");
             if (isValueType)
             {
-                sb.AppendLine($"{indent}    _setter{columnIndex}(ref item, {GetValueExtraction(varName, field.UnderlyingTypeName, field.IsNullable)});");
+                sb.AppendLine($"{indent}    _setter{columnIndex}(ref item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
             }
             else
             {
-                sb.AppendLine($"{indent}    _setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName, field.IsNullable)});");
+                sb.AppendLine($"{indent}    _setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
             }
             sb.AppendLine($"{indent}}}");
         }
@@ -432,16 +432,16 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         {
             if (isValueType)
             {
-                sb.AppendLine($"{indent}_setter{columnIndex}(ref item, {GetValueExtraction(varName, field.UnderlyingTypeName, field.IsNullable)});");
+                sb.AppendLine($"{indent}_setter{columnIndex}(ref item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
             }
             else
             {
-                sb.AppendLine($"{indent}_setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName, field.IsNullable)});");
+                sb.AppendLine($"{indent}_setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
             }
         }
     }
 
-    private static string GetValueExtraction(string varName, string underlyingType, bool isNullable)
+    private static string GetValueExtraction(string varName, string underlyingType)
     {
         return underlyingType switch
         {
@@ -661,34 +661,25 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
 /// <summary>
 /// Information about a type marked with [ArrowRecord].
 /// </summary>
-internal sealed class ArrowRecordInfo : IEquatable<ArrowRecordInfo>
+internal sealed class ArrowRecordInfo(
+    string className,
+    string? namespaceName,
+    string fullTypeName,
+    List<ArrowFieldInfo> fields,
+    List<(DiagnosticDescriptor Descriptor, Location Location, object[] Args)> diagnostics,
+    bool isValueType)
+    : IEquatable<ArrowRecordInfo>
 {
-    public ArrowRecordInfo(
-        string className,
-        string? namespaceName,
-        string fullTypeName,
-        List<ArrowFieldInfo> fields,
-        List<(DiagnosticDescriptor Descriptor, Location Location, object[] Args)> diagnostics,
-        bool isValueType)
-    {
-        ClassName = className;
-        Namespace = namespaceName;
-        FullTypeName = fullTypeName;
-        Fields = fields;
-        Diagnostics = diagnostics;
-        IsValueType = isValueType;
-    }
+    public string ClassName { get; } = className;
+    public string? Namespace { get; } = namespaceName;
+    public string FullTypeName { get; } = fullTypeName;
+    public List<ArrowFieldInfo> Fields { get; } = fields;
+    public List<(DiagnosticDescriptor Descriptor, Location Location, object[] Args)> Diagnostics { get; } = diagnostics;
 
-    public string ClassName { get; }
-    public string? Namespace { get; }
-    public string FullTypeName { get; }
-    public List<ArrowFieldInfo> Fields { get; }
-    public List<(DiagnosticDescriptor Descriptor, Location Location, object[] Args)> Diagnostics { get; }
-    
     /// <summary>
     /// Whether the type is a value type (struct).
     /// </summary>
-    public bool IsValueType { get; }
+    public bool IsValueType { get; } = isValueType;
 
     public bool Equals(ArrowRecordInfo? other)
     {
@@ -703,42 +694,33 @@ internal sealed class ArrowRecordInfo : IEquatable<ArrowRecordInfo>
 /// <summary>
 /// Information about a field or auto-property backing field marked with [ArrowArray].
 /// </summary>
-internal sealed class ArrowFieldInfo
+internal sealed class ArrowFieldInfo(string memberName, string backingFieldName, string fieldTypeName, string underlyingTypeName, bool isNullable)
 {
-    public ArrowFieldInfo(string memberName, string backingFieldName, string fieldTypeName, string underlyingTypeName, bool isNullable)
-    {
-        MemberName = memberName;
-        BackingFieldName = backingFieldName;
-        FieldTypeName = fieldTypeName;
-        UnderlyingTypeName = underlyingTypeName;
-        IsNullable = isNullable;
-    }
-
     /// <summary>
     /// The name of the field or property as declared in source code.
     /// Used for Arrow schema field naming.
     /// </summary>
-    public string MemberName { get; }
+    public string MemberName { get; } = memberName;
 
     /// <summary>
     /// The name of the backing field to access via reflection.
     /// For fields, this is the same as MemberName.
     /// For auto-properties, this is the compiler-generated backing field name (e.g., "&lt;PropertyName&gt;k__BackingField").
     /// </summary>
-    public string BackingFieldName { get; }
+    public string BackingFieldName { get; } = backingFieldName;
 
     /// <summary>
     /// The full type name of the field.
     /// </summary>
-    public string FieldTypeName { get; }
+    public string FieldTypeName { get; } = fieldTypeName;
 
     /// <summary>
     /// The underlying type name (unwrapped from Nullable if applicable).
     /// </summary>
-    public string UnderlyingTypeName { get; }
+    public string UnderlyingTypeName { get; } = underlyingTypeName;
 
     /// <summary>
     /// Whether the field is nullable.
     /// </summary>
-    public bool IsNullable { get; }
+    public bool IsNullable { get; } = isNullable;
 }

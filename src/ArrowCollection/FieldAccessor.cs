@@ -86,7 +86,7 @@ public static class FieldAccessor
         var declaringType = field.DeclaringType ?? throw new ArgumentException("Field must have a declaring type.", nameof(field));
         
         var method = new DynamicMethod(
-            name: $"Get_{field.DeclaringType!.Name}_{field.Name}",
+            name: $"Get_{declaringType.Name}_{field.Name}",
             returnType: typeof(TField),
             parameterTypes: [typeof(TDeclaring)],
             owner: typeof(FieldAccessor),
@@ -117,7 +117,7 @@ public static class FieldAccessor
         var declaringType = field.DeclaringType ?? throw new ArgumentException("Field must have a declaring type.", nameof(field));
         
         var method = new DynamicMethod(
-            name: $"Set_{field.DeclaringType!.Name}_{field.Name}",
+            name: $"Set_{declaringType.Name}_{field.Name}",
             returnType: typeof(void),
             parameterTypes: [typeof(TDeclaring), typeof(TField)],
             owner: typeof(FieldAccessor),
@@ -144,7 +144,7 @@ public static class FieldAccessor
         var declaringType = field.DeclaringType ?? throw new ArgumentException("Field must have a declaring type.", nameof(field));
         
         var method = new DynamicMethod(
-            name: $"SetRef_{field.DeclaringType!.Name}_{field.Name}",
+            name: $"SetRef_{declaringType.Name}_{field.Name}",
             returnType: typeof(void),
             parameterTypes: [typeof(TDeclaring).MakeByRefType(), typeof(TField)],
             owner: typeof(FieldAccessor),

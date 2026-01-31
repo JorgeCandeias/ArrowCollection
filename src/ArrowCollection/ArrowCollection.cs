@@ -8,22 +8,16 @@ namespace ArrowCollection;
 /// This collection is immutable after creation and materializes items on-the-fly during enumeration.
 /// </summary>
 /// <typeparam name="T">The type of items in the collection. Must have a parameterless constructor.</typeparam>
-public abstract class ArrowCollection<T> : IEnumerable<T>, IDisposable where T : new()
+/// <remarks>
+/// Initializes a new instance of the ArrowCollection class.
+/// </remarks>
+/// <param name="recordBatch">The Arrow record batch containing the data.</param>
+/// <param name="count">The number of items in the collection.</param>
+public abstract class ArrowCollection<T>(RecordBatch recordBatch, int count) : IEnumerable<T>, IDisposable where T : new()
 {
-    private readonly RecordBatch _recordBatch;
-    private readonly int _count;
+    private readonly RecordBatch _recordBatch = recordBatch ?? throw new ArgumentNullException(nameof(recordBatch));
+    private readonly int _count = count;
     private bool _disposed;
-
-    /// <summary>
-    /// Initializes a new instance of the ArrowCollection class.
-    /// </summary>
-    /// <param name="recordBatch">The Arrow record batch containing the data.</param>
-    /// <param name="count">The number of items in the collection.</param>
-    protected ArrowCollection(RecordBatch recordBatch, int count)
-    {
-        _recordBatch = recordBatch ?? throw new ArgumentNullException(nameof(recordBatch));
-        _count = count;
-    }
 
     /// <summary>
     /// Gets the number of elements in the collection.

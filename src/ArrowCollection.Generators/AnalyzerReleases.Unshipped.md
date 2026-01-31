@@ -8,3 +8,4 @@ Rule ID | Category | Severity | Notes
 ARROWCOL001 | ArrowCollection | Error | DiagnosticDescriptors
 ARROWCOL002 | ArrowCollection | Error | DiagnosticDescriptors
 ARROWCOL003 | ArrowCollection | Error | DiagnosticDescriptors
+ARROWCOL004 | ArrowCollection | Error | DiagnosticDescriptors
