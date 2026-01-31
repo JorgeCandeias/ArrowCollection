@@ -309,8 +309,8 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
-        sb.AppendLine($"{indent}    internal GeneratedArrowCollection_{record.ClassName}(RecordBatch recordBatch, int count)");
-        sb.AppendLine($"{indent}        : base(recordBatch, count)");
+        sb.AppendLine($"{indent}    internal GeneratedArrowCollection_{record.ClassName}(RecordBatch recordBatch, int count, global::ArrowCollection.ArrowCollectionBuildStatistics? buildStatistics = null)");
+        sb.AppendLine($"{indent}        : base(recordBatch, count, buildStatistics)");
         sb.AppendLine($"{indent}    {{");
         sb.AppendLine($"{indent}    }}");
         sb.AppendLine();
@@ -360,9 +360,20 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
 
         sb.AppendLine($"{indent}    internal static global::ArrowCollection.ArrowCollection<{record.FullTypeName}> Create(global::System.Collections.Generic.IEnumerable<{record.FullTypeName}> source)");
         sb.AppendLine($"{indent}    {{");
+        sb.AppendLine($"{indent}        var statsStopwatch = global::System.Diagnostics.Stopwatch.StartNew();");
         sb.AppendLine($"{indent}        var items = source is global::System.Collections.Generic.ICollection<{record.FullTypeName}> col ? col : new global::System.Collections.Generic.List<{record.FullTypeName}>(source);");
         sb.AppendLine($"{indent}        var count = items.Count;");
         sb.AppendLine();
+        
+        // Generate statistics collectors for each field
+        sb.AppendLine($"{indent}        // Initialize statistics collectors");
+        for (int i = 0; i < record.Fields.Count; i++)
+        {
+            var field = record.Fields[i];
+            sb.AppendLine($"{indent}        var statsCollector{i} = new global::ArrowCollection.ColumnStatisticsCollector<{field.FieldTypeName}>(\"{field.MemberName}\");");
+        }
+        sb.AppendLine();
+        
         sb.AppendLine($"{indent}        // Build Arrow schema");
         sb.AppendLine($"{indent}        var fields = new global::System.Collections.Generic.List<Field>");
         sb.AppendLine($"{indent}        {{");
@@ -392,10 +403,30 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
+        sb.AppendLine($"{indent}        statsStopwatch.Stop();");
+        sb.AppendLine();
+        sb.AppendLine($"{indent}        // Collect build statistics");
+        sb.AppendLine($"{indent}        var columnStats = new global::System.Collections.Generic.Dictionary<string, global::ArrowCollection.ColumnStatistics>");
+        sb.AppendLine($"{indent}        {{");
+        for (int i = 0; i < record.Fields.Count; i++)
+        {
+            var field = record.Fields[i];
+            var comma = i < record.Fields.Count - 1 ? "," : "";
+            sb.AppendLine($"{indent}            {{ \"{field.MemberName}\", statsCollector{i}.GetStatistics() }}{comma}");
+        }
+        sb.AppendLine($"{indent}        }};");
+        sb.AppendLine();
+        sb.AppendLine($"{indent}        var buildStatistics = new global::ArrowCollection.ArrowCollectionBuildStatistics");
+        sb.AppendLine($"{indent}        {{");
+        sb.AppendLine($"{indent}            ColumnStatistics = columnStats,");
+        sb.AppendLine($"{indent}            RowCount = count,");
+        sb.AppendLine($"{indent}            StatisticsCollectionTime = statsStopwatch.Elapsed");
+        sb.AppendLine($"{indent}        }};");
+        sb.AppendLine();
         sb.AppendLine($"{indent}        // Create record batch");
         sb.AppendLine($"{indent}        var recordBatch = new RecordBatch(schema, arrays, count);");
         sb.AppendLine();
-        sb.AppendLine($"{indent}        return new GeneratedArrowCollection_{record.ClassName}(recordBatch, count);");
+        sb.AppendLine($"{indent}        return new GeneratedArrowCollection_{record.ClassName}(recordBatch, count, buildStatistics);");
         sb.AppendLine($"{indent}    }}");
         sb.AppendLine($"{indent}}}");
 
@@ -489,6 +520,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         if (field.IsNullable)
         {
             sb.AppendLine($"{indent}    var value{index} = _getter{index}(item);");
+            sb.AppendLine($"{indent}    statsCollector{index}.Record(value{index});");
             sb.AppendLine($"{indent}    if (value{index} == null)");
             sb.AppendLine($"{indent}        {builderVarName}.AppendNull();");
             sb.AppendLine($"{indent}    else");
@@ -519,19 +551,21 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         }
         else
         {
+            sb.AppendLine($"{indent}    var value{index} = _getter{index}(item);");
+            sb.AppendLine($"{indent}    statsCollector{index}.Record(value{index});");
+            
             if (field.UnderlyingTypeName == "System.DateTime")
             {
-                sb.AppendLine($"{indent}    {builderVarName}.Append(new global::System.DateTimeOffset(_getter{index}(item), global::System.TimeSpan.Zero));");
+                sb.AppendLine($"{indent}    {builderVarName}.Append(new global::System.DateTimeOffset(value{index}, global::System.TimeSpan.Zero));");
             }
             else if (field.UnderlyingTypeName == "decimal")
             {
                 // Decimal value - Decimal128Array.Builder accepts decimal directly
-                sb.AppendLine($"{indent}    {builderVarName}.Append(_getter{index}(item));");
+                sb.AppendLine($"{indent}    {builderVarName}.Append(value{index});");
             }
             else if (field.UnderlyingTypeName == "string" || field.UnderlyingTypeName == "byte[]")
             {
                 // Reference types, handle null
-                sb.AppendLine($"{indent}    var value{index} = _getter{index}(item);");
                 sb.AppendLine($"{indent}    if (value{index} == null)");
                 sb.AppendLine($"{indent}        {builderVarName}.AppendNull();");
                 sb.AppendLine($"{indent}    else");
@@ -539,7 +573,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             }
             else
             {
-                sb.AppendLine($"{indent}    {builderVarName}.Append(_getter{index}(item));");
+                sb.AppendLine($"{indent}    {builderVarName}.Append(value{index});");
             }
         }
 

@@ -13,16 +13,27 @@ namespace ArrowCollection;
 /// </remarks>
 /// <param name="recordBatch">The Arrow record batch containing the data.</param>
 /// <param name="count">The number of items in the collection.</param>
-public abstract class ArrowCollection<T>(RecordBatch recordBatch, int count) : IEnumerable<T>, IDisposable where T : new()
+/// <param name="buildStatistics">Optional build statistics collected during creation.</param>
+public abstract class ArrowCollection<T>(
+    RecordBatch recordBatch, 
+    int count,
+    ArrowCollectionBuildStatistics? buildStatistics = null) : IEnumerable<T>, IDisposable where T : new()
 {
     private readonly RecordBatch _recordBatch = recordBatch ?? throw new ArgumentNullException(nameof(recordBatch));
     private readonly int _count = count;
+    private readonly ArrowCollectionBuildStatistics? _buildStatistics = buildStatistics;
     private bool _disposed;
 
     /// <summary>
     /// Gets the number of elements in the collection.
     /// </summary>
     public int Count => _count;
+
+    /// <summary>
+    /// Gets the build statistics collected during creation of this collection.
+    /// May be null if statistics collection was disabled.
+    /// </summary>
+    public ArrowCollectionBuildStatistics? BuildStatistics => _buildStatistics;
 
     /// <summary>
     /// Creates an item of type T from the record batch at the specified index.

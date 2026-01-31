@@ -57,7 +57,7 @@ public static class HeavyRecordMemoryAnalyzer
         Console.WriteLine($"  Random seed:          {RandomSeed}");
         Console.WriteLine();
         Console.WriteLine("  Property breakdown (sparse wide dataset simulation):");
-        Console.WriteLine("    ??? 10 string properties    (low cardinality: 100 distinct values each)");
+    Console.WriteLine("    ??? 10 string properties    (low cardinality: 100 distinct values each)");
         Console.WriteLine("    ??? 5  DateTime properties  (high cardinality: unique timestamps)");
         Console.WriteLine("    ??? 62 int properties       (10 randomly active per item, 52 zero)");
         Console.WriteLine("    ??? 62 double properties    (10 randomly active per item, 52 zero)");
@@ -219,6 +219,40 @@ public static class HeavyRecordMemoryAnalyzer
         Console.WriteLine($"  Arrow managed wrapper: {arrowManagedMB:F2} MB");
         Console.WriteLine($"  Arrow native (estimated): {arrowNativeMB:F2} MB ({arrowNativeGB:F4} GB)");
         Console.WriteLine();
+
+        // Display build statistics
+        if (arrowCollection.BuildStatistics is not null)
+        {
+            Console.WriteLine("BUILD STATISTICS:");
+            Console.WriteLine("?????????????????");
+            var stats = arrowCollection.BuildStatistics;
+            Console.WriteLine($"  Statistics collection time: {stats.StatisticsCollectionTime?.TotalMilliseconds:F2}ms");
+            Console.WriteLine($"  Estimated memory savings with optimal encoding: {stats.EstimateMemorySavings() / (1024.0 * 1024.0):F2} MB");
+            Console.WriteLine();
+            
+            // Show dictionary encoding candidates
+            var dictCandidates = stats.GetDictionaryEncodingCandidates().ToList();
+            Console.WriteLine($"  Dictionary Encoding Candidates ({dictCandidates.Count} columns):");
+            foreach (var col in dictCandidates.Take(10))
+            {
+                Console.WriteLine($"    - {col.ColumnName}: {col.DistinctCount:N0} distinct / {col.TotalCount:N0} total ({col.CardinalityRatio:P1})");
+            }
+            if (dictCandidates.Count > 10)
+                Console.WriteLine($"    ... and {dictCandidates.Count - 10} more");
+            Console.WriteLine();
+            
+            // Show RLE candidates
+            var rleCandidates = stats.GetRunLengthEncodingCandidates().ToList();
+            Console.WriteLine($"  Run-Length Encoding Candidates ({rleCandidates.Count} columns):");
+            foreach (var col in rleCandidates.Take(10))
+            {
+                Console.WriteLine($"    - {col.ColumnName}: {col.RunCount:N0} runs / {col.TotalCount:N0} total ({col.RunRatio:P1})");
+            }
+            if (rleCandidates.Count > 10)
+                Console.WriteLine($"    ... and {rleCandidates.Count - 10} more");
+            Console.WriteLine();
+        }
+
 
         var totalArrowMB = arrowManagedMB + arrowNativeMB;
         var totalArrowGB = totalArrowMB / 1024.0;
