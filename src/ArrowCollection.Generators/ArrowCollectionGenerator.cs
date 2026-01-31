@@ -40,14 +40,15 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
 
     private static bool IsArrowRecordCandidate(SyntaxNode node)
     {
-        return node is ClassDeclarationSyntax classDecl &&
-               classDecl.AttributeLists.Count > 0;
+        return node is TypeDeclarationSyntax typeDecl &&
+               (typeDecl is ClassDeclarationSyntax || typeDecl is StructDeclarationSyntax) &&
+               typeDecl.AttributeLists.Count > 0;
     }
 
     private static ArrowRecordInfo? GetArrowRecordInfo(GeneratorSyntaxContext context)
     {
-        var classDecl = (ClassDeclarationSyntax)context.Node;
-        var symbol = context.SemanticModel.GetDeclaredSymbol(classDecl);
+        var typeDecl = (TypeDeclarationSyntax)context.Node;
+        var symbol = context.SemanticModel.GetDeclaredSymbol(typeDecl);
 
         if (symbol is null)
             return null;
@@ -140,7 +141,8 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             namespaceName,
             symbol.ToDisplayString(),
             fields,
-            diagnostics);
+            diagnostics,
+            symbol.IsValueType);
     }
 
     private static bool IsCompilerGeneratedBackingField(IFieldSymbol field)
@@ -268,11 +270,18 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}{{");
         
         // Generate static field accessors (cached for performance)
+        // For structs, we use RefFieldSetter to avoid copying
         for (int i = 0; i < record.Fields.Count; i++)
         {
             var field = record.Fields[i];
-            var escapedBackingFieldName = EscapeStringLiteral(field.BackingFieldName);
-            sb.AppendLine($"{indent}    private static readonly global::System.Action<{record.FullTypeName}, {field.FieldTypeName}> _setter{i} = GetSetter{i}();");
+            if (record.IsValueType)
+            {
+                sb.AppendLine($"{indent}    private static readonly global::ArrowCollection.RefFieldSetter<{record.FullTypeName}, {field.FieldTypeName}> _setter{i} = GetSetter{i}();");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}    private static readonly global::System.Action<{record.FullTypeName}, {field.FieldTypeName}> _setter{i} = GetSetter{i}();");
+            }
         }
         sb.AppendLine();
 
@@ -281,11 +290,22 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         {
             var field = record.Fields[i];
             var escapedBackingFieldName = EscapeStringLiteral(field.BackingFieldName);
-            sb.AppendLine($"{indent}    private static global::System.Action<{record.FullTypeName}, {field.FieldTypeName}> GetSetter{i}()");
-            sb.AppendLine($"{indent}    {{");
-            sb.AppendLine($"{indent}        var fieldInfo = typeof({record.FullTypeName}).GetField(\"{escapedBackingFieldName}\", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)!;");
-            sb.AppendLine($"{indent}        return global::ArrowCollection.FieldAccessor.GetSetter<{record.FullTypeName}, {field.FieldTypeName}>(fieldInfo);");
-            sb.AppendLine($"{indent}    }}");
+            if (record.IsValueType)
+            {
+                sb.AppendLine($"{indent}    private static global::ArrowCollection.RefFieldSetter<{record.FullTypeName}, {field.FieldTypeName}> GetSetter{i}()");
+                sb.AppendLine($"{indent}    {{");
+                sb.AppendLine($"{indent}        var fieldInfo = typeof({record.FullTypeName}).GetField(\"{escapedBackingFieldName}\", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)!;");
+                sb.AppendLine($"{indent}        return global::ArrowCollection.FieldAccessor.GetRefSetter<{record.FullTypeName}, {field.FieldTypeName}>(fieldInfo);");
+                sb.AppendLine($"{indent}    }}");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}    private static global::System.Action<{record.FullTypeName}, {field.FieldTypeName}> GetSetter{i}()");
+                sb.AppendLine($"{indent}    {{");
+                sb.AppendLine($"{indent}        var fieldInfo = typeof({record.FullTypeName}).GetField(\"{escapedBackingFieldName}\", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)!;");
+                sb.AppendLine($"{indent}        return global::ArrowCollection.FieldAccessor.GetSetter<{record.FullTypeName}, {field.FieldTypeName}>(fieldInfo);");
+                sb.AppendLine($"{indent}    }}");
+            }
             sb.AppendLine();
         }
 
@@ -304,7 +324,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         for (int i = 0; i < record.Fields.Count; i++)
         {
             var field = record.Fields[i];
-            GenerateFieldRead(sb, field, i, indent + "        ");
+            GenerateFieldRead(sb, field, i, indent + "        ", record.IsValueType);
         }
 
         sb.AppendLine();
@@ -387,7 +407,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
-    private static void GenerateFieldRead(StringBuilder sb, ArrowFieldInfo field, int columnIndex, string indent)
+    private static void GenerateFieldRead(StringBuilder sb, ArrowFieldInfo field, int columnIndex, string indent, bool isValueType)
     {
         var arrayType = GetArrowArrayType(field.UnderlyingTypeName);
         var varName = $"array{columnIndex}";
@@ -398,12 +418,26 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         {
             sb.AppendLine($"{indent}if (!{varName}.IsNull(index))");
             sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    _setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName, field.IsNullable)});");
+            if (isValueType)
+            {
+                sb.AppendLine($"{indent}    _setter{columnIndex}(ref item, {GetValueExtraction(varName, field.UnderlyingTypeName, field.IsNullable)});");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}    _setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName, field.IsNullable)});");
+            }
             sb.AppendLine($"{indent}}}");
         }
         else
         {
-            sb.AppendLine($"{indent}_setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName, field.IsNullable)});");
+            if (isValueType)
+            {
+                sb.AppendLine($"{indent}_setter{columnIndex}(ref item, {GetValueExtraction(varName, field.UnderlyingTypeName, field.IsNullable)});");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}_setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName, field.IsNullable)});");
+            }
         }
     }
 
@@ -634,13 +668,15 @@ internal sealed class ArrowRecordInfo : IEquatable<ArrowRecordInfo>
         string? namespaceName,
         string fullTypeName,
         List<ArrowFieldInfo> fields,
-        List<(DiagnosticDescriptor Descriptor, Location Location, object[] Args)> diagnostics)
+        List<(DiagnosticDescriptor Descriptor, Location Location, object[] Args)> diagnostics,
+        bool isValueType)
     {
         ClassName = className;
         Namespace = namespaceName;
         FullTypeName = fullTypeName;
         Fields = fields;
         Diagnostics = diagnostics;
+        IsValueType = isValueType;
     }
 
     public string ClassName { get; }
@@ -648,6 +684,11 @@ internal sealed class ArrowRecordInfo : IEquatable<ArrowRecordInfo>
     public string FullTypeName { get; }
     public List<ArrowFieldInfo> Fields { get; }
     public List<(DiagnosticDescriptor Descriptor, Location Location, object[] Args)> Diagnostics { get; }
+    
+    /// <summary>
+    /// Whether the type is a value type (struct).
+    /// </summary>
+    public bool IsValueType { get; }
 
     public bool Equals(ArrowRecordInfo? other)
     {

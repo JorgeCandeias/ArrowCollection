@@ -217,6 +217,198 @@ public class ArrowCollectionBenchmarks
     #endregion
 }
 
+/// <summary>
+/// Benchmarks comparing class vs struct performance in ArrowCollection.
+/// </summary>
+[ShortRunJob]
+[MemoryDiagnoser]
+[Orderer(SummaryOrderPolicy.FastestToSlowest)]
+public class StructVsClassBenchmarks
+{
+    private List<BenchmarkItem> _classItems = null!;
+    private List<BenchmarkStruct> _structItems = null!;
+    private List<BenchmarkReadonlyStruct> _readonlyStructItems = null!;
+
+    private ArrowCollection<BenchmarkItem> _classCollection = null!;
+    private ArrowCollection<BenchmarkStruct> _structCollection = null!;
+    private ArrowCollection<BenchmarkReadonlyStruct> _readonlyStructCollection = null!;
+
+    private List<BenchmarkItem> _classList = null!;
+    private List<BenchmarkStruct> _structList = null!;
+    private List<BenchmarkReadonlyStruct> _readonlyStructList = null!;
+
+    private const int ItemCount = 100_000;
+
+    [GlobalSetup]
+    public void Setup()
+    {
+        var baseDate = DateTime.UtcNow;
+        var categories = Enumerable.Range(0, 100).Select(i => $"Category_{i}").ToArray();
+
+        _classItems = Enumerable.Range(0, ItemCount).Select(i => new BenchmarkItem
+        {
+            Id = i,
+            Category1 = categories[i % categories.Length],
+            Category2 = categories[(i + 33) % categories.Length],
+            Category3 = categories[(i + 67) % categories.Length],
+            Value = i * 1.5,
+            IsActive = i % 2 == 0,
+            CreatedAt = baseDate.AddSeconds(-i)
+        }).ToList();
+
+        _structItems = Enumerable.Range(0, ItemCount).Select(i => new BenchmarkStruct
+        {
+            Id = i,
+            Category1 = categories[i % categories.Length],
+            Category2 = categories[(i + 33) % categories.Length],
+            Category3 = categories[(i + 67) % categories.Length],
+            Value = i * 1.5,
+            IsActive = i % 2 == 0,
+            CreatedAt = baseDate.AddSeconds(-i)
+        }).ToList();
+
+        _readonlyStructItems = Enumerable.Range(0, ItemCount).Select(i => new BenchmarkReadonlyStruct
+        {
+            Id = i,
+            Category1 = categories[i % categories.Length],
+            Category2 = categories[(i + 33) % categories.Length],
+            Category3 = categories[(i + 67) % categories.Length],
+            Value = i * 1.5,
+            IsActive = i % 2 == 0,
+            CreatedAt = baseDate.AddSeconds(-i)
+        }).ToList();
+
+        // Pre-build collections for enumeration benchmarks
+        _classCollection = _classItems.ToArrowCollection();
+        _structCollection = _structItems.ToArrowCollection();
+        _readonlyStructCollection = _readonlyStructItems.ToArrowCollection();
+
+        // Pre-build lists for comparison
+        _classList = [.. _classItems];
+        _structList = [.. _structItems];
+        _readonlyStructList = [.. _readonlyStructItems];
+    }
+
+    [GlobalCleanup]
+    public void Cleanup()
+    {
+        _classCollection?.Dispose();
+        _structCollection?.Dispose();
+        _readonlyStructCollection?.Dispose();
+    }
+
+    #region Construction Benchmarks
+
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("Construction")]
+    public ArrowCollection<BenchmarkItem> Class_Construction()
+    {
+        var collection = _classItems.ToArrowCollection();
+        collection.Dispose();
+        return collection;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("Construction")]
+    public ArrowCollection<BenchmarkStruct> Struct_Construction()
+    {
+        var collection = _structItems.ToArrowCollection();
+        collection.Dispose();
+        return collection;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("Construction")]
+    public ArrowCollection<BenchmarkReadonlyStruct> ReadonlyStruct_Construction()
+    {
+        var collection = _readonlyStructItems.ToArrowCollection();
+        collection.Dispose();
+        return collection;
+    }
+
+    #endregion
+
+    #region Enumeration Benchmarks
+
+    [Benchmark]
+    [BenchmarkCategory("Enumeration")]
+    public int Class_Enumeration()
+    {
+        int count = 0;
+        foreach (var item in _classCollection)
+        {
+            count += item.Id;
+        }
+        return count;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("Enumeration")]
+    public int Struct_Enumeration()
+    {
+        int count = 0;
+        foreach (var item in _structCollection)
+        {
+            count += item.Id;
+        }
+        return count;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("Enumeration")]
+    public int ReadonlyStruct_Enumeration()
+    {
+        int count = 0;
+        foreach (var item in _readonlyStructCollection)
+        {
+            count += item.Id;
+        }
+        return count;
+    }
+
+    #endregion
+
+    #region List vs Arrow Comparison
+
+    [Benchmark]
+    [BenchmarkCategory("ListComparison")]
+    public int List_Class_Enumeration()
+    {
+        int count = 0;
+        foreach (var item in _classList)
+        {
+            count += item.Id;
+        }
+        return count;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("ListComparison")]
+    public int List_Struct_Enumeration()
+    {
+        int count = 0;
+        foreach (var item in _structList)
+        {
+            count += item.Id;
+        }
+        return count;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("ListComparison")]
+    public int List_ReadonlyStruct_Enumeration()
+    {
+        int count = 0;
+        foreach (var item in _readonlyStructList)
+        {
+            count += item.Id;
+        }
+        return count;
+    }
+
+    #endregion
+}
+
 [ArrowRecord]
 public class BenchmarkItem
 {
@@ -234,6 +426,44 @@ public class BenchmarkItem
     public bool IsActive { get; set; }
     [ArrowArray]
     public DateTime CreatedAt { get; set; }
+}
+
+[ArrowRecord]
+public struct BenchmarkStruct
+{
+    [ArrowArray]
+    public int Id { get; set; }
+    [ArrowArray]
+    public string Category1 { get; set; }
+    [ArrowArray]
+    public string Category2 { get; set; }
+    [ArrowArray]
+    public string Category3 { get; set; }
+    [ArrowArray]
+    public double Value { get; set; }
+    [ArrowArray]
+    public bool IsActive { get; set; }
+    [ArrowArray]
+    public DateTime CreatedAt { get; set; }
+}
+
+[ArrowRecord]
+public readonly struct BenchmarkReadonlyStruct
+{
+    [ArrowArray]
+    public int Id { get; init; }
+    [ArrowArray]
+    public string Category1 { get; init; }
+    [ArrowArray]
+    public string Category2 { get; init; }
+    [ArrowArray]
+    public string Category3 { get; init; }
+    [ArrowArray]
+    public double Value { get; init; }
+    [ArrowArray]
+    public bool IsActive { get; init; }
+    [ArrowArray]
+    public DateTime CreatedAt { get; init; }
 }
 
 

@@ -5,17 +5,33 @@ using System.Reflection.Emit;
 namespace ArrowCollection;
 
 /// <summary>
+/// Delegate for setting a field value on a struct by reference.
+/// </summary>
+/// <typeparam name="TDeclaring">The struct type that declares the field.</typeparam>
+/// <typeparam name="TField">The field type.</typeparam>
+/// <param name="instance">A reference to the struct instance.</param>
+/// <param name="value">The value to set.</param>
+public delegate void RefFieldSetter<TDeclaring, TField>(ref TDeclaring instance, TField value);
+
+/// <summary>
 /// Provides high-performance field access through IL-emitted delegates.
 /// This class creates and caches optimized getter and setter delegates for field access,
 /// bypassing reflection overhead after initial setup.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Inspired by the Orleans serialization framework's approach to field access.
+/// </para>
+/// <para>
+/// For struct types, use <see cref="GetRefSetter{TDeclaring, TField}"/> to avoid copying
+/// the struct when setting field values.
+/// </para>
 /// </remarks>
 public static class FieldAccessor
 {
     private static readonly ConcurrentDictionary<FieldInfo, Delegate> _getters = new();
     private static readonly ConcurrentDictionary<FieldInfo, Delegate> _setters = new();
+    private static readonly ConcurrentDictionary<FieldInfo, Delegate> _refSetters = new();
 
     /// <summary>
     /// Gets a typed getter delegate for the specified field.
@@ -31,34 +47,38 @@ public static class FieldAccessor
 
     /// <summary>
     /// Gets a typed setter delegate for the specified field.
+    /// For class types, this is the preferred setter method.
     /// </summary>
     /// <typeparam name="TDeclaring">The type that declares the field.</typeparam>
     /// <typeparam name="TField">The field type.</typeparam>
     /// <param name="field">The field to create a setter for.</param>
     /// <returns>A delegate that sets the field value on an instance.</returns>
+    /// <remarks>
+    /// For struct types, consider using <see cref="GetRefSetter{TDeclaring, TField}"/> instead
+    /// to avoid copying the struct.
+    /// </remarks>
     public static Action<TDeclaring, TField> GetSetter<TDeclaring, TField>(FieldInfo field)
     {
         return (Action<TDeclaring, TField>)_setters.GetOrAdd(field, f => CreateSetter<TDeclaring, TField>(f));
     }
 
     /// <summary>
-    /// Gets an untyped getter delegate for the specified field.
+    /// Gets a ref-based setter delegate for the specified field.
+    /// This is the preferred setter for struct types as it avoids copying.
     /// </summary>
-    /// <param name="field">The field to create a getter for.</param>
-    /// <returns>A delegate that gets the field value from an instance.</returns>
-    public static Func<object, object?> GetGetter(FieldInfo field)
-    {
-        return (Func<object, object?>)_getters.GetOrAdd(field, CreateUntypedGetter);
-    }
-
-    /// <summary>
-    /// Gets an untyped setter delegate for the specified field.
-    /// </summary>
+    /// <typeparam name="TDeclaring">The struct type that declares the field. Must be a value type.</typeparam>
+    /// <typeparam name="TField">The field type.</typeparam>
     /// <param name="field">The field to create a setter for.</param>
-    /// <returns>A delegate that sets the field value on an instance.</returns>
-    public static Action<object, object?> GetSetter(FieldInfo field)
+    /// <returns>A delegate that sets the field value on a struct instance by reference.</returns>
+    /// <remarks>
+    /// This method generates IL that takes the struct by reference, allowing field modification
+    /// without copying the entire struct. This is essential for readonly structs and for
+    /// performance-critical scenarios with mutable structs.
+    /// </remarks>
+    public static RefFieldSetter<TDeclaring, TField> GetRefSetter<TDeclaring, TField>(FieldInfo field)
+        where TDeclaring : struct
     {
-        return (Action<object, object?>)_setters.GetOrAdd(field, CreateUntypedSetter);
+        return (RefFieldSetter<TDeclaring, TField>)_refSetters.GetOrAdd(field, f => CreateRefSetter<TDeclaring, TField>(f));
     }
 
     private static Func<TDeclaring, TField> CreateGetter<TDeclaring, TField>(FieldInfo field)
@@ -74,29 +94,17 @@ public static class FieldAccessor
 
         var il = method.GetILGenerator();
         
-        // Load the instance
-        il.Emit(OpCodes.Ldarg_0);
-        
-        // If TDeclaring is object but field is on a value type or different type, we need to cast/unbox
-        if (typeof(TDeclaring) == typeof(object) && declaringType.IsValueType)
+        // For value types, we need to load the address to access the field
+        if (typeof(TDeclaring).IsValueType)
         {
-            il.Emit(OpCodes.Unbox, declaringType);
-            il.Emit(OpCodes.Ldfld, field);
-        }
-        else if (typeof(TDeclaring) == typeof(object))
-        {
-            il.Emit(OpCodes.Castclass, declaringType);
+            il.Emit(OpCodes.Ldarga_S, 0);
             il.Emit(OpCodes.Ldfld, field);
         }
         else
         {
+            // Load the instance
+            il.Emit(OpCodes.Ldarg_0);
             il.Emit(OpCodes.Ldfld, field);
-        }
-        
-        // Box if needed
-        if (typeof(TField) == typeof(object) && field.FieldType.IsValueType)
-        {
-            il.Emit(OpCodes.Box, field.FieldType);
         }
         
         il.Emit(OpCodes.Ret);
@@ -120,28 +128,8 @@ public static class FieldAccessor
         // Load the instance
         il.Emit(OpCodes.Ldarg_0);
         
-        // Cast if needed
-        if (typeof(TDeclaring) == typeof(object) && declaringType.IsValueType)
-        {
-            il.Emit(OpCodes.Unbox, declaringType);
-        }
-        else if (typeof(TDeclaring) == typeof(object))
-        {
-            il.Emit(OpCodes.Castclass, declaringType);
-        }
-        
         // Load the value
         il.Emit(OpCodes.Ldarg_1);
-        
-        // Unbox if needed
-        if (typeof(TField) == typeof(object) && field.FieldType.IsValueType)
-        {
-            il.Emit(OpCodes.Unbox_Any, field.FieldType);
-        }
-        else if (typeof(TField) == typeof(object) && !field.FieldType.IsValueType)
-        {
-            il.Emit(OpCodes.Castclass, field.FieldType);
-        }
         
         // Store the field
         il.Emit(OpCodes.Stfld, field);
@@ -150,88 +138,30 @@ public static class FieldAccessor
         return method.CreateDelegate<Action<TDeclaring, TField>>();
     }
 
-    private static Func<object, object?> CreateUntypedGetter(FieldInfo field)
+    private static RefFieldSetter<TDeclaring, TField> CreateRefSetter<TDeclaring, TField>(FieldInfo field)
+        where TDeclaring : struct
     {
         var declaringType = field.DeclaringType ?? throw new ArgumentException("Field must have a declaring type.", nameof(field));
         
         var method = new DynamicMethod(
-            name: $"GetUntyped_{field.DeclaringType!.Name}_{field.Name}",
-            returnType: typeof(object),
-            parameterTypes: [typeof(object)],
-            owner: typeof(FieldAccessor),
-            skipVisibility: true);
-
-        var il = method.GetILGenerator();
-        
-        // Load the instance
-        il.Emit(OpCodes.Ldarg_0);
-        
-        // Cast/unbox to declaring type
-        if (declaringType.IsValueType)
-        {
-            il.Emit(OpCodes.Unbox, declaringType);
-            il.Emit(OpCodes.Ldfld, field);
-        }
-        else
-        {
-            il.Emit(OpCodes.Castclass, declaringType);
-            il.Emit(OpCodes.Ldfld, field);
-        }
-        
-        // Box if value type
-        if (field.FieldType.IsValueType)
-        {
-            il.Emit(OpCodes.Box, field.FieldType);
-        }
-        
-        il.Emit(OpCodes.Ret);
-
-        return method.CreateDelegate<Func<object, object?>>();
-    }
-
-    private static Action<object, object?> CreateUntypedSetter(FieldInfo field)
-    {
-        var declaringType = field.DeclaringType ?? throw new ArgumentException("Field must have a declaring type.", nameof(field));
-        
-        var method = new DynamicMethod(
-            name: $"SetUntyped_{field.DeclaringType!.Name}_{field.Name}",
+            name: $"SetRef_{field.DeclaringType!.Name}_{field.Name}",
             returnType: typeof(void),
-            parameterTypes: [typeof(object), typeof(object)],
+            parameterTypes: [typeof(TDeclaring).MakeByRefType(), typeof(TField)],
             owner: typeof(FieldAccessor),
             skipVisibility: true);
 
         var il = method.GetILGenerator();
         
-        // Load the instance
+        // Load the address of the struct (arg 0 is already a ref/pointer)
         il.Emit(OpCodes.Ldarg_0);
-        
-        // Cast/unbox to declaring type
-        if (declaringType.IsValueType)
-        {
-            il.Emit(OpCodes.Unbox, declaringType);
-        }
-        else
-        {
-            il.Emit(OpCodes.Castclass, declaringType);
-        }
         
         // Load the value
         il.Emit(OpCodes.Ldarg_1);
-        
-        // Unbox/cast to field type
-        if (field.FieldType.IsValueType)
-        {
-            il.Emit(OpCodes.Unbox_Any, field.FieldType);
-        }
-        else
-        {
-            il.Emit(OpCodes.Castclass, field.FieldType);
-        }
         
         // Store the field
         il.Emit(OpCodes.Stfld, field);
         il.Emit(OpCodes.Ret);
 
-        return method.CreateDelegate<Action<object, object?>>();
+        return method.CreateDelegate<RefFieldSetter<TDeclaring, TField>>();
     }
 }

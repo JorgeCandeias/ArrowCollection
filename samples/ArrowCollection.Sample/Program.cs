@@ -90,10 +90,53 @@ using (var collection = data3.ToArrowCollection())
     }
 }
 
+Console.WriteLine();
+
+// Example 4: Struct support
+Console.WriteLine("Example 4: Struct Support");
+Console.WriteLine("--------------------------");
+
+var sensorReadings = new[]
+{
+    new SensorReading { SensorId = 1, Value = 23.5, Timestamp = DateTime.UtcNow },
+    new SensorReading { SensorId = 2, Value = 45.2, Timestamp = DateTime.UtcNow },
+    new SensorReading { SensorId = 3, Value = 67.8, Timestamp = DateTime.UtcNow },
+};
+
+using (var structCollection = sensorReadings.ToArrowCollection())
+{
+    Console.WriteLine($"Created struct collection with {structCollection.Count} items");
+    foreach (var reading in structCollection)
+    {
+        Console.WriteLine($"  Sensor {reading.SensorId}: {reading.Value}");
+    }
+}
+
+Console.WriteLine();
+
+// Example 5: Readonly struct support
+Console.WriteLine("Example 5: Readonly Struct Support");
+Console.WriteLine("-----------------------------------");
+
+var immutableReadings = new[]
+{
+    new ImmutableReading { SensorId = 100, Value = 99.9, Timestamp = DateTime.UtcNow },
+    new ImmutableReading { SensorId = 101, Value = 88.8, Timestamp = DateTime.UtcNow },
+};
+
+using (var readonlyCollection = immutableReadings.ToArrowCollection())
+{
+    Console.WriteLine($"Created readonly struct collection with {readonlyCollection.Count} items");
+    foreach (var reading in readonlyCollection)
+    {
+        Console.WriteLine($"  Sensor {reading.SensorId}: {reading.Value}");
+    }
+}
+
 Console.WriteLine("\n================================");
 Console.WriteLine("Demo completed!");
 
-// Define a sample data type
+// Define a sample data type (class)
 [ArrowRecord]
 public class WeatherData
 {
@@ -109,6 +152,30 @@ public class WeatherData
     public DateTime Timestamp { get; set; }
     [ArrowArray]
     public bool IsRaining { get; set; }
+}
+
+// Define a sample data type (struct)
+[ArrowRecord]
+public struct SensorReading
+{
+    [ArrowArray]
+    public int SensorId { get; set; }
+    [ArrowArray]
+    public double Value { get; set; }
+    [ArrowArray]
+    public DateTime Timestamp { get; set; }
+}
+
+// Define a readonly struct
+[ArrowRecord]
+public readonly struct ImmutableReading
+{
+    [ArrowArray]
+    public int SensorId { get; init; }
+    [ArrowArray]
+    public double Value { get; init; }
+    [ArrowArray]
+    public DateTime Timestamp { get; init; }
 }
 
 

@@ -165,12 +165,72 @@ public class ItemWithManualProperty
 
 In this example, the `_name` field is stored in the Arrow format, while the `Name` property provides the custom getter/setter logic. When items are reconstructed during enumeration, the field is populated directly, bypassing the property setter.
 
+### Using Structs
+
+ArrowCollection supports both classes and structs, including readonly structs:
+
+```csharp
+// Mutable struct
+[ArrowRecord]
+public struct DataPoint
+{
+    [ArrowArray]
+    public int Id { get; set; }
+    [ArrowArray]
+    public double Value { get; set; }
+    [ArrowArray]
+    public DateTime Timestamp { get; set; }
+}
+
+// Readonly struct (uses init-only setters)
+[ArrowRecord]
+public readonly struct ImmutableDataPoint
+{
+    [ArrowArray]
+    public int Id { get; init; }
+    [ArrowArray]
+    public double Value { get; init; }
+    [ArrowArray]
+    public DateTime Timestamp { get; init; }
+}
+
+// Usage is identical to classes
+var dataPoints = new[]
+{
+    new DataPoint { Id = 1, Value = 10.5, Timestamp = DateTime.UtcNow },
+    new DataPoint { Id = 2, Value = 20.5, Timestamp = DateTime.UtcNow }
+};
+
+using var collection = dataPoints.ToArrowCollection();
+
+foreach (var point in collection)
+{
+    Console.WriteLine($"Point {point.Id}: {point.Value}");
+}
+```
+
+**Note**: For structs, the library uses ref-based IL emission to set fields without copying, ensuring optimal performance even for readonly structs.
+
+## Important: Frozen Collection Semantics
+
+ArrowCollection is a **frozen collection** by design:
+
+- **Immutable after creation**: Once built, no items can be added, removed, or modified
+- **Data is copied on construction**: The source data is copied into Arrow columnar format during `ToArrowCollection()`
+- **Items are reconstructed on enumeration**: Each enumeration creates new instances from the stored columnar data
+- **Original source independence**: Changes to the original source collection have no effect on the ArrowCollection
+- **Reconstructed item independence**: Modifying items obtained during enumeration has no effect on the stored data
+
+This frozen design enables:
+- Thread-safe reading without locks
+- Consistent data regardless of original source mutations
+- Optimizations based on immutability guarantees
+
 ## What's Not Supported
 
-- **Complex types**: Nested objects, collections, arrays, enums, or custom structs
+- **Complex types**: Nested objects, collections, arrays, enums, or custom structs as field types
 - **Manual properties**: Properties with custom getter/setter implementations
-- **Structs as record types**: Only classes can be marked with `[ArrowRecord]`
-- **Types without parameterless constructors**: The target type must have a public parameterless constructor
+- **Types without parameterless constructors**: The target type must have a public parameterless constructor (structs have this implicitly)
 - **Indexer access**: No direct index-based access to items (use LINQ `.ElementAt()` if needed)
 
 ## Diagnostic Errors
