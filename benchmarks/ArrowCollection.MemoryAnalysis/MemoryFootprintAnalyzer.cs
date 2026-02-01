@@ -98,7 +98,7 @@ public static class MemoryFootprintAnalyzer
         Console.WriteLine();
         
         // Show scaling
-        int[] itemCounts = [1_000, 10_000, 100_000, 1_000_000];
+        int[] itemCounts = [10_000, 100_000, 1_000_000];
         var avgStringLen = 12; // "Category_XX"
         
         Console.WriteLine("  Estimated memory usage (assuming ~12 char average string length):");
