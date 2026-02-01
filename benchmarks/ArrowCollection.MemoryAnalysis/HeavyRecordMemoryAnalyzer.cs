@@ -212,12 +212,17 @@ public static class HeavyRecordMemoryAnalyzer
         var arrowManagedMemory = GC.GetTotalMemory(true) - beforeArrow;
         var arrowManagedMB = arrowManagedMemory / (1024.0 * 1024.0);
 
-        var arrowNativeEstimate = EstimateArrowNativeMemory();
-        var arrowNativeMB = arrowNativeEstimate / (1024.0 * 1024.0);
-        var arrowNativeGB = arrowNativeEstimate / (1024.0 * 1024.0 * 1024.0);
+        // Calculate both primitive and encoded estimates
+        var primitiveEstimate = EstimateArrowNativeMemory();
+        var primitiveMB = primitiveEstimate / (1024.0 * 1024.0);
+        
+        var encodedEstimate = EstimateArrowNativeMemoryWithEncoding(arrowCollection.BuildStatistics);
+        var encodedMB = encodedEstimate / (1024.0 * 1024.0);
+        var encodedGB = encodedEstimate / (1024.0 * 1024.0 * 1024.0);
 
         Console.WriteLine($"  Arrow managed wrapper: {arrowManagedMB:F2} MB");
-        Console.WriteLine($"  Arrow native (estimated): {arrowNativeMB:F2} MB ({arrowNativeGB:F4} GB)");
+        Console.WriteLine($"  Arrow native (primitive encoding): {primitiveMB:F2} MB");
+        Console.WriteLine($"  Arrow native (with dict encoding): {encodedMB:F2} MB ({encodedGB:F4} GB)");
         Console.WriteLine();
 
         // Display build statistics
@@ -227,7 +232,8 @@ public static class HeavyRecordMemoryAnalyzer
             Console.WriteLine("-----------------");
             var stats = arrowCollection.BuildStatistics;
             Console.WriteLine($"  Statistics collection time: {stats.StatisticsCollectionTime?.TotalMilliseconds:F2}ms");
-            Console.WriteLine($"  Estimated memory savings with optimal encoding: {stats.EstimateMemorySavings() / (1024.0 * 1024.0):F2} MB");
+            Console.WriteLine($"  Columns using dictionary encoding: {stats.GetDictionaryEncodingCandidates().Count()}");
+            Console.WriteLine($"  Columns using RLE encoding: {stats.GetRunLengthEncodingCandidates().Count()}");
             Console.WriteLine();
             
             // Show dictionary encoding candidates
@@ -253,8 +259,8 @@ public static class HeavyRecordMemoryAnalyzer
             Console.WriteLine();
         }
 
-
-        var totalArrowMB = arrowManagedMB + arrowNativeMB;
+        // Use encoded estimate for the summary
+        var totalArrowMB = arrowManagedMB + encodedMB;
         var totalArrowGB = totalArrowMB / 1024.0;
         var savingsPercent = (1.0 - totalArrowMB / listMB) * 100;
         var savingsMB = listMB - totalArrowMB;
@@ -276,6 +282,7 @@ public static class HeavyRecordMemoryAnalyzer
 
     private static long EstimateArrowNativeMemory()
     {
+        // This is the PRIMITIVE encoding estimate (no dictionary/RLE)
         var intBytes = (long)ItemCount * 62 * 4;
         var doubleBytes = (long)ItemCount * 62 * 8;
         var decimalBytes = (long)ItemCount * 61 * 16;
@@ -284,6 +291,69 @@ public static class HeavyRecordMemoryAnalyzer
         var stringData = (long)StringCardinality * 10 * 14;
 
         return intBytes + doubleBytes + decimalBytes + dateTimeBytes + stringOffsets + stringData;
+    }
+
+    /// <summary>
+    /// Estimates Arrow native memory WITH dictionary encoding applied.
+    /// This provides a more accurate estimate of actual memory usage.
+    /// </summary>
+    private static long EstimateArrowNativeMemoryWithEncoding(ArrowCollectionBuildStatistics? stats)
+    {
+        if (stats == null)
+            return EstimateArrowNativeMemory();
+
+        long totalBytes = 0;
+
+        foreach (var col in stats.ColumnStatistics.Values)
+        {
+            var typeSize = GetTypeSize(col.ValueType);
+
+            if (col.RecommendedEncoding == ColumnEncoding.Dictionary)
+            {
+                // Dictionary encoding: dictionary + indices
+                // Dictionary: distinct_count * type_size
+                // Indices: total_count * index_size (1, 2, or 4 bytes based on dictionary size)
+                var indexSize = col.DistinctCount <= 255 ? 1 : col.DistinctCount <= 65535 ? 2 : 4;
+                totalBytes += col.DistinctCount * typeSize + col.TotalCount * indexSize;
+            }
+            else if (col.RecommendedEncoding == ColumnEncoding.RunLengthEncoded)
+            {
+                // RLE: run_count * (type_size + run_end_size)
+                var runEndSize = 4; // int32 for run ends
+                totalBytes += col.RunCount * (typeSize + runEndSize);
+            }
+            else
+            {
+                // Primitive encoding
+                totalBytes += col.TotalCount * typeSize;
+            }
+        }
+
+        return totalBytes;
+    }
+
+    private static int GetTypeSize(Type type)
+    {
+        var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+
+        return underlyingType.Name switch
+        {
+            "Boolean" => 1,
+            "Byte" => 1,
+            "SByte" => 1,
+            "Int16" => 2,
+            "UInt16" => 2,
+            "Int32" => 4,
+            "UInt32" => 4,
+            "Int64" => 8,
+            "UInt64" => 8,
+            "Single" => 4,
+            "Double" => 8,
+            "Decimal" => 16,
+            "DateTime" => 8,
+            "String" => 14, // Average string length estimate
+            _ => 8
+        };
     }
 
     /// <summary>
