@@ -12,7 +12,6 @@ namespace ArrowCollection.Benchmarks;
 /// - 62 double properties with high cardinality
 /// - 61 decimal properties with high cardinality
 /// </summary>
-[ShortRunJob]
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 public class HeavyRecordBenchmarks

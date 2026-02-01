@@ -3,7 +3,6 @@ using BenchmarkDotNet.Order;
 
 namespace ArrowCollection.Benchmarks;
 
-[ShortRunJob]
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 public class ArrowCollectionBenchmarks
@@ -222,7 +221,6 @@ public class ArrowCollectionBenchmarks
 /// <summary>
 /// Benchmarks comparing class vs struct performance in ArrowCollection.
 /// </summary>
-[ShortRunJob]
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 public class StructVsClassBenchmarks
