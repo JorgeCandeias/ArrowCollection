@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using ArrowCollection;
 
@@ -15,8 +16,8 @@ namespace ArrowCollection.MemoryAnalysis;
 /// and empirical measurements for collections held in memory long-term.
 /// </para>
 /// <para>
-/// Note: ArrowCollection uses native memory via Apache Arrow's NativeMemoryAllocator.
-/// Native memory is not tracked by GC.GetTotalMemory(), so we provide estimates.
+/// This analyzer uses Process.PrivateMemorySize64 to capture both managed heap
+/// and native memory (like Arrow's NativeMemoryAllocator) in a single measurement.
 /// </para>
 /// </remarks>
 public static class MemoryFootprintAnalyzer
@@ -40,11 +41,10 @@ public static class MemoryFootprintAnalyzer
         RunTheoreticalAnalysis();
 
         Console.WriteLine();
-        Console.WriteLine("EMPIRICAL MEMORY ANALYSIS (Managed Heap)");
-        Console.WriteLine("=========================================");
+        Console.WriteLine("EMPIRICAL MEMORY ANALYSIS (Process Memory)");
+        Console.WriteLine("==========================================");
         Console.WriteLine();
-        Console.WriteLine("Note: ArrowCollection stores data in native memory (not GC-tracked).");
-        Console.WriteLine("      Managed heap shows only the .NET wrapper overhead.");
+        Console.WriteLine("Using Process.PrivateMemorySize64 to capture both managed and native memory.");
         Console.WriteLine();
 
         // Warm up
@@ -154,62 +154,73 @@ public static class MemoryFootprintAnalyzer
     {
         int[] sizes = [10_000, 100_000, 1_000_000];
 
-        Console.WriteLine("+-------------+-----------------+------------------+------------------+");
-        Console.WriteLine("|   Items     |  List<T> Managed | Arrow Managed    |  Arrow Native    |");
-        Console.WriteLine("|             |     Heap (MB)    |   Wrapper (MB)   |  (estimated MB)  |");
-        Console.WriteLine("+-------------+-----------------+------------------+------------------+");
+        Console.WriteLine("+-------------+------------------+------------------+--------------+");
+        Console.WriteLine("|   Items     |  List<T> (MB)    |  Arrow (MB)      |   Savings    |");
+        Console.WriteLine("|             | (process memory) | (process memory) |              |");
+        Console.WriteLine("+-------------+------------------+------------------+--------------+");
 
         foreach (var size in sizes)
         {
-            var (listManaged, arrowManaged, arrowNativeEstimate) = MeasureFootprint(size);
+            var (listMemory, arrowMemory) = MeasureProcessMemory(size);
             
-            Console.WriteLine($"| {size,11:N0} | {listManaged / (1024.0 * 1024.0),16:F3} | {arrowManaged / (1024.0 * 1024.0),16:F3} | {arrowNativeEstimate / (1024.0 * 1024.0),16:F3} |");
+            var listMB = listMemory / (1024.0 * 1024.0);
+            var arrowMB = arrowMemory / (1024.0 * 1024.0);
+            var savings = listMemory > 0 ? (1.0 - (double)arrowMemory / listMemory) * 100 : 0;
+            
+            Console.WriteLine($"| {size,11:N0} | {listMB,16:F3} | {arrowMB,16:F3} | {savings,10:F1}% |");
         }
 
-        Console.WriteLine("+-------------+-----------------+------------------+------------------+");
+        Console.WriteLine("+-------------+------------------+------------------+--------------+");
         Console.WriteLine();
-        Console.WriteLine("  * 'Arrow Managed' = .NET object overhead only (RecordBatch wrapper)");
-        Console.WriteLine("  * 'Arrow Native' = Estimated based on Arrow buffer sizes");
+        Console.WriteLine("  * Measurements use Process.PrivateMemorySize64");
+        Console.WriteLine("  * Captures both managed heap AND native memory (Arrow buffers)");
     }
 
-    private static (long listManaged, long arrowManaged, long arrowNativeEstimate) MeasureFootprint(int itemCount)
+    private static (long listMemory, long arrowMemory) MeasureProcessMemory(int itemCount)
     {
-        // Measure List<T> managed heap footprint - generate items within scope
+        var process = Process.GetCurrentProcess();
+        
+        // Measure List<T> memory footprint
         ForceFullGC();
-        var beforeList = GC.GetTotalMemory(true);
+        process.Refresh();
+        var beforeList = process.PrivateMemorySize64;
         
         var list = GenerateItems(itemCount, stringCardinality: 100);
         
         ForceFullGC();
-        var listManaged = GC.GetTotalMemory(true) - beforeList;
+        process.Refresh();
+        var afterList = process.PrivateMemorySize64;
+        var listMemory = afterList - beforeList;
         
+        // Keep list alive until we've measured, then release
         GC.KeepAlive(list);
         list = null;
         ForceFullGC();
         
-        // Measure ArrowCollection managed wrapper overhead - generate fresh items
+        // Small delay to let memory settle
+        Thread.Sleep(100);
+        
+        // Measure ArrowCollection memory footprint
         ForceFullGC();
-        var beforeArrow = GC.GetTotalMemory(true);
+        process.Refresh();
+        var beforeArrow = process.PrivateMemorySize64;
         
         var arrowCollection = GenerateItemsEnumerable(itemCount, stringCardinality: 100).ToArrowCollection();
         
         ForceFullGC();
-        var arrowManaged = GC.GetTotalMemory(true) - beforeArrow;
+        process.Refresh();
+        var afterArrow = process.PrivateMemorySize64;
+        var arrowMemory = afterArrow - beforeArrow;
         
-        // Estimate native memory based on Arrow format
-        // int(4) + 3*string-offset(4) + double(8) + bool(1/8) + datetime(8) per item
-        // Plus string data for unique values
-        var fixedPerItem = 4 + (3 * 4) + 8 + 0.125 + 8;
-        var uniqueStrings = 100; // Our test cardinality
-        var avgStringLen = 12;
-        var stringData = uniqueStrings * avgStringLen * 3;
-        var arrowNativeEstimate = (long)(itemCount * fixedPerItem + stringData);
-        
+        // Cleanup
         GC.KeepAlive(arrowCollection);
         arrowCollection.Dispose();
         ForceFullGC();
         
-        return (listManaged, arrowManaged, arrowNativeEstimate);
+        // Small delay to let memory settle
+        Thread.Sleep(100);
+        
+        return (listMemory, arrowMemory);
     }
 
     private static void RunCardinalityAnalysis()
@@ -217,33 +228,54 @@ public static class MemoryFootprintAnalyzer
         const int itemCount = 100_000;
         int[] cardinalities = [10, 100, 1000, 10000, itemCount];
         
-        // Calculate theoretical List<T> memory for this item count
-        var objectHeaderSize = IntPtr.Size == 8 ? 16 : 8;
-        var classTotalSize = 64; // Approximate per-object size
-        var avgStringLen = 12;
-        var stringObjectSize = objectHeaderSize + 4 + (avgStringLen * 2);
-        var listPerItem = classTotalSize + (3 * stringObjectSize);
-        var listTotalBytes = (long)(itemCount * listPerItem);
-        var listMB = listTotalBytes / (1024.0 * 1024.0);
-        
         Console.WriteLine($"Testing with {itemCount:N0} items, varying string uniqueness:");
-        Console.WriteLine($"(List<T> theoretical memory: {listMB:F2} MB - constant regardless of cardinality)");
+        Console.WriteLine("(Using actual process memory measurements)");
         Console.WriteLine();
         Console.WriteLine("+---------------+------------------+------------------+------------------+");
-        Console.WriteLine("|  Unique Strs  |  List<T> (MB)    |  Arrow Est (MB)  |  Savings         |");
+        Console.WriteLine("|  Unique Strs  |  List<T> (MB)    |  Arrow (MB)      |  Savings         |");
         Console.WriteLine("+---------------+------------------+------------------+------------------+");
+        
+        var process = Process.GetCurrentProcess();
         
         foreach (var cardinality in cardinalities)
         {
-            // Estimate Arrow memory - this is where cardinality matters!
-            var fixedPerItem = 4 + (3 * 4) + 8 + 0.125 + 8; // int + 3*string-offsets + double + bool-bit + datetime
-            var stringData = cardinality * avgStringLen * 3; // String bytes stored once per unique value
-            var arrowEstimate = (long)(itemCount * fixedPerItem + stringData);
+            // Measure List<T>
+            ForceFullGC();
+            process.Refresh();
+            var beforeList = process.PrivateMemorySize64;
             
-            var arrowMB = arrowEstimate / (1024.0 * 1024.0);
-            var savings = (1.0 - arrowMB / listMB) * 100;
+            var list = GenerateItems(itemCount, stringCardinality: cardinality);
+            
+            ForceFullGC();
+            process.Refresh();
+            var listMemory = process.PrivateMemorySize64 - beforeList;
+            var listMB = listMemory / (1024.0 * 1024.0);
+            
+            GC.KeepAlive(list);
+            list = null;
+            ForceFullGC();
+            Thread.Sleep(50);
+            
+            // Measure Arrow
+            ForceFullGC();
+            process.Refresh();
+            var beforeArrow = process.PrivateMemorySize64;
+            
+            var arrowCollection = GenerateItemsEnumerable(itemCount, stringCardinality: cardinality).ToArrowCollection();
+            
+            ForceFullGC();
+            process.Refresh();
+            var arrowMemory = process.PrivateMemorySize64 - beforeArrow;
+            var arrowMB = arrowMemory / (1024.0 * 1024.0);
+            
+            var savings = listMemory > 0 ? (1.0 - (double)arrowMemory / listMemory) * 100 : 0;
             
             Console.WriteLine($"| {cardinality,13:N0} | {listMB,16:F2} | {arrowMB,16:F2} | {savings,14:F1}% |");
+            
+            GC.KeepAlive(arrowCollection);
+            arrowCollection.Dispose();
+            ForceFullGC();
+            Thread.Sleep(50);
         }
         
         Console.WriteLine("+---------------+------------------+------------------+------------------+");
@@ -253,8 +285,8 @@ public static class MemoryFootprintAnalyzer
         Console.WriteLine("  - Data has many rows (amortizes metadata overhead)");
         Console.WriteLine("  - Fields are fixed-width primitives (int, double, bool, DateTime)");
         Console.WriteLine();
-        Console.WriteLine("  Note: With 100% unique strings, Arrow still provides ~65% savings due to");
-        Console.WriteLine("        elimination of per-object overhead and UTF-8 vs UTF-16 encoding.");
+        Console.WriteLine("  Note: With dictionary encoding, Arrow stores each unique string once,");
+        Console.WriteLine("        then uses compact indices to reference them.");
     }
 
     private static void ForceFullGC()

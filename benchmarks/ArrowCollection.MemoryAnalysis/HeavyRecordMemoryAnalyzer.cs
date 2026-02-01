@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ArrowCollection;
 
 namespace ArrowCollection.MemoryAnalysis;
@@ -141,6 +142,7 @@ public static class HeavyRecordMemoryAnalyzer
         Console.WriteLine();
     }
 
+
     private static void RunEmpiricalAnalysis(string scenarioTitle, bool usePreSorting)
     {
         Console.WriteLine($"---------------------------------------------------------------------");
@@ -148,31 +150,38 @@ public static class HeavyRecordMemoryAnalyzer
         Console.WriteLine($"---------------------------------------------------------------------");
         Console.WriteLine();
 
-        // Measure List<T>
+        var process = Process.GetCurrentProcess();
+
+        // Measure List<T> using process memory
         Console.WriteLine("Measuring List<T> memory footprint...");
         Console.WriteLine("  (Generating 1M sparse items and storing in List<T>...)");
         ForceFullGC();
-        var beforeList = GC.GetTotalMemory(true);
+        Thread.Sleep(100);
+        process.Refresh();
+        var beforeList = process.PrivateMemorySize64;
 
         var list = GenerateHeavyItems(ItemCount, new Random(RandomSeed));
 
         ForceFullGC();
-        var listMemory = GC.GetTotalMemory(true) - beforeList;
+        Thread.Sleep(100);
+        process.Refresh();
+        var listMemory = process.PrivateMemorySize64 - beforeList;
         var listMB = listMemory / (1024.0 * 1024.0);
         var listGB = listMemory / (1024.0 * 1024.0 * 1024.0);
 
-        Console.WriteLine($"  List<T> managed heap: {listMB:F2} MB ({listGB:F4} GB)");
+        Console.WriteLine($"  List<T> process memory: {listMB:F2} MB ({listGB:F4} GB)");
         Console.WriteLine();
 
         GC.KeepAlive(list);
         list = null;
         ForceFullGC();
+        Thread.Sleep(200);
 
-        // Measure ArrowCollection
+        // Measure ArrowCollection using process memory
         if (usePreSorting)
         {
             Console.WriteLine("Measuring ArrowCollection memory footprint (PRE-SORTED by cardinality)...");
-            Console.WriteLine("  (Sorting: String columns first ? Sparse columns ? High-cardinality columns)");
+            Console.WriteLine("  (Sorting: String columns first -> Sparse columns -> High-cardinality columns)");
         }
         else
         {
@@ -181,7 +190,9 @@ public static class HeavyRecordMemoryAnalyzer
         Console.WriteLine("  (Generating 1M sparse items and converting to ArrowCollection...)");
         
         ForceFullGC();
-        var beforeArrow = GC.GetTotalMemory(true);
+        Thread.Sleep(100);
+        process.Refresh();
+        var beforeArrow = process.PrivateMemorySize64;
 
         ArrowCollection<HeavyMemoryTestItem> arrowCollection;
         if (usePreSorting)
@@ -209,20 +220,13 @@ public static class HeavyRecordMemoryAnalyzer
         }
 
         ForceFullGC();
-        var arrowManagedMemory = GC.GetTotalMemory(true) - beforeArrow;
-        var arrowManagedMB = arrowManagedMemory / (1024.0 * 1024.0);
+        Thread.Sleep(100);
+        process.Refresh();
+        var arrowMemory = process.PrivateMemorySize64 - beforeArrow;
+        var arrowMB = arrowMemory / (1024.0 * 1024.0);
+        var arrowGB = arrowMemory / (1024.0 * 1024.0 * 1024.0);
 
-        // Calculate both primitive and encoded estimates
-        var primitiveEstimate = EstimateArrowNativeMemory();
-        var primitiveMB = primitiveEstimate / (1024.0 * 1024.0);
-        
-        var encodedEstimate = EstimateArrowNativeMemoryWithEncoding(arrowCollection.BuildStatistics);
-        var encodedMB = encodedEstimate / (1024.0 * 1024.0);
-        var encodedGB = encodedEstimate / (1024.0 * 1024.0 * 1024.0);
-
-        Console.WriteLine($"  Arrow managed wrapper: {arrowManagedMB:F2} MB");
-        Console.WriteLine($"  Arrow native (primitive encoding): {primitiveMB:F2} MB");
-        Console.WriteLine($"  Arrow native (with dict encoding): {encodedMB:F2} MB ({encodedGB:F4} GB)");
+        Console.WriteLine($"  ArrowCollection process memory: {arrowMB:F2} MB ({arrowGB:F4} GB)");
         Console.WriteLine();
 
         // Display build statistics
@@ -259,17 +263,15 @@ public static class HeavyRecordMemoryAnalyzer
             Console.WriteLine();
         }
 
-        // Use encoded estimate for the summary
-        var totalArrowMB = arrowManagedMB + encodedMB;
-        var totalArrowGB = totalArrowMB / 1024.0;
-        var savingsPercent = (1.0 - totalArrowMB / listMB) * 100;
-        var savingsMB = listMB - totalArrowMB;
+        // Calculate savings
+        var savingsPercent = listMemory > 0 ? (1.0 - (double)arrowMemory / listMemory) * 100 : 0;
+        var savingsMB = listMB - arrowMB;
 
         Console.WriteLine("+==================================================================+");
-        Console.WriteLine($"|  {(usePreSorting ? "PRE-SORTED" : "RANDOM ORDER"),-15} SUMMARY                                    |");
+        Console.WriteLine($"|  {(usePreSorting ? "PRE-SORTED" : "RANDOM ORDER"),-15} SUMMARY (Process Memory)                  |");
         Console.WriteLine("+==================================================================+");
         Console.WriteLine($"|  List<T>:                {listMB,10:F2} MB ({listGB:F4} GB)       |");
-        Console.WriteLine($"|  ArrowCollection:        {totalArrowMB,10:F2} MB ({totalArrowGB:F4} GB)       |");
+        Console.WriteLine($"|  ArrowCollection:        {arrowMB,10:F2} MB ({arrowGB:F4} GB)       |");
         Console.WriteLine("+------------------------------------------------------------------+");
         Console.WriteLine($"|  Memory savings:         {savingsMB,10:F2} MB ({savingsPercent:F1}%)          |");
         Console.WriteLine("+==================================================================+");
@@ -278,82 +280,7 @@ public static class HeavyRecordMemoryAnalyzer
         GC.KeepAlive(arrowCollection);
         arrowCollection.Dispose();
         ForceFullGC();
-    }
-
-    private static long EstimateArrowNativeMemory()
-    {
-        // This is the PRIMITIVE encoding estimate (no dictionary/RLE)
-        var intBytes = (long)ItemCount * 62 * 4;
-        var doubleBytes = (long)ItemCount * 62 * 8;
-        var decimalBytes = (long)ItemCount * 61 * 16;
-        var dateTimeBytes = (long)ItemCount * 5 * 8;
-        var stringOffsets = (long)ItemCount * 10 * 4;
-        var stringData = (long)StringCardinality * 10 * 14;
-
-        return intBytes + doubleBytes + decimalBytes + dateTimeBytes + stringOffsets + stringData;
-    }
-
-    /// <summary>
-    /// Estimates Arrow native memory WITH dictionary encoding applied.
-    /// This provides a more accurate estimate of actual memory usage.
-    /// </summary>
-    private static long EstimateArrowNativeMemoryWithEncoding(ArrowCollectionBuildStatistics? stats)
-    {
-        if (stats == null)
-            return EstimateArrowNativeMemory();
-
-        long totalBytes = 0;
-
-        foreach (var col in stats.ColumnStatistics.Values)
-        {
-            var typeSize = GetTypeSize(col.ValueType);
-
-            if (col.RecommendedEncoding == ColumnEncoding.Dictionary)
-            {
-                // Dictionary encoding: dictionary + indices
-                // Dictionary: distinct_count * type_size
-                // Indices: total_count * index_size (1, 2, or 4 bytes based on dictionary size)
-                var indexSize = col.DistinctCount <= 255 ? 1 : col.DistinctCount <= 65535 ? 2 : 4;
-                totalBytes += col.DistinctCount * typeSize + col.TotalCount * indexSize;
-            }
-            else if (col.RecommendedEncoding == ColumnEncoding.RunLengthEncoded)
-            {
-                // RLE: run_count * (type_size + run_end_size)
-                var runEndSize = 4; // int32 for run ends
-                totalBytes += col.RunCount * (typeSize + runEndSize);
-            }
-            else
-            {
-                // Primitive encoding
-                totalBytes += col.TotalCount * typeSize;
-            }
-        }
-
-        return totalBytes;
-    }
-
-    private static int GetTypeSize(Type type)
-    {
-        var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
-
-        return underlyingType.Name switch
-        {
-            "Boolean" => 1,
-            "Byte" => 1,
-            "SByte" => 1,
-            "Int16" => 2,
-            "UInt16" => 2,
-            "Int32" => 4,
-            "UInt32" => 4,
-            "Int64" => 8,
-            "UInt64" => 8,
-            "Single" => 4,
-            "Double" => 8,
-            "Decimal" => 16,
-            "DateTime" => 8,
-            "String" => 14, // Average string length estimate
-            _ => 8
-        };
+        Thread.Sleep(200);
     }
 
     /// <summary>
