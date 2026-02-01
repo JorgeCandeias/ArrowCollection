@@ -10,6 +10,7 @@
     <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/ArrowCollection.Analyzers/ArrowCollection.Analyzers.csproj" />
     <Project Path="src/ArrowCollection.Generators/ArrowCollection.Generators.csproj" />
     <Project Path="src/ArrowCollection/ArrowCollection.csproj" />
   </Folder>

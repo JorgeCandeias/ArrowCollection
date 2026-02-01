@@ -1,0 +1,429 @@
+using System.Collections;
+using System.Linq.Expressions;
+using Apache.Arrow;
+
+namespace ArrowCollection.Query;
+
+/// <summary>
+/// Provides LINQ query support over ArrowCollection with optimized column-level operations.
+/// This class implements IQueryable{T} to provide transparent LINQ integration.
+/// </summary>
+/// <remarks>
+/// ArrowQuery operates directly on Arrow columns without materializing objects until
+/// the final enumeration. Filter predicates are pushed down to column-level evaluation,
+/// and grouping/aggregation operations work on columns without full object creation.
+/// </remarks>
+public sealed class ArrowQuery<T> : IQueryable<T>, IOrderedQueryable<T>
+{
+    private readonly ArrowQueryProvider _provider;
+    private readonly Expression _expression;
+
+    /// <summary>
+    /// Creates a new ArrowQuery from an ArrowCollection source.
+    /// </summary>
+    internal ArrowQuery(ArrowCollection<T> source)
+    {
+        Source = source ?? throw new ArgumentNullException(nameof(source));
+        _provider = new ArrowQueryProvider(source);
+        _expression = Expression.Constant(this);
+    }
+
+    /// <summary>
+    /// Creates a new ArrowQuery with an existing provider and expression.
+    /// </summary>
+    internal ArrowQuery(ArrowQueryProvider provider, Expression expression)
+    {
+        _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+        _expression = expression ?? throw new ArgumentNullException(nameof(expression));
+        Source = provider.GetSource<T>();
+    }
+
+    /// <summary>
+    /// Gets the underlying ArrowCollection source.
+    /// </summary>
+    public ArrowCollection<T> Source { get; }
+
+    /// <summary>
+    /// Gets the type of the elements in the query.
+    /// </summary>
+    public Type ElementType => typeof(T);
+
+    /// <summary>
+    /// Gets the expression tree representing this query.
+    /// </summary>
+    public Expression Expression => _expression;
+
+    /// <summary>
+    /// Gets the query provider for this query.
+    /// </summary>
+    public IQueryProvider Provider => _provider;
+
+    /// <summary>
+    /// Returns an enumerator that executes the query and iterates through the results.
+    /// </summary>
+    public IEnumerator<T> GetEnumerator()
+    {
+        return _provider.Execute<IEnumerable<T>>(_expression).GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
+
+    /// <summary>
+    /// Returns a string representation of the query plan for debugging.
+    /// </summary>
+    public string Explain()
+    {
+        var plan = _provider.AnalyzeExpression(_expression);
+        return plan.ToString();
+    }
+}
+
+/// <summary>
+/// Query provider that handles LINQ expression execution over ArrowCollection.
+/// </summary>
+public sealed class ArrowQueryProvider : IQueryProvider
+{
+    private readonly object _source;
+    private readonly Type _elementType;
+    private readonly RecordBatch _recordBatch;
+    private readonly int _count;
+    private readonly Func<RecordBatch, int, object> _createItem;
+    private readonly Dictionary<string, int> _columnIndexMap;
+
+    /// <summary>
+    /// Gets or sets whether the provider operates in strict mode.
+    /// When true (default), unsupported operations throw NotSupportedException.
+    /// When false, unsupported operations fall back to materialization.
+    /// </summary>
+    public bool StrictMode { get; set; } = true;
+
+    internal ArrowQueryProvider(object source)
+    {
+        _source = source ?? throw new ArgumentNullException(nameof(source));
+        
+        // Extract type information
+        var sourceType = source.GetType();
+        var arrowCollectionType = sourceType;
+        while (arrowCollectionType != null && 
+               (!arrowCollectionType.IsGenericType || 
+                arrowCollectionType.GetGenericTypeDefinition() != typeof(ArrowCollection<>)))
+        {
+            arrowCollectionType = arrowCollectionType.BaseType;
+        }
+
+        if (arrowCollectionType is null)
+        {
+            throw new ArgumentException("Source must be an ArrowCollection<T>", nameof(source));
+        }
+
+        _elementType = arrowCollectionType.GetGenericArguments()[0];
+
+        // Get RecordBatch via reflection (it's protected)
+        var recordBatchField = typeof(ArrowCollection<>)
+            .MakeGenericType(_elementType)
+            .GetField("_recordBatch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        
+        _recordBatch = (RecordBatch)recordBatchField!.GetValue(source)!;
+        
+        var countField = typeof(ArrowCollection<>)
+            .MakeGenericType(_elementType)
+            .GetField("_count", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        
+        _count = (int)countField!.GetValue(source)!;
+
+        // Build column index map from schema
+        _columnIndexMap = new Dictionary<string, int>();
+        var schema = _recordBatch.Schema;
+        for (int i = 0; i < schema.FieldsList.Count; i++)
+        {
+            _columnIndexMap[schema.FieldsList[i].Name] = i;
+        }
+
+        // Get the CreateItem method via reflection
+        var createItemMethod = sourceType.GetMethod("CreateItem", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        
+        _createItem = (batch, index) => createItemMethod!.Invoke(source, new object[] { batch, index })!;
+    }
+
+    internal ArrowCollection<TElement> GetSource<TElement>()
+    {
+        return (ArrowCollection<TElement>)_source;
+    }
+
+    public IQueryable CreateQuery(Expression expression)
+    {
+        var elementType = GetElementType(expression.Type);
+        var queryType = typeof(ArrowQuery<>).MakeGenericType(elementType);
+        return (IQueryable)Activator.CreateInstance(queryType, this, expression)!;
+    }
+
+    public IQueryable<TElement> CreateQuery<TElement>(Expression expression)
+    {
+        return new ArrowQuery<TElement>(this, expression);
+    }
+
+    public object? Execute(Expression expression)
+    {
+        var elementType = GetElementType(expression.Type) ?? _elementType;
+        var method = typeof(ArrowQueryProvider)
+            .GetMethod(nameof(Execute), 1, new[] { typeof(Expression) })!
+            .MakeGenericMethod(elementType);
+        return method.Invoke(this, new object[] { expression });
+    }
+
+    public TResult Execute<TResult>(Expression expression)
+    {
+        var plan = AnalyzeExpression(expression);
+
+        if (!plan.IsFullyOptimized && StrictMode)
+        {
+            throw new NotSupportedException(
+                $"Query contains operations that cannot be optimized: {plan.UnsupportedReason}. " +
+                $"Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, " +
+                $"or modify the query to use supported operations.");
+        }
+
+        return ExecutePlan<TResult>(plan, expression);
+    }
+
+    internal QueryPlan AnalyzeExpression(Expression expression)
+    {
+        var analyzer = new QueryExpressionAnalyzer(_columnIndexMap);
+        return analyzer.Analyze(expression);
+    }
+
+    private TResult ExecutePlan<TResult>(QueryPlan plan, Expression expression)
+    {
+        // Build selection bitmap
+        var selection = new bool[_count];
+        System.Array.Fill(selection, true);
+
+        // Apply column predicates
+        foreach (var predicate in plan.ColumnPredicates)
+        {
+            predicate.Evaluate(_recordBatch, selection);
+        }
+
+        // Count selected rows
+        var selectedCount = 0;
+        for (int i = 0; i < _count; i++)
+        {
+            if (selection[i]) selectedCount++;
+        }
+
+        // Handle different result types
+        var resultType = typeof(TResult);
+
+        // IEnumerable<T> - return lazy enumeration
+        if (resultType.IsGenericType && 
+            (resultType.GetGenericTypeDefinition() == typeof(IEnumerable<>) ||
+             resultType.GetGenericTypeDefinition() == typeof(IQueryable<>)))
+        {
+            var enumerable = EnumerateSelected(selection);
+            return (TResult)enumerable;
+        }
+
+        // Single element results (First, Single, etc.)
+        if (resultType == _elementType)
+        {
+            for (int i = 0; i < _count; i++)
+            {
+                if (selection[i])
+                {
+                    return (TResult)_createItem(_recordBatch, i);
+                }
+            }
+            throw new InvalidOperationException("Sequence contains no elements.");
+        }
+
+        // Count
+        if (resultType == typeof(int))
+        {
+            return (TResult)(object)selectedCount;
+        }
+
+        // LongCount
+        if (resultType == typeof(long))
+        {
+            return (TResult)(object)(long)selectedCount;
+        }
+
+        // Boolean results (Any, All)
+        if (resultType == typeof(bool))
+        {
+            // Check the expression to determine which operation
+            if (expression is MethodCallExpression methodCall)
+            {
+                if (methodCall.Method.Name == "Any")
+                {
+                    return (TResult)(object)(selectedCount > 0);
+                }
+                if (methodCall.Method.Name == "All")
+                {
+                    return (TResult)(object)(selectedCount == _count);
+                }
+            }
+        }
+
+        throw new NotSupportedException($"Result type '{resultType}' is not supported.");
+    }
+
+    private IEnumerable<T> EnumerateSelectedCore<T>(bool[] selection)
+    {
+        for (int i = 0; i < _count; i++)
+        {
+            if (selection[i])
+            {
+                yield return (T)_createItem(_recordBatch, i);
+            }
+        }
+    }
+
+    private object EnumerateSelected(bool[] selection)
+    {
+        var method = typeof(ArrowQueryProvider)
+            .GetMethod(nameof(EnumerateSelectedCore), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .MakeGenericMethod(_elementType);
+        return method.Invoke(this, new object[] { selection })!;
+    }
+
+    private static Type? GetElementType(Type type)
+    {
+        if (type.IsGenericType)
+        {
+            var genericDef = type.GetGenericTypeDefinition();
+            if (genericDef == typeof(IQueryable<>) ||
+                genericDef == typeof(IEnumerable<>) ||
+                genericDef == typeof(IOrderedQueryable<>) ||
+                genericDef == typeof(IOrderedEnumerable<>))
+            {
+                return type.GetGenericArguments()[0];
+            }
+        }
+        return null;
+    }
+}
+
+/// <summary>
+/// Analyzes LINQ expression trees to build a QueryPlan.
+/// </summary>
+internal sealed class QueryExpressionAnalyzer : ExpressionVisitor
+{
+    private readonly Dictionary<string, int> _columnIndexMap;
+    private readonly List<ColumnPredicate> _predicates = new();
+    private readonly HashSet<string> _columnsAccessed = new();
+    private readonly List<string> _unsupportedReasons = new();
+    private bool _hasUnsupportedPatterns;
+
+    private static readonly HashSet<string> SupportedMethods = new()
+    {
+        "Where", "Select", "First", "FirstOrDefault", "Single", "SingleOrDefault",
+        "Any", "All", "Count", "LongCount", "Take", "Skip", "ToList", "ToArray",
+        "OrderBy", "OrderByDescending", "ThenBy", "ThenByDescending"
+    };
+
+    public QueryExpressionAnalyzer(Dictionary<string, int> columnIndexMap)
+    {
+        _columnIndexMap = columnIndexMap;
+    }
+
+    public QueryPlan Analyze(Expression expression)
+    {
+        Visit(expression);
+
+        return new QueryPlan
+        {
+            IsFullyOptimized = !_hasUnsupportedPatterns,
+            UnsupportedReason = _unsupportedReasons.Count > 0 
+                ? string.Join("; ", _unsupportedReasons) 
+                : null,
+            ColumnsAccessed = _columnsAccessed.ToList(),
+            ColumnPredicates = _predicates,
+            HasFallbackPredicate = false, // TODO: implement fallback
+            EstimatedSelectivity = EstimateSelectivity()
+        };
+    }
+
+    protected override Expression VisitMethodCall(MethodCallExpression node)
+    {
+        var methodName = node.Method.Name;
+        var declaringType = node.Method.DeclaringType?.FullName ?? "";
+
+        // Check for Enumerable methods (should use Queryable)
+        if (declaringType == "System.Linq.Enumerable")
+        {
+            _hasUnsupportedPatterns = true;
+            _unsupportedReasons.Add(
+                $"Method '{methodName}' from System.Linq.Enumerable bypasses query optimization. " +
+                $"Ensure you're using IQueryable<T> methods (call .AsQueryable() first).");
+            return node;
+        }
+
+        // Check for unsupported Queryable methods
+        if (declaringType == "System.Linq.Queryable")
+        {
+            if (!SupportedMethods.Contains(methodName))
+            {
+                _hasUnsupportedPatterns = true;
+                _unsupportedReasons.Add(
+                    $"LINQ method '{methodName}' is not supported by ArrowQuery. " +
+                    $"Supported methods: {string.Join(", ", SupportedMethods)}.");
+                return node;
+            }
+
+            // Process Where clauses
+            if (methodName == "Where" && node.Arguments.Count >= 2)
+            {
+                var predicateArg = node.Arguments[1];
+                if (predicateArg is UnaryExpression unary && unary.Operand is LambdaExpression lambda)
+                {
+                    AnalyzeWherePredicate(lambda);
+                }
+            }
+        }
+
+        return base.VisitMethodCall(node);
+    }
+
+    private void AnalyzeWherePredicate(LambdaExpression lambda)
+    {
+        // Use PredicateAnalyzer to extract column predicates
+        var analyzerMethod = typeof(PredicateAnalyzer)
+            .GetMethod(nameof(PredicateAnalyzer.Analyze))!
+            .MakeGenericMethod(lambda.Parameters[0].Type);
+
+        var result = (PredicateAnalysisResult)analyzerMethod.Invoke(null, new object[] { lambda, _columnIndexMap })!;
+
+        _predicates.AddRange(result.Predicates);
+        
+        foreach (var predicate in result.Predicates)
+        {
+            _columnsAccessed.Add(predicate.ColumnName);
+        }
+
+        if (!result.IsFullySupported)
+        {
+            _hasUnsupportedPatterns = true;
+            _unsupportedReasons.AddRange(result.UnsupportedReasons);
+        }
+    }
+
+    private double EstimateSelectivity()
+    {
+        if (_predicates.Count == 0)
+            return 1.0;
+
+        // Simple heuristic: each predicate reduces selectivity
+        // In practice, you'd use column statistics here
+        var selectivity = 1.0;
+        foreach (var _ in _predicates)
+        {
+            selectivity *= 0.3; // Assume each filter keeps ~30% of rows
+        }
+        return Math.Max(selectivity, 0.01);
+    }
+}

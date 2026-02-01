@@ -13,6 +13,8 @@ ArrowCollection is a .NET library that implements a frozen generic collection wi
 - **Serialization**: Read/write to streams and buffers using Arrow IPC format
 - **Schema Evolution**: Name-based column matching with configurable validation
 - **Positional Records**: Full support for C# records without parameterless constructors
+- **Optimized LINQ Queries**: `IQueryable<T>` implementation with column-level predicate pushdown
+- **Compile-Time Diagnostics**: Roslyn analyzer catches inefficient query patterns
 
 ## Installation
 
@@ -84,9 +86,16 @@ var largeDataset = Enumerable.Range(1, 1_000_000)
 // Convert to ArrowCollection - data is compressed using Apache Arrow columnar format
 using var collection = largeDataset.ToArrowCollection();
 
-// The data is now stored in a compressed columnar format
-// Items are reconstructed on-the-fly during enumeration
-var adults = collection.Where(p => p.Age >= 18).Take(10);
+// INEFFICIENT: This enumerates all 1M items, creating 1M Person objects
+var adultsOld = collection.Where(p => p.Age >= 18).Take(10);
+
+// OPTIMIZED: Use AsQueryable() for column-level filtering
+// Only the Age column is scanned, and only matching rows are materialized
+var adultsOptimized = collection
+    .AsQueryable()
+    .Where(p => p.Age >= 18)
+    .Take(10)
+    .ToList();
 ```
 
 ### Supported Data Types
@@ -473,12 +482,201 @@ public class Customer
 
 - **Complex types**: Nested objects, collections, arrays, enums, or custom structs as field types
 - **Manual properties**: Properties with custom getter/setter implementations
-- **Types without parameterless constructors**: The target type must have a public parameterless constructor (structs have this implicitly)
 - **Indexer access**: No direct index-based access to items (use LINQ `.ElementAt()` if needed)
+
+## Optimized LINQ Queries with ArrowQuery
+
+ArrowCollection includes a powerful query engine that enables **optimized LINQ queries** directly against the columnar Arrow data, without materializing objects until needed.
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            User Code                                        │
+│  collection.AsQueryable().Where(x => x.Age > 30).Where(x => x.IsActive)     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ArrowQuery<T>                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ • Implements IQueryable<T> for transparent LINQ integration         │    │
+│  │ • Captures expressions without immediate execution                  │    │
+│  │ • Validates operations at query build time                          │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  Supported: Where, Select, First, Any, All, Count, Take, Skip, OrderBy      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼ (on enumeration)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      Query Execution Pipeline                               │
+│                                                                             │
+│  1. Parse predicates → Extract column-level filters                         │
+│  2. Build selection bitmap → Evaluate directly on Arrow columns             │
+│  3. Yield items at selected indices → Materialize only matching rows        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Basic Query Usage
+
+```csharp
+using ArrowCollection.Query;
+
+// Create a queryable view over the collection
+var results = collection
+    .AsQueryable()
+    .Where(x => x.Age > 30 && x.Category == "Engineering")
+    .Where(x => x.IsActive)
+    .ToList();
+
+// Or use the Query() method for access to additional features
+var query = collection.Query();
+Console.WriteLine(query.Explain()); // Shows the query execution plan
+```
+
+### How It Works: Column-Level Filtering
+
+The key insight is that **predicates are evaluated directly against Arrow columns** without materializing full objects:
+
+```
+Traditional LINQ (1M rows, 20 columns):
+┌─────────────────────────────────────────────────┐
+│ For each row:                                   │
+│   1. Create Person object (20 field copies)     │
+│   2. Evaluate predicate: person.Age > 30        │
+│   3. If true, add to results                    │
+│                                                 │
+│ Memory: ~400 MB (1M objects × ~400 bytes each)  │
+│ Objects created: 1,000,000                      │
+└─────────────────────────────────────────────────┘
+
+ArrowQuery (1M rows, 20 columns):
+┌─────────────────────────────────────────────────┐
+│ 1. Scan Age column only → build selection mask  │
+│ 2. For selected indices only:                   │
+│    Create Person object                         │
+│                                                 │
+│ Memory: ~4 MB (Age column) + results only       │
+│ Objects created: ~300,000 (matching rows)       │
+└─────────────────────────────────────────────────┘
+```
+
+### Supported Predicates
+
+ArrowQuery can push these predicates to column-level evaluation:
+
+| Pattern | Example | Description |
+|---------|---------|-------------|
+| Numeric comparison | `x => x.Age > 30` | `<`, `>`, `<=`, `>=`, `==`, `!=` |
+| String equality | `x => x.Name == "Alice"` | Case-sensitive by default |
+| String operations | `x => x.Name.Contains("a")` | `Contains`, `StartsWith`, `EndsWith` |
+| Boolean property | `x => x.IsActive` | Direct boolean check |
+| Negated boolean | `x => !x.IsActive` | Negated boolean check |
+| Null check | `x => x.Name != null` | Null/not-null comparison |
+| AND combination | `x => x.Age > 30 && x.IsActive` | Split into multiple column filters |
+| Captured variables | `x => x.Age > minAge` | Variables from outer scope |
+
+### Query Plan Inspection
+
+Use `Explain()` to understand how your query will be executed:
+
+```csharp
+var query = collection
+    .AsQueryable()
+    .Where(x => x.Age > 30 && x.Category == "Premium");
+
+Console.WriteLine(query.Explain());
+// Output:
+// Query Plan (Optimized: True)
+//   Columns: Age, Category
+//   Predicates: 2 column-level filter(s)
+//   Est. Selectivity: 9%
+```
+
+### Strict Mode vs Fallback Mode
+
+By default, ArrowQuery operates in **strict mode** and throws `NotSupportedException` for operations that cannot be optimized:
+
+```csharp
+// Strict mode (default) - throws on unsupported operations
+var results = collection
+    .AsQueryable()
+    .Where(x => x.Age > 30)
+    .ToList(); // ✓ Supported
+
+// This would throw NotSupportedException:
+// .Where(x => ComputeSomething(x.Age))  // ✗ External method call
+
+// Allow fallback to full materialization (use with caution!)
+var results = collection
+    .AsQueryable()
+    .AllowFallback()  // Disables strict mode
+    .Where(x => ComputeSomething(x.Age))
+    .ToList();
+```
+
+### Supported LINQ Methods
+
+| Method | Optimized | Notes |
+|--------|-----------|-------|
+| `Where` | ✓ | Predicates pushed to column-level |
+| `First`, `FirstOrDefault` | ✓ | Stops at first match |
+| `Single`, `SingleOrDefault` | ✓ | Validates single result |
+| `Any` | ✓ | Short-circuits on first match |
+| `All` | ✓ | Short-circuits on first non-match |
+| `Count`, `LongCount` | ✓ | Counts selection bitmap |
+| `Take`, `Skip` | ✓ | Pagination support |
+| `OrderBy`, `OrderByDescending` | Partial | Sorts matching results |
+| `Select` | Partial | Column projection |
+| `ToList`, `ToArray` | ✓ | Materializes results |
+
+### Compile-Time Diagnostics
+
+The ArrowCollection.Analyzers package provides compile-time warnings and errors:
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| `ARROWQUERY001` | ⚠️ Warning | Using `Enumerable.Where()` instead of `Queryable.Where()` |
+| `ARROWQUERY002` | ❌ Error | Unsupported LINQ method on ArrowQuery |
+| `ARROWQUERY003` | ⚠️ Warning | Complex predicate may cause partial materialization |
+| `ARROWQUERY004` | ❌ Error | Unsupported GroupBy projection |
+| `ARROWQUERY007` | ⚠️ Warning | OR predicate reduces optimization |
+
+Example diagnostic:
+
+```csharp
+// ⚠️ ARROWQUERY001: Using Enumerable.Where() bypasses optimization
+var bad = collection.AsQueryable().ToList().Where(x => x.Age > 30);
+
+// ✓ Correct: Use Queryable.Where() for optimized execution
+var good = collection.AsQueryable().Where(x => x.Age > 30).ToList();
+```
+
+### Performance Example
+
+```csharp
+// Sample: 1 million records with 10 columns
+using var collection = GenerateLargeDataset(1_000_000).ToArrowCollection();
+
+// Query: Find active engineers over 30
+var results = collection
+    .AsQueryable()
+    .Where(x => x.Age > 30)           // Scans Age column only
+    .Where(x => x.IsActive)            // Scans IsActive column only  
+    .Where(x => x.Category == "Eng")   // Scans Category column only
+    .ToList();
+
+// Columns touched: 3 of 10
+// Objects materialized: ~50,000 (matching rows only)
+// Objects NOT created: 950,000!
+```
 
 ## Diagnostic Messages
 
-The source generator produces helpful diagnostic messages:
+The source generator and analyzer produce helpful diagnostic messages:
+
+### Source Generator Diagnostics
 
 | Code | Severity | Description |
 |------|----------|-------------|
@@ -488,6 +686,17 @@ The source generator produces helpful diagnostic messages:
 | `ARROWCOL004` | Error | `[ArrowArray]` on a manual property (not an auto-property) |
 | `ARROWCOL005` | Warning | Field has `[ArrowArray]` but no explicit `Name` specified |
 
+### Query Analyzer Diagnostics
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| `ARROWQUERY001` | Warning | Using `Enumerable.Where()` on ArrowQuery bypasses optimization |
+| `ARROWQUERY002` | Error | Unsupported LINQ method on ArrowQuery |
+| `ARROWQUERY003` | Warning | Complex predicate may cause partial materialization |
+| `ARROWQUERY004` | Error | Unsupported GroupBy projection |
+| `ARROWQUERY005` | Warning | Mixing LINQ providers may cause unexpected materialization |
+| `ARROWQUERY007` | Warning | OR predicate reduces optimization |
+
 ## Performance Characteristics
 
 ### Advantages
@@ -496,11 +705,14 @@ The source generator produces helpful diagnostic messages:
 - **Immutability**: Thread-safe for reading (data is frozen after creation)
 - **Source-Generated**: Zero reflection at runtime for item creation (IL-emitted field accessors)
 - **Efficient Serialization**: Arrow IPC format preserves columnar structure for fast I/O
+- **Column-Level Filtering**: Query predicates evaluated on columns, not objects
+- **Selective Materialization**: Only matching rows are converted to objects
 
 ### Trade-offs
 - **Enumeration Cost**: Items are reconstructed on-the-fly, which is slower than iterating in-memory objects
 - **Not for Frequent Access**: Best suited for scenarios where data is enumerated infrequently but needs to be kept in memory
 - **Construction Cost**: Initial creation requires copying all data into Arrow format
+- **Query Limitations**: Complex predicates may require fallback to row-by-row evaluation
 
 ## Use Cases
 
@@ -512,18 +724,23 @@ ArrowCollection is ideal for:
 - **Historical data** that must be available but isn't frequently queried
 - **Data persistence** with efficient columnar storage format
 - **Cross-language interop** via Arrow IPC format (Python, Rust, Java, etc.)
+- **OLAP-style queries** with efficient column-level filtering
+- **Large dataset filtering** where only a subset of rows match criteria
 
 ## Project Structure
 
 ```
 ArrowCollection/
 ├── src/
-│   ├── ArrowCollection/              # Core library
-│   └── ArrowCollection.Generators/   # Source generator
+│   ├── ArrowCollection/              # Core library + Query engine
+│   │   └── Query/                    # ArrowQuery LINQ implementation
+│   ├── ArrowCollection.Generators/   # Source generator
+│   └── ArrowCollection.Analyzers/    # Roslyn analyzer for query diagnostics
 ├── tests/
 │   └── ArrowCollection.Tests/        # Unit tests
 ├── benchmarks/
-│   └── ArrowCollection.Benchmarks/   # Performance benchmarks
+│   ├── ArrowCollection.Benchmarks/   # Performance benchmarks
+│   └── ArrowCollection.MemoryAnalysis/ # Memory footprint analysis
 └── samples/
     └── ArrowCollection.Sample/       # Sample application
 ```

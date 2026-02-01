@@ -1,0 +1,127 @@
+namespace ArrowCollection.Query;
+
+/// <summary>
+/// Represents the analyzed execution plan for an ArrowQuery.
+/// </summary>
+public sealed class QueryPlan
+{
+    /// <summary>
+    /// Gets whether all operations in the query can be executed using optimized column-only access.
+    /// </summary>
+    public bool IsFullyOptimized { get; init; }
+
+    /// <summary>
+    /// Gets the reason why the query is not fully optimized, if applicable.
+    /// </summary>
+    public string? UnsupportedReason { get; init; }
+
+    /// <summary>
+    /// Gets the list of columns that will be accessed during query execution.
+    /// </summary>
+    public IReadOnlyList<string> ColumnsAccessed { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Gets the column predicates that can be pushed down to column-level filtering.
+    /// </summary>
+    public IReadOnlyList<ColumnPredicate> ColumnPredicates { get; init; } = Array.Empty<ColumnPredicate>();
+
+    /// <summary>
+    /// Gets whether there is a fallback predicate that requires row materialization.
+    /// </summary>
+    public bool HasFallbackPredicate { get; init; }
+
+    /// <summary>
+    /// Gets the aggregations to perform (for GroupBy queries).
+    /// </summary>
+    public IReadOnlyList<AggregationDescriptor> Aggregations { get; init; } = Array.Empty<AggregationDescriptor>();
+
+    /// <summary>
+    /// Gets the grouping key column name (for GroupBy queries).
+    /// </summary>
+    public string? GroupByColumn { get; init; }
+
+    /// <summary>
+    /// Gets the estimated selectivity of the filter (0.0 to 1.0).
+    /// This is an estimate of what fraction of rows will pass the filter.
+    /// </summary>
+    public double EstimatedSelectivity { get; init; } = 1.0;
+
+    /// <summary>
+    /// Creates a string representation of the query plan for debugging.
+    /// </summary>
+    public override string ToString()
+    {
+        var lines = new List<string>
+        {
+            $"Query Plan (Optimized: {IsFullyOptimized})"
+        };
+
+        if (!IsFullyOptimized && UnsupportedReason is not null)
+        {
+            lines.Add($"  Unsupported: {UnsupportedReason}");
+        }
+
+        if (ColumnsAccessed.Count > 0)
+        {
+            lines.Add($"  Columns: {string.Join(", ", ColumnsAccessed)}");
+        }
+
+        if (ColumnPredicates.Count > 0)
+        {
+            lines.Add($"  Predicates: {ColumnPredicates.Count} column-level filter(s)");
+        }
+
+        if (HasFallbackPredicate)
+        {
+            lines.Add("  Fallback: Row-level predicate (will materialize)");
+        }
+
+        if (GroupByColumn is not null)
+        {
+            lines.Add($"  GroupBy: {GroupByColumn}");
+        }
+
+        if (Aggregations.Count > 0)
+        {
+            lines.Add($"  Aggregations: {string.Join(", ", Aggregations.Select(a => $"{a.Operation}({a.ColumnName})"))}");
+        }
+
+        lines.Add($"  Est. Selectivity: {EstimatedSelectivity:P0}");
+
+        return string.Join(Environment.NewLine, lines);
+    }
+}
+
+/// <summary>
+/// Describes an aggregation operation to perform.
+/// </summary>
+public sealed class AggregationDescriptor
+{
+    /// <summary>
+    /// Gets the aggregation operation type.
+    /// </summary>
+    public AggregationOperation Operation { get; init; }
+
+    /// <summary>
+    /// Gets the column name to aggregate (null for Count).
+    /// </summary>
+    public string? ColumnName { get; init; }
+
+    /// <summary>
+    /// Gets the result property name in the projected type.
+    /// </summary>
+    public string ResultPropertyName { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Supported aggregation operations.
+/// </summary>
+public enum AggregationOperation
+{
+    Count,
+    Sum,
+    Average,
+    Min,
+    Max,
+    LongCount
+}
