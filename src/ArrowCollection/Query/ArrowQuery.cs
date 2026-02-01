@@ -135,7 +135,7 @@ public sealed class ArrowQueryProvider : IQueryProvider
         _count = (int)countField!.GetValue(source)!;
 
         // Build column index map from schema
-        _columnIndexMap = new Dictionary<string, int>();
+        _columnIndexMap = [];
         var schema = _recordBatch.Schema;
         for (int i = 0; i < schema.FieldsList.Count; i++)
         {
@@ -146,7 +146,7 @@ public sealed class ArrowQueryProvider : IQueryProvider
         var createItemMethod = sourceType.GetMethod("CreateItem", 
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         
-        _createItem = (batch, index) => createItemMethod!.Invoke(source, new object[] { batch, index })!;
+        _createItem = (batch, index) => createItemMethod!.Invoke(source, [batch, index])!;
     }
 
     internal ArrowCollection<TElement> GetSource<TElement>()
@@ -156,9 +156,12 @@ public sealed class ArrowQueryProvider : IQueryProvider
 
     public IQueryable CreateQuery(Expression expression)
     {
-        var elementType = GetElementType(expression.Type);
-        var queryType = typeof(ArrowQuery<>).MakeGenericType(elementType);
-        return (IQueryable)Activator.CreateInstance(queryType, this, expression)!;
+        var elementType = GetElementType(expression.Type)
+            ?? throw new ArgumentException($"Cannot determine element type from expression type '{expression.Type}'.", nameof(expression));
+        var method = typeof(ArrowQueryProvider)
+            .GetMethod(nameof(CreateQuery), 1, [typeof(Expression)])!
+            .MakeGenericMethod(elementType);
+        return (IQueryable)method.Invoke(this, [expression])!;
     }
 
     public IQueryable<TElement> CreateQuery<TElement>(Expression expression)
@@ -170,9 +173,9 @@ public sealed class ArrowQueryProvider : IQueryProvider
     {
         var elementType = GetElementType(expression.Type) ?? _elementType;
         var method = typeof(ArrowQueryProvider)
-            .GetMethod(nameof(Execute), 1, new[] { typeof(Expression) })!
+            .GetMethod(nameof(Execute), 1, [typeof(Expression)])!
             .MakeGenericMethod(elementType);
-        return method.Invoke(this, new object[] { expression });
+        return method.Invoke(this, [expression]);
     }
 
     public TResult Execute<TResult>(Expression expression)
@@ -288,7 +291,7 @@ public sealed class ArrowQueryProvider : IQueryProvider
         var method = typeof(ArrowQueryProvider)
             .GetMethod(nameof(EnumerateSelectedCore), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
             .MakeGenericMethod(_elementType);
-        return method.Invoke(this, new object[] { selection })!;
+        return method.Invoke(this, [selection])!;
     }
 
     private static Type? GetElementType(Type type)
@@ -311,25 +314,19 @@ public sealed class ArrowQueryProvider : IQueryProvider
 /// <summary>
 /// Analyzes LINQ expression trees to build a QueryPlan.
 /// </summary>
-internal sealed class QueryExpressionAnalyzer : ExpressionVisitor
+internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnIndexMap) : ExpressionVisitor
 {
-    private readonly Dictionary<string, int> _columnIndexMap;
-    private readonly List<ColumnPredicate> _predicates = new();
-    private readonly HashSet<string> _columnsAccessed = new();
-    private readonly List<string> _unsupportedReasons = new();
+    private readonly List<ColumnPredicate> _predicates = [];
+    private readonly HashSet<string> _columnsAccessed = [];
+    private readonly List<string> _unsupportedReasons = [];
     private bool _hasUnsupportedPatterns;
 
-    private static readonly HashSet<string> SupportedMethods = new()
-    {
+    private static readonly HashSet<string> SupportedMethods =
+    [
         "Where", "Select", "First", "FirstOrDefault", "Single", "SingleOrDefault",
         "Any", "All", "Count", "LongCount", "Take", "Skip", "ToList", "ToArray",
         "OrderBy", "OrderByDescending", "ThenBy", "ThenByDescending"
-    };
-
-    public QueryExpressionAnalyzer(Dictionary<string, int> columnIndexMap)
-    {
-        _columnIndexMap = columnIndexMap;
-    }
+    ];
 
     public QueryPlan Analyze(Expression expression)
     {
@@ -341,7 +338,7 @@ internal sealed class QueryExpressionAnalyzer : ExpressionVisitor
             UnsupportedReason = _unsupportedReasons.Count > 0 
                 ? string.Join("; ", _unsupportedReasons) 
                 : null,
-            ColumnsAccessed = _columnsAccessed.ToList(),
+            ColumnsAccessed = [.. _columnsAccessed],
             ColumnPredicates = _predicates,
             HasFallbackPredicate = false, // TODO: implement fallback
             EstimatedSelectivity = EstimateSelectivity()
@@ -396,7 +393,7 @@ internal sealed class QueryExpressionAnalyzer : ExpressionVisitor
             .GetMethod(nameof(PredicateAnalyzer.Analyze))!
             .MakeGenericMethod(lambda.Parameters[0].Type);
 
-        var result = (PredicateAnalysisResult)analyzerMethod.Invoke(null, new object[] { lambda, _columnIndexMap })!;
+        var result = (PredicateAnalysisResult)analyzerMethod.Invoke(null, [lambda, columnIndexMap])!;
 
         _predicates.AddRange(result.Predicates);
         
