@@ -10,6 +10,8 @@ ArrowCollection is a .NET library that implements a frozen generic collection wi
 - **Simple API**: Easy to use with the `.ToArrowCollection()` extension method
 - **Source Generator**: Compile-time code generation for optimal performance
 - **IDisposable**: Properly releases unmanaged Arrow memory when disposed
+- **Serialization**: Read/write to streams and buffers using Arrow IPC format
+- **Schema Evolution**: Name-based column matching with configurable validation
 
 ## Installation
 
@@ -275,6 +277,122 @@ This frozen design enables:
 - Consistent data regardless of original source mutations
 - Optimizations based on immutability guarantees
 
+## Serialization
+
+ArrowCollection supports binary serialization using Apache Arrow IPC format, enabling persistence and data transfer while preserving the efficient columnar structure.
+
+### Writing to Storage
+
+```csharp
+using System.Buffers;
+
+// Create a collection
+var items = new[]
+{
+    new Person { Id = 1, Name = "Alice", Age = 30 },
+    new Person { Id = 2, Name = "Bob", Age = 25 }
+};
+
+using var collection = items.ToArrowCollection();
+
+// Write to a stream (async)
+using var fileStream = File.Create("data.arrow");
+await collection.WriteToAsync(fileStream);
+
+// Or write to a buffer (sync, high-performance)
+var buffer = new ArrayBufferWriter<byte>();
+collection.WriteTo(buffer);
+```
+
+### Reading from Storage
+
+```csharp
+// Read from a stream (async)
+using var fileStream = File.OpenRead("data.arrow");
+using var collection = await ArrowCollection<Person>.ReadFromAsync(fileStream);
+
+// Or read from a span (sync)
+byte[] data = File.ReadAllBytes("data.arrow");
+using var collection = ArrowCollection<Person>.ReadFrom(data.AsSpan());
+
+// Or read from a ReadOnlySequence (for pipeline scenarios)
+var sequence = new ReadOnlySequence<byte>(data);
+using var collection = ArrowCollection<Person>.ReadFrom(sequence);
+```
+
+### Schema Evolution
+
+ArrowCollection supports forward-compatible schema evolution through name-based column matching:
+
+```csharp
+// Original model (v1)
+[ArrowRecord]
+public class PersonV1
+{
+    [ArrowArray(Name = "id")]
+    public int Id { get; set; }
+    
+    [ArrowArray(Name = "name")]
+    public string Name { get; set; } = string.Empty;
+}
+
+// Updated model (v2) - added new field
+[ArrowRecord]
+public class PersonV2
+{
+    [ArrowArray(Name = "id")]
+    public int Id { get; set; }
+    
+    [ArrowArray(Name = "name")]
+    public string Name { get; set; } = string.Empty;
+    
+    [ArrowArray(Name = "email")]
+    public string? Email { get; set; }  // New field - will get default value when reading v1 data
+}
+```
+
+### Validation Options
+
+Control how schema mismatches are handled:
+
+```csharp
+// Strict validation - throw on any schema mismatch
+var strictOptions = new ArrowReadOptions
+{
+    UnknownColumns = UnknownColumnBehavior.Throw,  // Throw if source has extra columns
+    MissingColumns = MissingColumnBehavior.Throw   // Throw if source is missing columns
+};
+
+using var collection = await ArrowCollection<Person>.ReadFromAsync(stream, strictOptions);
+
+// Lenient validation (default) - ignore extra columns, use defaults for missing
+var lenientOptions = new ArrowReadOptions
+{
+    UnknownColumns = UnknownColumnBehavior.Ignore,   // Silently skip unknown columns
+    MissingColumns = MissingColumnBehavior.UseDefault // Use default(T) for missing columns
+};
+```
+
+### Explicit Column Names
+
+Use the `Name` property on `[ArrowArray]` to decouple serialization names from code:
+
+```csharp
+[ArrowRecord]
+public class Customer
+{
+    // Rename the property without breaking existing serialized data
+    [ArrowArray(Name = "customer_id")]
+    public int CustomerId { get; set; }
+    
+    // Field names should always specify Name for stable serialization
+    [ArrowArray(Name = "internal_score")]
+    private double _score;
+}
+```
+
+> **Note**: The source generator emits warning `ARROWCOL005` when `[ArrowArray]` is applied to a field without an explicit `Name`. This helps catch potential serialization issues with field naming conventions (e.g., `_fieldName`).
+
 ## What's Not Supported
 
 - **Complex types**: Nested objects, collections, arrays, enums, or custom structs as field types
@@ -282,16 +400,17 @@ This frozen design enables:
 - **Types without parameterless constructors**: The target type must have a public parameterless constructor (structs have this implicitly)
 - **Indexer access**: No direct index-based access to items (use LINQ `.ElementAt()` if needed)
 
-## Diagnostic Errors
+## Diagnostic Messages
 
-The source generator produces helpful diagnostic errors:
+The source generator produces helpful diagnostic messages:
 
-| Code | Description |
-|------|-------------|
-| `ARROWCOL001` | Type has `[ArrowRecord]` but no properties/fields marked with `[ArrowArray]` |
-| `ARROWCOL002` | Property/field has an unsupported type |
-| `ARROWCOL003` | Type is missing a public parameterless constructor |
-| `ARROWCOL004` | `[ArrowArray]` on a manual property (not an auto-property) |
+| Code | Severity | Description |
+|------|----------|-------------|
+| `ARROWCOL001` | Error | Type has `[ArrowRecord]` but no properties/fields marked with `[ArrowArray]` |
+| `ARROWCOL002` | Error | Property/field has an unsupported type |
+| `ARROWCOL003` | Error | Type is missing a public parameterless constructor |
+| `ARROWCOL004` | Error | `[ArrowArray]` on a manual property (not an auto-property) |
+| `ARROWCOL005` | Warning | Field has `[ArrowArray]` but no explicit `Name` specified |
 
 ## Performance Characteristics
 
@@ -300,6 +419,7 @@ The source generator produces helpful diagnostic errors:
 - **Multiple Enumerations**: Can enumerate the collection multiple times
 - **Immutability**: Thread-safe for reading (data is frozen after creation)
 - **Source-Generated**: Zero reflection at runtime for item creation (IL-emitted field accessors)
+- **Efficient Serialization**: Arrow IPC format preserves columnar structure for fast I/O
 
 ### Trade-offs
 - **Enumeration Cost**: Items are reconstructed on-the-fly, which is slower than iterating in-memory objects
@@ -314,6 +434,8 @@ ArrowCollection is ideal for:
 - **In-memory analytics** where memory is constrained
 - **Reference data** that needs to be kept in memory but rarely accessed
 - **Historical data** that must be available but isn't frequently queried
+- **Data persistence** with efficient columnar storage format
+- **Cross-language interop** via Arrow IPC format (Python, Rust, Java, etc.)
 
 ## Project Structure
 
