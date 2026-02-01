@@ -1,5 +1,7 @@
 ﻿# ArrowCollection - Frozen Collection with Apache Arrow Compression
 
+> **Trademark Notice**: "Apache Arrow" and "Arrow" are trademarks of [The Apache Software Foundation](https://www.apache.org/). ArrowCollection is an independent, community-driven project and is not affiliated with, endorsed by, or sponsored by The Apache Software Foundation. The name "ArrowCollection" is used purely to describe the library's functionality: providing .NET collections backed by the Apache Arrow columnar format.
+
 ArrowCollection is a .NET library that implements a frozen generic collection with columnar compression using Apache Arrow. It's designed for scenarios where you need significant in-memory compression savings for massive datasets, while accepting the performance trade-off of reconstructing items on-the-fly during enumeration.
 
 ## Features
