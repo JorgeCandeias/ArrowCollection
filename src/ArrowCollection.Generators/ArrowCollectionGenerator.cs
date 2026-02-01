@@ -69,10 +69,10 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             // Handle fields directly marked with [ArrowArray]
             if (member is IFieldSymbol field && !IsCompilerGeneratedBackingField(field))
             {
-                var hasArrowArrayAttribute = field.GetAttributes()
-                    .Any(attr => attr.AttributeClass?.ToDisplayString() == ArrowArrayAttributeName);
+                var arrowArrayAttribute = field.GetAttributes()
+                    .FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString() == ArrowArrayAttributeName);
 
-                if (hasArrowArrayAttribute)
+                if (arrowArrayAttribute is not null)
                 {
                     var fieldType = field.Type;
                     var isNullable = fieldType.NullableAnnotation == NullableAnnotation.Annotated ||
@@ -81,9 +81,21 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
 
                     var underlyingType = GetUnderlyingType(fieldType);
 
+                    // Extract the Name property from the attribute, if present
+                    var explicitName = GetAttributeNameProperty(arrowArrayAttribute);
+                    var columnName = explicitName ?? field.Name;
+
+                    // Warn if field has no explicit Name (field naming convention issue)
+                    if (explicitName is null)
+                    {
+                        var location = field.Locations.FirstOrDefault() ?? Location.None;
+                        diagnostics.Add((DiagnosticDescriptors.FieldWithoutSerializationName, location, new object[] { field.Name }));
+                    }
+
                     fields.Add(new ArrowFieldInfo(
                         field.Name,
                         field.Name, // Field name is also the backing field name
+                        columnName,
                         fieldType.ToDisplayString(),
                         underlyingType,
                         isNullable));
@@ -93,10 +105,10 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             else if (member is IPropertySymbol property)
             {
                 // Check for attribute on property or on its backing field
-                var hasArrowArrayOnProperty = property.GetAttributes()
-                    .Any(attr => attr.AttributeClass?.ToDisplayString() == ArrowArrayAttributeName);
+                var arrowArrayAttribute = property.GetAttributes()
+                    .FirstOrDefault(attr => attr.AttributeClass?.ToDisplayString() == ArrowArrayAttributeName);
 
-                if (hasArrowArrayOnProperty)
+                if (arrowArrayAttribute is not null)
                 {
                     // Check if this is an auto-property by looking for synthesized backing field
                     var isAutoProperty = IsAutoProperty(property);
@@ -118,9 +130,16 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
 
                     var underlyingType = GetUnderlyingType(propertyType);
 
+                    // Extract the Name property from the attribute, if present
+                    var explicitName = GetAttributeNameProperty(arrowArrayAttribute);
+                    var columnName = explicitName ?? property.Name;
+
+                    // Note: We don't warn for properties since they typically have good names already
+
                     fields.Add(new ArrowFieldInfo(
                         property.Name,
                         backingFieldName,
+                        columnName,
                         propertyType.ToDisplayString(),
                         underlyingType,
                         isNullable));
@@ -164,29 +183,42 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             return false;
 
         // Check if the getter is compiler-synthesized
-        // Auto-properties have synthesized accessors that are associated with a backing field
-        var getter = property.GetMethod;
+            // Auto-properties have synthesized accessors that are associated with a backing field
+            var getter = property.GetMethod;
 
-        // If the property has an associated field, it's an auto-property
-        // We can check this by looking at the containing type's members for the backing field
-        var backingFieldName = $"<{property.Name}>k__BackingField";
-        var containingType = property.ContainingType;
+            // If the property has an associated field, it's an auto-property
+            // We can check this by looking at the containing type's members for the backing field
+            var backingFieldName = $"<{property.Name}>k__BackingField";
+            var containingType = property.ContainingType;
 
-        foreach (var member in containingType.GetMembers())
-        {
-            if (member is IFieldSymbol field && field.Name == backingFieldName)
+            foreach (var member in containingType.GetMembers())
             {
-                // Found the backing field - check if it's compiler-generated
-                return field.IsImplicitlyDeclared ||
-                       field.GetAttributes().Any(attr =>
-                           attr.AttributeClass?.ToDisplayString() == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");
+                if (member is IFieldSymbol field && field.Name == backingFieldName)
+                {
+                    // Found the backing field - check if it's compiler-generated
+                    return field.IsImplicitlyDeclared ||
+                           field.GetAttributes().Any(attr =>
+                               attr.AttributeClass?.ToDisplayString() == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");
+                }
             }
+
+            return false;
         }
 
-        return false;
-    }
+        private static string? GetAttributeNameProperty(AttributeData attribute)
+        {
+            // Check named arguments first (Name = "...")
+            foreach (var namedArg in attribute.NamedArguments)
+            {
+                if (namedArg.Key == "Name" && namedArg.Value.Value is string nameValue)
+                {
+                    return string.IsNullOrEmpty(nameValue) ? null : nameValue;
+                }
+            }
+            return null;
+        }
 
-    private static string GetUnderlyingType(ITypeSymbol type)
+        private static string GetUnderlyingType(ITypeSymbol type)
     {
         // Handle Nullable<T>
         if (type is INamedTypeSymbol namedType &&
@@ -220,8 +252,9 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         }
 
         // Filter to only valid records (those with fields and no errors)
+        // Note: We allow records with warnings (like ARROWCOL005), only filter out errors
         var validRecords = arrowRecords
-            .Where(r => r.Fields.Count > 0 && r.Diagnostics.Count == 0)
+            .Where(r => r.Fields.Count > 0 && !r.Diagnostics.Any(d => d.Descriptor.DefaultSeverity == DiagnosticSeverity.Error))
             .Distinct()
             .ToList();
 
@@ -269,6 +302,10 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}internal sealed class GeneratedArrowCollection_{record.ClassName} : global::ArrowCollection.ArrowCollection<{record.FullTypeName}>");
         sb.AppendLine($"{indent}{{");
 
+        // Column index mappings for deserialization (when columns may be in different order)
+        sb.AppendLine($"{indent}    private readonly int[] _columnIndices;");
+        sb.AppendLine();
+
         // Generate static field accessors (cached for performance)
         // For structs, we use RefFieldSetter to avoid copying
         for (int i = 0; i < record.Fields.Count; i++)
@@ -309,13 +346,24 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
+        // Primary constructor (used when building from IEnumerable)
         sb.AppendLine($"{indent}    internal GeneratedArrowCollection_{record.ClassName}(RecordBatch recordBatch, int count, global::ArrowCollection.ArrowCollectionBuildStatistics? buildStatistics = null)");
         sb.AppendLine($"{indent}        : base(recordBatch, count, buildStatistics)");
         sb.AppendLine($"{indent}    {{");
+        sb.AppendLine($"{indent}        // Default column indices (sequential order)");
+        sb.AppendLine($"{indent}        _columnIndices = new int[] {{ {string.Join(", ", Enumerable.Range(0, record.Fields.Count))} }};");
         sb.AppendLine($"{indent}    }}");
         sb.AppendLine();
 
-        // Generate CreateItem override
+        // Secondary constructor (used when deserializing with name-based column mapping)
+        sb.AppendLine($"{indent}    internal GeneratedArrowCollection_{record.ClassName}(RecordBatch recordBatch, int count, int[] colIndex)");
+        sb.AppendLine($"{indent}        : base(recordBatch, count, null)");
+        sb.AppendLine($"{indent}    {{");
+        sb.AppendLine($"{indent}        _columnIndices = colIndex;");
+        sb.AppendLine($"{indent}    }}");
+        sb.AppendLine();
+
+        // Generate CreateItem override with name-based column support
         sb.AppendLine($"{indent}    protected override {record.FullTypeName} CreateItem(RecordBatch recordBatch, int index)");
         sb.AppendLine($"{indent}    {{");
         sb.AppendLine($"{indent}        var item = new {record.FullTypeName}();");
@@ -324,7 +372,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         for (int i = 0; i < record.Fields.Count; i++)
         {
             var field = record.Fields[i];
-            GenerateFieldRead(sb, field, i, indent + "        ", record.IsValueType);
+            GenerateFieldReadWithColumnIndex(sb, field, i, indent + "        ", record.IsValueType);
         }
 
         sb.AppendLine();
@@ -421,27 +469,108 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}        // Build schema from actual array types");
         sb.AppendLine($"{indent}        var schema = new Schema(schemaFields, null);");
         sb.AppendLine();
-        sb.AppendLine($"{indent}        var buildStatistics = new global::ArrowCollection.ArrowCollectionBuildStatistics");
-        sb.AppendLine($"{indent}        {{");
-        sb.AppendLine($"{indent}            ColumnStatistics = columnStats,");
-        sb.AppendLine($"{indent}            RowCount = count,");
-        sb.AppendLine($"{indent}            StatisticsCollectionTime = statsStopwatch.Elapsed");
-        sb.AppendLine($"{indent}        }};");
-        sb.AppendLine();
-        sb.AppendLine($"{indent}        // Create record batch");
-        sb.AppendLine($"{indent}        var recordBatch = new RecordBatch(schema, arrays, count);");
-        sb.AppendLine();
-        sb.AppendLine($"{indent}        return new GeneratedArrowCollection_{record.ClassName}(recordBatch, count, buildStatistics);");
-        sb.AppendLine($"{indent}    }}");
-        sb.AppendLine($"{indent}}}");
+            sb.AppendLine($"{indent}        var buildStatistics = new global::ArrowCollection.ArrowCollectionBuildStatistics");
+            sb.AppendLine($"{indent}        {{");
+            sb.AppendLine($"{indent}            ColumnStatistics = columnStats,");
+            sb.AppendLine($"{indent}            RowCount = count,");
+            sb.AppendLine($"{indent}            StatisticsCollectionTime = statsStopwatch.Elapsed");
+            sb.AppendLine($"{indent}        }};");
+            sb.AppendLine();
+            sb.AppendLine($"{indent}        // Create record batch");
+            sb.AppendLine($"{indent}        var recordBatch = new RecordBatch(schema, arrays, count);");
+            sb.AppendLine();
+            sb.AppendLine($"{indent}        return new GeneratedArrowCollection_{record.ClassName}(recordBatch, count, buildStatistics);");
+            sb.AppendLine($"{indent}    }}");
+            sb.AppendLine();
 
-        if (record.Namespace is not null)
-        {
-            sb.AppendLine("}");
+            // Generate the deserialization factory method
+            GenerateCreateFromRecordBatchMethod(sb, record, indent);
+
+            sb.AppendLine($"{indent}}}");
+
+            if (record.Namespace is not null)
+            {
+                sb.AppendLine("}");
+            }
+
+            return sb.ToString();
         }
 
-        return sb.ToString();
-    }
+        private static void GenerateCreateFromRecordBatchMethod(StringBuilder sb, ArrowRecordInfo record, string indent)
+        {
+            sb.AppendLine($"{indent}    /// <summary>");
+            sb.AppendLine($"{indent}    /// Creates an ArrowCollection from a deserialized RecordBatch.");
+            sb.AppendLine($"{indent}    /// </summary>");
+            sb.AppendLine($"{indent}    internal static global::ArrowCollection.ArrowCollection<{record.FullTypeName}> CreateFromRecordBatch(global::Apache.Arrow.RecordBatch recordBatch, global::ArrowCollection.ArrowReadOptions options)");
+            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        var schema = recordBatch.Schema;");
+            sb.AppendLine($"{indent}        var expectedColumns = new global::System.Collections.Generic.HashSet<string>");
+            sb.AppendLine($"{indent}        {{");
+        
+            // List expected column names
+            for (int i = 0; i < record.Fields.Count; i++)
+            {
+                var field = record.Fields[i];
+                var comma = i < record.Fields.Count - 1 ? "," : "";
+                sb.AppendLine($"{indent}            \"{field.ColumnName}\"{comma}");
+            }
+            sb.AppendLine($"{indent}        }};");
+            sb.AppendLine();
+
+            // Check for unknown columns if strict mode
+            sb.AppendLine($"{indent}        // Validate unknown columns if strict mode");
+            sb.AppendLine($"{indent}        if (options.UnknownColumns == global::ArrowCollection.UnknownColumnBehavior.Throw)");
+            sb.AppendLine($"{indent}        {{");
+            sb.AppendLine($"{indent}            foreach (var field in schema.FieldsList)");
+            sb.AppendLine($"{indent}            {{");
+            sb.AppendLine($"{indent}                if (!expectedColumns.Contains(field.Name))");
+            sb.AppendLine($"{indent}                {{");
+            sb.AppendLine($"{indent}                    throw new global::System.InvalidOperationException($\"Unknown column '{{field.Name}}' found in source data. Expected columns: {{string.Join(\", \", expectedColumns)}}\");");
+            sb.AppendLine($"{indent}                }}");
+            sb.AppendLine($"{indent}            }}");
+            sb.AppendLine($"{indent}        }}");
+            sb.AppendLine();
+
+            // Check for missing columns if strict mode
+            sb.AppendLine($"{indent}        // Validate missing columns if strict mode");
+            sb.AppendLine($"{indent}        if (options.MissingColumns == global::ArrowCollection.MissingColumnBehavior.Throw)");
+            sb.AppendLine($"{indent}        {{");
+            sb.AppendLine($"{indent}            var sourceColumns = new global::System.Collections.Generic.HashSet<string>();");
+            sb.AppendLine($"{indent}            foreach (var field in schema.FieldsList)");
+            sb.AppendLine($"{indent}            {{");
+            sb.AppendLine($"{indent}                sourceColumns.Add(field.Name);");
+            sb.AppendLine($"{indent}            }}");
+            sb.AppendLine($"{indent}            foreach (var expectedColumn in expectedColumns)");
+            sb.AppendLine($"{indent}            {{");
+            sb.AppendLine($"{indent}                if (!sourceColumns.Contains(expectedColumn))");
+            sb.AppendLine($"{indent}                {{");
+            sb.AppendLine($"{indent}                    throw new global::System.InvalidOperationException($\"Missing column '{{expectedColumn}}' in source data.\");");
+            sb.AppendLine($"{indent}                }}");
+            sb.AppendLine($"{indent}            }}");
+            sb.AppendLine($"{indent}        }}");
+            sb.AppendLine();
+
+            // Build column index map for name-based lookup
+            sb.AppendLine($"{indent}        // Build column index map for name-based lookup");
+            sb.AppendLine($"{indent}        var columnIndexMap = new global::System.Collections.Generic.Dictionary<string, int>();");
+            sb.AppendLine($"{indent}        for (int i = 0; i < schema.FieldsList.Count; i++)");
+            sb.AppendLine($"{indent}        {{");
+            sb.AppendLine($"{indent}            columnIndexMap[schema.FieldsList[i].Name] = i;");
+            sb.AppendLine($"{indent}        }}");
+            sb.AppendLine();
+
+            // Store column indices for each expected field
+            for (int i = 0; i < record.Fields.Count; i++)
+            {
+                var field = record.Fields[i];
+                sb.AppendLine($"{indent}        var colIndex{i} = columnIndexMap.TryGetValue(\"{field.ColumnName}\", out var idx{i}) ? idx{i} : -1;");
+            }
+            sb.AppendLine();
+
+            // Create a new collection that uses name-based column lookup
+            sb.AppendLine($"{indent}        return new GeneratedArrowCollection_{record.ClassName}(recordBatch, recordBatch.Length, colIndex: new int[] {{ {string.Join(", ", Enumerable.Range(0, record.Fields.Count).Select(i => $"colIndex{i}"))} }});");
+            sb.AppendLine($"{indent}    }}");
+        }
 
     private static void GenerateFieldRead(StringBuilder sb, ArrowFieldInfo field, int columnIndex, string indent, bool isValueType)
     {
@@ -482,6 +611,103 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
                 {
                     sb.AppendLine($"{indent}_setter{columnIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Generates field read code that uses the _columnIndices array for name-based column lookup.
+    /// This allows deserialized data with different column orders to be read correctly.
+    /// </summary>
+    private static void GenerateFieldReadWithColumnIndex(StringBuilder sb, ArrowFieldInfo field, int fieldIndex, string indent, bool isValueType)
+    {
+        var varName = $"col{fieldIndex}";
+        var colIdxVar = $"_columnIndices[{fieldIndex}]";
+        
+        // Check if column exists (index != -1)
+        sb.AppendLine($"{indent}if ({colIdxVar} >= 0)");
+        sb.AppendLine($"{indent}{{");
+        
+        var innerIndent = indent + "    ";
+        
+        // For dictionary-supported types, use the helper that handles both dictionary and primitive arrays
+        if (SupportsDictionaryEncoding(field.UnderlyingTypeName))
+        {
+            GenerateDictionaryAwareFieldReadWithColumnIndex(sb, field, fieldIndex, innerIndent, isValueType, varName, colIdxVar);
+        }
+        else
+        {
+            // For other types, use the original approach
+            var arrayType = GetArrowArrayType(field.UnderlyingTypeName);
+            sb.AppendLine($"{innerIndent}var {varName} = (recordBatch.Column({colIdxVar}) as {arrayType})!;");
+
+            if (field.IsNullable)
+            {
+                sb.AppendLine($"{innerIndent}if (!{varName}.IsNull(index))");
+                sb.AppendLine($"{innerIndent}{{");
+                if (isValueType)
+                {
+                    sb.AppendLine($"{innerIndent}    _setter{fieldIndex}(ref item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
+                }
+                else
+                {
+                    sb.AppendLine($"{innerIndent}    _setter{fieldIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
+                }
+                sb.AppendLine($"{innerIndent}}}");
+            }
+            else
+            {
+                if (isValueType)
+                {
+                    sb.AppendLine($"{innerIndent}_setter{fieldIndex}(ref item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
+                }
+                else
+                {
+                    sb.AppendLine($"{innerIndent}_setter{fieldIndex}(item, {GetValueExtraction(varName, field.UnderlyingTypeName)});");
+                }
+            }
+        }
+        
+        sb.AppendLine($"{indent}}}");
+    }
+
+    private static void GenerateDictionaryAwareFieldReadWithColumnIndex(StringBuilder sb, ArrowFieldInfo field, int fieldIndex, string indent, bool isValueType, string varName, string colIdxVar)
+    {
+        sb.AppendLine($"{indent}var {varName} = recordBatch.Column({colIdxVar});");
+        
+        // Use RunLengthEncodedArrayBuilder which handles RLE, dictionary, and primitive arrays
+        var getValue = field.UnderlyingTypeName switch
+        {
+            "string" => $"global::ArrowCollection.RunLengthEncodedArrayBuilder.GetStringValue({varName}, index)",
+            "int" => $"global::ArrowCollection.RunLengthEncodedArrayBuilder.GetInt32Value({varName}, index)",
+            "double" => $"global::ArrowCollection.RunLengthEncodedArrayBuilder.GetDoubleValue({varName}, index)",
+            "decimal" => $"global::ArrowCollection.RunLengthEncodedArrayBuilder.GetDecimalValue({varName}, index)",
+            _ => throw new NotSupportedException($"Type {field.UnderlyingTypeName} does not support optimized encoding.")
+        };
+
+        if (field.IsNullable || field.UnderlyingTypeName == "string")
+        {
+            sb.AppendLine($"{indent}if (!{varName}.IsNull(index))");
+            sb.AppendLine($"{indent}{{");
+            if (isValueType)
+            {
+                sb.AppendLine($"{indent}    _setter{fieldIndex}(ref item, {getValue});");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}    _setter{fieldIndex}(item, {getValue});");
+            }
+            sb.AppendLine($"{indent}}}");
+        }
+        else
+        {
+            if (isValueType)
+            {
+                sb.AppendLine($"{indent}_setter{fieldIndex}(ref item, {getValue});");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}_setter{fieldIndex}(item, {getValue});");
             }
         }
     }
@@ -686,7 +912,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}{{");
         sb.AppendLine($"{indent}    var array{index} = global::ArrowCollection.RunLengthEncodedArrayBuilder.BuildStringArray(values{index}, {stats}, allocator);");
         sb.AppendLine($"{indent}    arrays.Add(array{index});");
-        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.MemberName}\", array{index}.Data.DataType, {nullable}));");
+        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.ColumnName}\", array{index}.Data.DataType, {nullable}));");
         sb.AppendLine($"{indent}}}");
     }
 
@@ -696,7 +922,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}{{");
         sb.AppendLine($"{indent}    var array{index} = global::ArrowCollection.RunLengthEncodedArrayBuilder.BuildInt32Array(values{index}, {stats}, allocator);");
         sb.AppendLine($"{indent}    arrays.Add(array{index});");
-        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.MemberName}\", array{index}.Data.DataType, {nullable}));");
+        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.ColumnName}\", array{index}.Data.DataType, {nullable}));");
         sb.AppendLine($"{indent}}}");
     }
 
@@ -706,7 +932,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}{{");
         sb.AppendLine($"{indent}    var array{index} = global::ArrowCollection.RunLengthEncodedArrayBuilder.BuildDoubleArray(values{index}, {stats}, allocator);");
         sb.AppendLine($"{indent}    arrays.Add(array{index});");
-        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.MemberName}\", array{index}.Data.DataType, {nullable}));");
+        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.ColumnName}\", array{index}.Data.DataType, {nullable}));");
         sb.AppendLine($"{indent}}}");
     }
 
@@ -716,7 +942,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}{{");
         sb.AppendLine($"{indent}    var array{index} = global::ArrowCollection.RunLengthEncodedArrayBuilder.BuildDecimalArray(values{index}, {stats}, allocator);");
         sb.AppendLine($"{indent}    arrays.Add(array{index});");
-        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.MemberName}\", array{index}.Data.DataType, {nullable}));");
+        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.ColumnName}\", array{index}.Data.DataType, {nullable}));");
         sb.AppendLine($"{indent}}}");
     }
 
@@ -804,9 +1030,9 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         }
         
         sb.AppendLine($"{indent}    arrays.Add(builder{index}.Build(allocator));");
-        sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.MemberName}\", {arrowType}, {nullable}));");
-        sb.AppendLine($"{indent}}}");
-    }
+            sb.AppendLine($"{indent}    schemaFields.Add(new Field(\"{field.ColumnName}\", {arrowType}, {nullable}));");
+            sb.AppendLine($"{indent}}}");
+        }
 
     private static string GetArrowTypeExpression(string underlyingType)
     {
@@ -935,6 +1161,7 @@ public sealed class ArrowCollectionGenerator : IIncrementalGenerator
         {
             var builderNamespace = record.Namespace is not null ? $"global::{record.Namespace}." : "global::";
             sb.AppendLine($"            global::ArrowCollection.ArrowCollectionFactoryRegistry.Register<{record.FullTypeName}>({builderNamespace}ArrowCollectionBuilder_{record.ClassName}.Create);");
+            sb.AppendLine($"            global::ArrowCollection.ArrowCollectionFactoryRegistry.RegisterDeserialization<{record.FullTypeName}>({builderNamespace}ArrowCollectionBuilder_{record.ClassName}.CreateFromRecordBatch);");
         }
 
         sb.AppendLine("        }");
@@ -986,11 +1213,10 @@ internal sealed class ArrowRecordInfo(
 /// <summary>
 /// Information about a field or auto-property backing field marked with [ArrowArray].
 /// </summary>
-internal sealed class ArrowFieldInfo(string memberName, string backingFieldName, string fieldTypeName, string underlyingTypeName, bool isNullable)
+internal sealed class ArrowFieldInfo(string memberName, string backingFieldName, string columnName, string fieldTypeName, string underlyingTypeName, bool isNullable)
 {
     /// <summary>
     /// The name of the field or property as declared in source code.
-    /// Used for Arrow schema field naming.
     /// </summary>
     public string MemberName { get; } = memberName;
 
@@ -1000,6 +1226,12 @@ internal sealed class ArrowFieldInfo(string memberName, string backingFieldName,
     /// For auto-properties, this is the compiler-generated backing field name (e.g., "&lt;PropertyName&gt;k__BackingField").
     /// </summary>
     public string BackingFieldName { get; } = backingFieldName;
+
+    /// <summary>
+    /// The column name used for Arrow schema and serialization.
+    /// This is either the explicit Name from ArrowArrayAttribute or falls back to MemberName.
+    /// </summary>
+    public string ColumnName { get; } = columnName;
 
     /// <summary>
     /// The full type name of the field.

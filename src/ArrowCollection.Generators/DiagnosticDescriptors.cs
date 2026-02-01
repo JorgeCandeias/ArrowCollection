@@ -38,4 +38,12 @@ internal static class DiagnosticDescriptors
         category: "ArrowCollection",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor FieldWithoutSerializationName = new(
+        id: "ARROWCOL005",
+        title: "Field without serialization name",
+        messageFormat: "Field '{0}' is marked with [ArrowArray] but has no Name specified. Consider adding Name = \"...\" to ensure stable serialization, as the field name '{0}' will be used as the column name.",
+        category: "ArrowCollection",
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
 }
