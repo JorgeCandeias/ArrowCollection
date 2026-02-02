@@ -17,12 +17,13 @@ if (args.Length == 0)
     Console.WriteLine("================================");
     Console.WriteLine();
     Console.WriteLine("Available benchmark classes:");
-    Console.WriteLine("  - FrozenArrowBenchmarks     : Core construction/enumeration benchmarks");
+    Console.WriteLine("  - FrozenArrowBenchmarks         : Core construction/enumeration benchmarks");
     Console.WriteLine("  - StructVsClassBenchmarks       : Struct vs class comparison");
     Console.WriteLine("  - HeavyRecordBenchmarks         : 200-property record benchmarks");
     Console.WriteLine("  - ArrowQueryBenchmarks          : ArrowQuery vs List vs Enumerable (10K-100K items)");
     Console.WriteLine("  - LargeScaleQueryBenchmarks     : ArrowQuery at 1M scale (filters, aggregates, groupby, multi-agg)");
     Console.WriteLine("  - WideRecordQueryBenchmarks     : ArrowQuery benchmarks for wide records (200 columns)");
+    Console.WriteLine("  - DuckDbComparisonBenchmarks    : FrozenArrow vs in-process DuckDB comparison");
     Console.WriteLine();
     Console.WriteLine("Usage examples:");
     Console.WriteLine("  dotnet run -c Release                                    # Interactive selection");

@@ -922,20 +922,20 @@ This benchmark demonstrates the power of column-level filtering on wide tables.
 | Operation | List Time | ArrowQuery Time | Ratio | Notes |
 |-----------|-----------|-----------------|-------|-------|
 | **Filter + Count** | 9 ms | 13 ms | 1.4x | ArrowQuery uses bitmap popcount |
-| **Filter + ToList** | 5 ms | 42 ms | 8x | Materialization overhead |
-| **Sum (filtered)** | 10 ms | 36 ms | 3.6x | Column-level aggregate |
+| **Filter + ToList** | 5 ms | 55 ms | 10.7x | Materialization overhead |
+| **Sum (filtered)** | 10 ms | 37 ms | 3.6x | Column-level aggregate |
 | **Average (filtered)** | 9 ms | 25 ms | 2.8x | Column-level aggregate |
-| **Min (filtered)** | 11 ms | 30 ms | 2.7x | Column-level aggregate |
-| **GroupBy + Count** | 17 ms | 9 ms | **0.5x** ✓ | ArrowQuery faster! |
-| **GroupBy + Sum** | 30 ms | 53 ms | 1.8x | Dictionary-encoded support |
-| **GroupBy + Multi-Agg** | 45 ms | 68 ms | 1.5x | Multiple aggregates |
-| **Multi-Aggregate** | 43 ms | 98 ms | 2.3x | Single-pass execution |
+| **Min (filtered)** | 11 ms | 30 ms | 2.6x | Column-level aggregate |
+| **GroupBy + Count** | 16 ms | 9 ms | **0.55x** ✓ | ArrowQuery faster! |
+| **GroupBy + Sum** | 31 ms | 51 ms | 1.65x | Dictionary-encoded support |
+| **GroupBy + Multi-Agg** | 39 ms | 66 ms | 1.69x | Multiple aggregates |
+| **Multi-Aggregate** | 44 ms | 97 ms | 2.23x | Single-pass execution |
 
 **Key insights**:
-- **GroupBy + Count** is **2x faster** with ArrowQuery due to efficient integer key grouping
+- **GroupBy + Count** is **~2x faster** with ArrowQuery due to efficient integer key grouping
 - Dictionary-encoded columns are fully supported for all operations
 - Single aggregates have 2-4x overhead vs List (trade-off for memory efficiency)
-- Complex multi-aggregate queries scale well
+- Complex multi-aggregate queries scale reasonably well
 
 ### Serialization & Compression Benchmarks
 
