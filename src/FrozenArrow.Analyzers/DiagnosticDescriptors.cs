@@ -7,9 +7,9 @@ namespace FrozenArrow.Analyzers;
 /// </summary>
 public static class DiagnosticDescriptors
 {
-    private const string Category = "ArrowCollection.Query";
-    private const string PerformanceCategory = "ArrowCollection.Performance";
-    private const string UsageCategory = "ArrowCollection.Usage";
+    private const string Category = "FrozenArrow.Query";
+    private const string PerformanceCategory = "FrozenArrow.Performance";
+    private const string UsageCategory = "FrozenArrow.Usage";
 
     /// <summary>
     /// ARROWQUERY001: Using Enumerable.Where on ArrowQuery bypasses optimization.

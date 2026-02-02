@@ -235,7 +235,7 @@ public class FrozenArrowTests
     }
 
     [Fact]
-    public void ToFrozenArrow_IsImmutable_OriginalDataChangesDoNotAffectColly()
+    public void ToFrozenArrow_IsImmutable_OriginalDataChangesDoNotAffectFrozenArrow()
     {
         // Arrange
         var items = new List<SimpleItem>
@@ -328,7 +328,7 @@ public class FrozenArrowTests
 }
 
 /// <summary>
-/// Tests for struct support in ArrowCollection.
+/// Tests for struct support in FrozenArrow.
 /// </summary>
 public class FrozenArrowStructTests
 {

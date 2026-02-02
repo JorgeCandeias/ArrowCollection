@@ -1,7 +1,7 @@
 namespace FrozenArrow;
 
 /// <summary>
-/// Statistics collected for a single column during ArrowCollection build.
+/// Statistics collected for a single column during FrozenArrow build.
 /// Used to determine the optimal Arrow memory layout for the column.
 /// </summary>
 public sealed class ColumnStatistics

@@ -25,7 +25,7 @@ FrozenArrow is a .NET library that implements a frozen generic collection with c
 Add the FrozenArrow library to your project:
 
 ```bash
-dotnet add reference path/to/ArrowCollection/FrozenArrow.csproj
+dotnet add reference path/to/FrozenArrow/FrozenArrow.csproj
 ```
 
 The library includes an embedded source generator that processes your types at compile time.
@@ -104,7 +104,7 @@ var adultsOptimized = collection
 
 ### Supported Data Types
 
-ArrowCollection supports the following property/field types:
+FrozenArrow supports the following property/field types:
 
 - **Signed Integers**: `int`, `long`, `short`, `sbyte`
 - **Unsigned Integers**: `uint`, `ulong`, `ushort`, `byte`
@@ -141,7 +141,7 @@ using var collection = data.ToFrozenArrow();
 
 ### Working with Half-Precision Floats and Binary Data
 
-ArrowCollection supports `Half` (half-precision floating point) and `byte[]` (variable-length binary data):
+FrozenArrow supports `Half` (half-precision floating point) and `byte[]` (variable-length binary data):
 
 ```csharp
 [ArrowRecord]
@@ -232,7 +232,7 @@ In this example, the `_name` field is stored in the Arrow format, while the `Nam
 
 ### Using Structs
 
-ArrowCollection supports both classes and structs, including readonly structs:
+FrozenArrow supports both classes and structs, including readonly structs:
 
 ```csharp
 // Mutable struct
@@ -278,7 +278,7 @@ foreach (var point in collection)
 
 ### Using Positional Records
 
-ArrowCollection fully supports C# positional records (both `record class` and `record struct`) without requiring a parameterless constructor:
+FrozenArrow fully supports C# positional records (both `record class` and `record struct`) without requiring a parameterless constructor:
 
 ```csharp
 // Positional record class - no parameterless constructor needed!
@@ -338,7 +338,7 @@ public record Employee(
 FrozenArrow is a **frozen collection** by design:
 
 - **Immutable after creation**: Once built, no items can be added, removed, or modified
-- **Data is copied on construction**: The source data is copied into Arrow columnar format during `ToArrowCollection()`
+- **Data is copied on construction**: The source data is copied into Arrow columnar format during `ToFrozenArrow()`
 - **Items are reconstructed on enumeration**: Each enumeration creates new instances from the stored columnar data
 - **Original source independence**: Changes to the original source collection have no effect on the FrozenArrow
 - **Reconstructed item independence**: Modifying items obtained during enumeration has no effect on the stored data
@@ -352,7 +352,7 @@ This frozen design enables:
 
 ### Constructor Bypass Behavior
 
-ArrowCollection uses a technique similar to [Orleans serialization](https://learn.microsoft.com/en-us/dotnet/orleans/host/configuration-guide/serialization) where constructors are intentionally bypassed during item reconstruction:
+FrozenArrow uses a technique similar to [Orleans serialization](https://learn.microsoft.com/en-us/dotnet/orleans/host/configuration-guide/serialization) where constructors are intentionally bypassed during item reconstruction:
 
 - **Classes**: Created using `RuntimeHelpers.GetUninitializedObject` (no constructor called)
 - **Structs**: Created using `default(T)` (no boxing overhead)
@@ -364,11 +364,11 @@ This means:
 - ⚠️ Constructor validation logic is **not** executed
 - ⚠️ Field initializers are **not** executed
 
-This behavior is by design, as ArrowCollection expects types to be **pure data containers** without logic in constructors or property setters.
+This behavior is by design, as FrozenArrow expects types to be **pure data containers** without logic in constructors or property setters.
 
 ## Serialization
 
-ArrowCollection supports binary serialization using Apache Arrow IPC format, enabling persistence and data transfer while preserving the efficient columnar structure.
+FrozenArrow supports binary serialization using Apache Arrow IPC format, enabling persistence and data transfer while preserving the efficient columnar structure.
 
 ### Writing to Storage
 
@@ -411,7 +411,7 @@ using var collection = FrozenArrow<Person>.ReadFrom(sequence);
 
 ### Schema Evolution
 
-ArrowCollection supports forward-compatible schema evolution through name-based column matching:
+FrozenArrow supports forward-compatible schema evolution through name-based column matching:
 
 ```csharp
 // Original model (v1)
@@ -490,7 +490,7 @@ public class Customer
 
 ## Optimized LINQ Queries with ArrowQuery
 
-ArrowCollection includes a powerful query engine that enables **optimized LINQ queries** directly against the columnar Arrow data, without materializing objects until needed.
+FrozenArrow includes a powerful query engine that enables **optimized LINQ queries** directly against the columnar Arrow data, without materializing objects until needed.
 
 ### Architecture Overview
 
@@ -798,7 +798,7 @@ The source generator and analyzer produce helpful diagnostic messages:
 
 ## Use Cases
 
-ArrowCollection is ideal for:
+FrozenArrow is ideal for:
 
 - **Caching large datasets** that are infrequently accessed
 - **In-memory analytics** where memory is constrained
@@ -934,22 +934,22 @@ This benchmark demonstrates the power of column-level filtering on wide tables.
 | Wide tables (many columns) | ✅ ArrowQuery | Reconstruction cost is high |
 | GroupBy with integer keys | ✅ ArrowQuery | Often faster than List |
 | Low selectivity (>90% match) | ⚠️ List<T> | Reconstruction overhead exceeds benefit |
-| Frequent iteration | ⚠️ List<T> | ArrowCollection optimizes for memory, not speed |
+| Frequent iteration | ⚠️ List<T> | FrozenArrow optimizes for memory, not speed |
 
 ### Running Benchmarks
 
 ```bash
 # List all available benchmarks
-dotnet run -c Release --project benchmarks/ArrowCollection.Benchmarks -- --list flat
+dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --list flat
 
 # Run ArrowQuery benchmarks
-dotnet run -c Release --project benchmarks/ArrowCollection.Benchmarks -- --filter *ArrowQuery*
+dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *ArrowQuery*
 
 # Run large-scale (1M items) benchmarks
-dotnet run -c Release --project benchmarks/ArrowCollection.Benchmarks -- --filter *LargeScale*
+dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *LargeScale*
 
 # Run memory analysis
-dotnet run -c Release --project benchmarks/ArrowCollection.MemoryAnalysis
+dotnet run -c Release --project benchmarks/FrozenArrow.MemoryAnalysis
 ```
 
 ## License

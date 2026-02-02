@@ -262,7 +262,7 @@ public sealed class ArrowQueryAnalyzer : DiagnosticAnalyzer
 
         // Check if it's ArrowQuery<T>
         var typeName = type.ToDisplayString();
-        if (typeName.StartsWith("ArrowCollection.Query.ArrowQuery<"))
+        if (typeName.StartsWith("FrozenArrow.Query.ArrowQuery<"))
             return true;
 
         // Check if it's IQueryable<T> that might be backed by ArrowQuery
@@ -276,7 +276,7 @@ public sealed class ArrowQueryAnalyzer : DiagnosticAnalyzer
                 // For IQueryable, we need to trace back to see if source is ArrowQuery
                 // This is a heuristic - check if the chain includes ArrowQuery
                 return typeName.Contains("ArrowQuery") ||
-                       typeName.Contains("ArrowCollection");
+                       typeName.Contains("FrozenArrow");
             }
         }
 

@@ -84,7 +84,7 @@ public sealed class ArrowQuery<T> : IQueryable<T>, IOrderedQueryable<T>
 }
 
 /// <summary>
-/// Query provider that handles LINQ expression execution over ArrowCollection.
+/// Query provider that handles LINQ expression execution over FrozenArrow.
 /// </summary>
 public sealed class ArrowQueryProvider : IQueryProvider
 {
