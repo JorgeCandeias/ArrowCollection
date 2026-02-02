@@ -8,6 +8,7 @@ FrozenArrow is a .NET library that implements a frozen generic collection with c
 
 ## Features
 
+
 - **Immutable/Frozen**: Once created, the collection cannot be modified
 - **Columnar Compression**: Uses Apache Arrow format for efficient compression
 - **Type-Safe**: Strongly typed generic collection
@@ -15,6 +16,7 @@ FrozenArrow is a .NET library that implements a frozen generic collection with c
 - **Source Generator**: Compile-time code generation for optimal performance
 - **IDisposable**: Properly releases unmanaged Arrow memory when disposed
 - **Serialization**: Read/write to streams and buffers using Arrow IPC format
+- **IPC Compression**: Optional LZ4 and Zstd compression for serialized data
 - **Schema Evolution**: Name-based column matching with configurable validation
 - **Positional Records**: Full support for C# records without parameterless constructors
 - **Optimized LINQ Queries**: `IQueryable<T>` implementation with column-level predicate pushdown
@@ -374,6 +376,7 @@ FrozenArrow supports binary serialization using Apache Arrow IPC format, enablin
 
 ```csharp
 using System.Buffers;
+using Apache.Arrow.Ipc;
 
 // Create a collection
 var items = new[]
@@ -384,19 +387,27 @@ var items = new[]
 
 using var collection = items.ToFrozenArrow();
 
-// Write to a stream (async)
+// Write to a stream (async) - no compression
 using var fileStream = File.Create("data.arrow");
 await collection.WriteToAsync(fileStream);
 
+// Write with LZ4 compression (fast, good compression)
+var lz4Options = new ArrowWriteOptions { CompressionCodec = CompressionCodecType.Lz4Frame };
+await collection.WriteToAsync(fileStream, lz4Options);
+
+// Write with Zstd compression (slower, better compression)
+var zstdOptions = new ArrowWriteOptions { CompressionCodec = CompressionCodecType.Zstd };
+await collection.WriteToAsync(fileStream, zstdOptions);
+
 // Or write to a buffer (sync, high-performance)
 var buffer = new ArrayBufferWriter<byte>();
-collection.WriteTo(buffer);
+collection.WriteTo(buffer, lz4Options);
 ```
 
 ### Reading from Storage
 
 ```csharp
-// Read from a stream (async)
+// Read from a stream (async) - compression is auto-detected
 using var fileStream = File.OpenRead("data.arrow");
 using var collection = await FrozenArrow<Person>.ReadFromAsync(fileStream);
 
@@ -898,6 +909,7 @@ This benchmark demonstrates the power of column-level filtering on wide tables.
 | `ArrowQuery.Where().Count()` | 98 μs | 36 KB |
 | `FrozenArrow.Where().Count()` | 47,282 μs | 24 MB |
 
+
 **Key insight**: ArrowQuery Count is **482x faster** than naive enumeration because:
 - Selection bitmap is built from column scan
 - Count is computed from bitmap
@@ -925,6 +937,64 @@ This benchmark demonstrates the power of column-level filtering on wide tables.
 - Single aggregates have 2-4x overhead vs List (trade-off for memory efficiency)
 - Complex multi-aggregate queries scale well
 
+### Serialization & Compression Benchmarks
+
+FrozenArrow supports Arrow IPC serialization with optional LZ4 and Zstd compression.
+
+#### Standard Data Model (10 columns)
+
+**Scenario**: Serialize collections of varying sizes with 10 properties per record
+
+| Method | 1K Items | 10K Items | 100K Items |
+|--------|----------|-----------|------------|
+| **Arrow (No Compression)** | 70 μs / 202 KB | 527 μs / 1.2 MB | 7.0 ms / 12.7 MB |
+| **Arrow + LZ4** | 99 μs / 105 KB | 891 μs / 945 KB | 10.2 ms / 6.9 MB |
+| **Arrow + Zstd** | 337 μs / 85 KB | 2.1 ms / 465 KB | 19.3 ms / 3.8 MB |
+| **Protobuf** | 360 μs / 535 KB | 3.7 ms / 4.2 MB | 46.2 ms / 66.9 MB |
+
+**Key insights**:
+- **Arrow without compression** is the fastest option (5-7x faster than Protobuf)
+- **Arrow + Zstd** achieves the best compression ratio (~70% smaller than uncompressed)
+- **Arrow is dramatically smaller than Protobuf** even without compression (3-5x smaller)
+- **Protobuf uses 5x more memory** than Arrow for the same data
+
+#### Wide Data Model (200 columns, 100K-1M items)
+
+**Scenario**: Sparse wide dataset with 200 columns (10 strings, 5 DateTimes, 62 ints, 62 doubles, 61 decimals)
+
+| Method | 100K Items | 1M Items |
+|--------|------------|----------|
+| **Arrow (No Compression)** | 56 ms / 238 MB | 352 ms / 2,657 MB |
+| **Arrow + LZ4** | 166 ms / 90 MB | 1,817 ms / 663 MB |
+| **Arrow + Zstd** | 382 ms / 64 MB | 3,767 ms / 460 MB |
+| **Protobuf** | 185 ms / 151 MB | 1,752 ms / 1,206 MB |
+
+**Memory allocation comparison (1M items):**
+
+| Method | Serialized Size | Ratio vs Protobuf |
+|--------|-----------------|-------------------|
+| Arrow (No Compression) | 2,657 MB | 2.2x larger |
+| Arrow + LZ4 | 663 MB | **45% smaller** |
+| Arrow + Zstd | 460 MB | **62% smaller** |
+| Protobuf | 1,206 MB | baseline |
+
+**Key insights**:
+- For wide data, **uncompressed Arrow is larger than Protobuf** due to columnar overhead
+- **Arrow + LZ4 compresses ~4x** (2,657 MB → 663 MB), beating Protobuf by 45%
+- **Arrow + Zstd compresses ~6x** (2,657 MB → 460 MB), beating Protobuf by 62%
+- Compression time trade-off: LZ4 is ~5x slower, Zstd is ~10x slower than uncompressed
+- For storage/network scenarios, **always use compression** with wide data
+
+#### When to Use Each Option
+
+| Scenario | Recommendation | Why |
+|----------|----------------|-----|
+| Speed-critical, low latency | Arrow (No Compression) | Fastest serialization |
+| Balanced speed & size | Arrow + LZ4 | Good compression, fast decompression |
+| Storage/archival | Arrow + Zstd | Best compression ratio |
+| Cross-language interop | Arrow (any) | Native Arrow support in Python, Rust, Java |
+| Legacy .NET interop | Protobuf | Widely supported, but less efficient |
+
 ### When to Use ArrowQuery
 
 | Scenario | Best Approach | Why |
@@ -947,6 +1017,9 @@ dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *A
 
 # Run large-scale (1M items) benchmarks
 dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *LargeScale*
+
+# Run serialization benchmarks
+dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *SerializationSize*
 
 # Run memory analysis
 dotnet run -c Release --project benchmarks/FrozenArrow.MemoryAnalysis

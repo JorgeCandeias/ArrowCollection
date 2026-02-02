@@ -10,7 +10,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Apache.Arrow" Version="22.1.0" />
+	<PackageReference Include="Apache.Arrow" Version="22.1.0" />
+	<PackageReference Include="Apache.Arrow.Compression" Version="22.1.0" />
 	</ItemGroup>
 
 	<!-- Reference the source generator project and package it as an analyzer -->

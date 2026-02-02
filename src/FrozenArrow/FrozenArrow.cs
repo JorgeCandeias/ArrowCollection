@@ -99,7 +99,7 @@ public abstract class FrozenArrow<T>(
         ArgumentNullException.ThrowIfNull(writer);
 
         using var stream = new BufferWriterStream(writer);
-        WriteToStreamCore(stream);
+        WriteToStreamCore(stream, options ?? ArrowWriteOptions.Default);
     }
 
     /// <summary>
@@ -114,19 +114,45 @@ public abstract class FrozenArrow<T>(
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(stream);
 
-        await WriteToStreamCoreAsync(stream, cancellationToken).ConfigureAwait(false);
+        await WriteToStreamCoreAsync(stream, options ?? ArrowWriteOptions.Default, cancellationToken).ConfigureAwait(false);
     }
 
-    private void WriteToStreamCore(Stream stream)
+    private void WriteToStreamCore(Stream stream, ArrowWriteOptions options)
     {
-        using var writer = new ArrowStreamWriter(stream, _recordBatch.Schema, leaveOpen: true);
+        ICompressionCodecFactory? codecFactory = null;
+        if (options.CompressionCodec.HasValue)
+        {
+            CompressionInitializer.EnsureInitialized();
+            codecFactory = CompressionInitializer.CodecFactory;
+        }
+
+        var ipcOptions = new IpcOptions 
+        { 
+            CompressionCodec = options.CompressionCodec,
+            CompressionCodecFactory = codecFactory
+        };
+        
+        using var writer = new ArrowStreamWriter(stream, _recordBatch.Schema, leaveOpen: true, ipcOptions);
         writer.WriteRecordBatch(_recordBatch);
         writer.WriteEnd();
     }
 
-    private async Task WriteToStreamCoreAsync(Stream stream, CancellationToken cancellationToken)
+    private async Task WriteToStreamCoreAsync(Stream stream, ArrowWriteOptions options, CancellationToken cancellationToken)
     {
-        using var writer = new ArrowStreamWriter(stream, _recordBatch.Schema, leaveOpen: true);
+        ICompressionCodecFactory? codecFactory = null;
+        if (options.CompressionCodec.HasValue)
+        {
+            CompressionInitializer.EnsureInitialized();
+            codecFactory = CompressionInitializer.CodecFactory;
+        }
+
+        var ipcOptions = new IpcOptions 
+        { 
+            CompressionCodec = options.CompressionCodec,
+            CompressionCodecFactory = codecFactory
+        };
+        
+        using var writer = new ArrowStreamWriter(stream, _recordBatch.Schema, leaveOpen: true, ipcOptions);
         await writer.WriteRecordBatchAsync(_recordBatch, cancellationToken).ConfigureAwait(false);
         await writer.WriteEndAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -181,7 +207,10 @@ public abstract class FrozenArrow<T>(
 
     private static FrozenArrow<T> ReadFromStreamCore(Stream stream, ArrowReadOptions options)
     {
-        using var reader = new ArrowStreamReader(stream, leaveOpen: true);
+        // Initialize compression codecs in case the stream contains compressed data
+        CompressionInitializer.EnsureInitialized();
+
+        using var reader = new ArrowStreamReader(stream, CompressionInitializer.CodecFactory, leaveOpen: true);
         var recordBatch = reader.ReadNextRecordBatch() 
             ?? throw new InvalidOperationException("No record batch found in the stream.");
         
@@ -190,7 +219,10 @@ public abstract class FrozenArrow<T>(
 
     private static async Task<FrozenArrow<T>> ReadFromStreamCoreAsync(Stream stream, ArrowReadOptions options, CancellationToken cancellationToken)
     {
-        using var reader = new ArrowStreamReader(stream, leaveOpen: true);
+        // Initialize compression codecs in case the stream contains compressed data
+        CompressionInitializer.EnsureInitialized();
+
+        using var reader = new ArrowStreamReader(stream, CompressionInitializer.CodecFactory, leaveOpen: true);
         var recordBatch = await reader.ReadNextRecordBatchAsync(cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("No record batch found in the stream.");
         
