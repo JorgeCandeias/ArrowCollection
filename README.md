@@ -815,19 +815,19 @@ ArrowCollection is ideal for:
 ## Project Structure
 
 ```
-ArrowCollection/
+FrozenArrow/
 ├── src/
-│   ├── ArrowCollection/              # Core library + Query engine
+│   ├── FrozenArrow/                  # Core library + Query engine
 │   │   └── Query/                    # ArrowQuery LINQ implementation
-│   ├── ArrowCollection.Generators/   # Source generator
-│   └── ArrowCollection.Analyzers/    # Roslyn analyzer for query diagnostics
+│   ├── FrozenArrow.Generators/       # Source generator
+│   └── FrozenArrow.Analyzers/        # Roslyn analyzer for query diagnostics
 ├── tests/
-│   └── ArrowCollection.Tests/        # Unit tests
+│   └── FrozenArrow.Tests/            # Unit tests
 ├── benchmarks/
-│   ├── ArrowCollection.Benchmarks/   # Performance benchmarks
-│   └── ArrowCollection.MemoryAnalysis/ # Memory footprint analysis
+│   ├── FrozenArrow.Benchmarks/       # Performance benchmarks
+│   └── FrozenArrow.MemoryAnalysis/   # Memory footprint analysis
 └── samples/
-    └── ArrowCollection.Sample/       # Sample application
+    └── FrozenArrow.Sample/           # Sample application
 ```
 
 ## Requirements
@@ -852,7 +852,7 @@ The following benchmarks were run on:
 | `FrozenArrow<T>` | 988 MB | **44.6%** |
 
 **Key observations**:
-- ArrowCollection achieves ~45% memory reduction on wide, sparse datasets
+- FrozenArrow achieves ~45% memory reduction on wide, sparse datasets
 - Dictionary encoding automatically applied to 195 low-cardinality columns
 - Memory savings scale with data redundancy and column count
 
@@ -862,14 +862,14 @@ The following benchmarks were run on:
 | Operation | 10K Items | 100K Items | 1M Items |
 |-----------|-----------|------------|----------|
 | **List<T> Construction** | 3.8 μs | 328 μs | 3.5 ms |
-| **ArrowCollection Construction** | 3.2 ms | 37.8 ms | 381 ms |
+| **FrozenArrow Construction** | 3.2 ms | 37.8 ms | 381 ms |
 | **List<T> Enumeration** | 4.8 μs | 173 μs | 4.4 ms |
-| **ArrowCollection Enumeration** | 1.5 ms | 15.2 ms | 163 ms |
+| **FrozenArrow Enumeration** | 1.5 ms | 15.2 ms | 163 ms |
 
 **Key observations**:
 - Construction is ~100x slower due to columnar conversion and compression
 - Enumeration is ~37x slower due to on-the-fly object reconstruction
-- This trade-off is intentional: ArrowCollection is optimized for memory, not speed
+- This trade-off is intentional: FrozenArrow is optimized for memory, not speed
 
 ### ArrowQuery Performance (Wide Records - 200 Columns)
 
@@ -881,12 +881,12 @@ This benchmark demonstrates the power of column-level filtering on wide tables.
 |--------|------|-----------|---------|
 | `List<T>.Where().ToList()` | 18 μs | 928 B | 1.0x (baseline) |
 | `ArrowQuery.Where().ToList()` | 813 μs | 847 KB | 44x slower |
-| `ArrowCollection.Where().ToList()` | 47,737 μs | 24 MB | **2,593x slower** |
+| `FrozenArrow.Where().ToList()` | 47,737 μs | 24 MB | **2,593x slower** |
 
-**Key insight**: ArrowQuery is **57x faster** than naive ArrowCollection enumeration because:
+**Key insight**: ArrowQuery is **57x faster** than naive FrozenArrow enumeration because:
 - ArrowQuery scans only 1 column (the filter column)
 - Only matching rows (~1%) are reconstructed
-- ArrowCollection (Enumerable) reconstructs ALL 10,000 rows with ALL 200 columns
+- FrozenArrow (Enumerable) reconstructs ALL 10,000 rows with ALL 200 columns
 
 ### ArrowQuery Performance (Count Operation)
 
@@ -896,7 +896,7 @@ This benchmark demonstrates the power of column-level filtering on wide tables.
 |--------|-----------|-----------|
 | `List<T>.Where().Count()` | 22 μs | 0 B |
 | `ArrowQuery.Where().Count()` | 98 μs | 36 KB |
-| `ArrowCollection.Where().Count()` | 47,282 μs | 24 MB |
+| `FrozenArrow.Where().Count()` | 47,282 μs | 24 MB |
 
 **Key insight**: ArrowQuery Count is **482x faster** than naive enumeration because:
 - Selection bitmap is built from column scan

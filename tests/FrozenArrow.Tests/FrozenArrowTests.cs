@@ -187,7 +187,7 @@ public class FrozenArrowTests
     }
 
     [Fact]
-    public void ToFrozenArrow_WithEmptyCollection_ReturnsEmptyColly()
+    public void ToFrozenArrow_WithEmptyCollection_ReturnsEmptyFrozenArrow()
     {
         // Arrange
         var items = Array.Empty<SimpleItem>();
