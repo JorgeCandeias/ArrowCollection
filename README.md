@@ -1,17 +1,17 @@
-﻿# ArrowCollection
+# FrozenArrow
 
 ### Frozen Collection with Apache Arrow Compression for .NET
 
-> **Trademark Notice**: "Apache Arrow" and "Arrow" are trademarks of [The Apache Software Foundation](https://www.apache.org/). ArrowCollection is an independent, community-driven project and is not affiliated with, endorsed by, or sponsored by The Apache Software Foundation. The name "ArrowCollection" is used purely to describe the library's functionality: providing .NET collections backed by the Apache Arrow columnar format.
+> **Trademark Notice**: "Apache Arrow" and "Arrow" are trademarks of [The Apache Software Foundation](https://www.apache.org/). FrozenArrow is an independent, community-driven project and is not affiliated with, endorsed by, or sponsored by The Apache Software Foundation. The name "FrozenArrow" is used purely to describe the library's functionality: providing .NET collections backed by the Apache Arrow columnar format.
 
-ArrowCollection is a .NET library that implements a frozen generic collection with columnar compression using Apache Arrow. It's designed for scenarios where you need significant in-memory compression savings for massive datasets, while accepting the performance trade-off of reconstructing items on-the-fly during enumeration.
+FrozenArrow is a .NET library that implements a frozen generic collection with columnar compression using Apache Arrow. It's designed for scenarios where you need significant in-memory compression savings for massive datasets, while accepting the performance trade-off of reconstructing items on-the-fly during enumeration.
 
 ## Features
 
 - **Immutable/Frozen**: Once created, the collection cannot be modified
 - **Columnar Compression**: Uses Apache Arrow format for efficient compression
 - **Type-Safe**: Strongly typed generic collection
-- **Simple API**: Easy to use with the `.ToArrowCollection()` extension method
+- **Simple API**: Easy to use with the `.ToFrozenArrow()` extension method
 - **Source Generator**: Compile-time code generation for optimal performance
 - **IDisposable**: Properly releases unmanaged Arrow memory when disposed
 - **Serialization**: Read/write to streams and buffers using Arrow IPC format
@@ -22,10 +22,10 @@ ArrowCollection is a .NET library that implements a frozen generic collection wi
 
 ## Installation
 
-Add the ArrowCollection library to your project:
+Add the FrozenArrow library to your project:
 
 ```bash
-dotnet add reference path/to/ArrowCollection/ArrowCollection.csproj
+dotnet add reference path/to/ArrowCollection/FrozenArrow.csproj
 ```
 
 The library includes an embedded source generator that processes your types at compile time.
@@ -37,7 +37,7 @@ The library includes an embedded source generator that processes your types at c
 Types must be decorated with `[ArrowRecord]` at the class level, and each field/property to include must be decorated with `[ArrowArray]`:
 
 ```csharp
-using ArrowCollection;
+using FrozenArrow;
 
 [ArrowRecord]
 public class Person
@@ -60,9 +60,9 @@ var people = new[]
     new Person { Id = 3, Name = "Charlie", Age = 35, BirthDate = new DateTime(1989, 3, 10) }
 };
 
-// Convert to ArrowCollection (frozen collection)
+// Convert to FrozenArrow (frozen collection)
 // Remember to dispose when done to release unmanaged memory
-using var collection = people.ToArrowCollection();
+using var collection = people.ToFrozenArrow();
 
 // Enumerate the collection (items are materialized on-the-fly)
 foreach (var person in collection)
@@ -87,8 +87,8 @@ var largeDataset = Enumerable.Range(1, 1_000_000)
         BirthDate = DateTime.Now.AddYears(-(20 + (i % 60)))
     });
 
-// Convert to ArrowCollection - data is compressed using Apache Arrow columnar format
-using var collection = largeDataset.ToArrowCollection();
+// Convert to FrozenArrow - data is compressed using Apache Arrow columnar format
+using var collection = largeDataset.ToFrozenArrow();
 
 // INEFFICIENT: This enumerates all 1M items, creating 1M Person objects
 var adultsOld = collection.Where(p => p.Age >= 18).Take(10);
@@ -136,7 +136,7 @@ var data = new[]
     new OptionalData { OptionalId = null, OptionalName = null, OptionalDate = null },
 };
 
-using var collection = data.ToArrowCollection();
+using var collection = data.ToFrozenArrow();
 ```
 
 ### Working with Half-Precision Floats and Binary Data
@@ -183,7 +183,7 @@ var readings = new[]
     }
 };
 
-using var collection = readings.ToArrowCollection();
+using var collection = readings.ToFrozenArrow();
 ```
 
 ### Using Fields Instead of Properties
@@ -266,7 +266,7 @@ var dataPoints = new[]
     new DataPoint { Id = 2, Value = 20.5, Timestamp = DateTime.UtcNow }
 };
 
-using var collection = dataPoints.ToArrowCollection();
+using var collection = dataPoints.ToFrozenArrow();
 
 foreach (var point in collection)
 {
@@ -307,7 +307,7 @@ var people = new[]
     new Person(2, "Bob", 60000.0)
 };
 
-using var collection = people.ToArrowCollection();
+using var collection = people.ToFrozenArrow();
 
 foreach (var person in collection)
 {
@@ -335,12 +335,12 @@ public record Employee(
 
 ## Important: Frozen Collection Semantics
 
-ArrowCollection is a **frozen collection** by design:
+FrozenArrow is a **frozen collection** by design:
 
 - **Immutable after creation**: Once built, no items can be added, removed, or modified
 - **Data is copied on construction**: The source data is copied into Arrow columnar format during `ToArrowCollection()`
 - **Items are reconstructed on enumeration**: Each enumeration creates new instances from the stored columnar data
-- **Original source independence**: Changes to the original source collection have no effect on the ArrowCollection
+- **Original source independence**: Changes to the original source collection have no effect on the FrozenArrow
 - **Reconstructed item independence**: Modifying items obtained during enumeration has no effect on the stored data
 - **Constructors are bypassed**: Items are created without calling constructors; fields are set directly
 
@@ -382,7 +382,7 @@ var items = new[]
     new Person { Id = 2, Name = "Bob", Age = 25 }
 };
 
-using var collection = items.ToArrowCollection();
+using var collection = items.ToFrozenArrow();
 
 // Write to a stream (async)
 using var fileStream = File.Create("data.arrow");
@@ -398,15 +398,15 @@ collection.WriteTo(buffer);
 ```csharp
 // Read from a stream (async)
 using var fileStream = File.OpenRead("data.arrow");
-using var collection = await ArrowCollection<Person>.ReadFromAsync(fileStream);
+using var collection = await FrozenArrow<Person>.ReadFromAsync(fileStream);
 
 // Or read from a span (sync)
 byte[] data = File.ReadAllBytes("data.arrow");
-using var collection = ArrowCollection<Person>.ReadFrom(data.AsSpan());
+using var collection = FrozenArrow<Person>.ReadFrom(data.AsSpan());
 
 // Or read from a ReadOnlySequence (for pipeline scenarios)
 var sequence = new ReadOnlySequence<byte>(data);
-using var collection = ArrowCollection<Person>.ReadFrom(sequence);
+using var collection = FrozenArrow<Person>.ReadFrom(sequence);
 ```
 
 ### Schema Evolution
@@ -452,7 +452,7 @@ var strictOptions = new ArrowReadOptions
     MissingColumns = MissingColumnBehavior.Throw   // Throw if source is missing columns
 };
 
-using var collection = await ArrowCollection<Person>.ReadFromAsync(stream, strictOptions);
+using var collection = await FrozenArrow<Person>.ReadFromAsync(stream, strictOptions);
 
 // Lenient validation (default) - ignore extra columns, use defaults for missing
 var lenientOptions = new ArrowReadOptions
@@ -525,7 +525,7 @@ ArrowCollection includes a powerful query engine that enables **optimized LINQ q
 ### Basic Query Usage
 
 ```csharp
-using ArrowCollection.Query;
+using FrozenArrow.Query;
 
 // Create a queryable view over the collection
 var results = collection
@@ -710,7 +710,7 @@ var results = collection
 
 ### Compile-Time Diagnostics
 
-The ArrowCollection.Analyzers package provides compile-time warnings and errors:
+the FrozenArrow.Analyzers package provides compile-time warnings and errors:
 
 | Code | Severity | Description |
 |------|----------|-------------|
@@ -735,7 +735,7 @@ var good = collection.AsQueryable().Where(x => x.Age > 30).ToList();
 
 ```csharp
 // Sample: 1 million records with 10 columns
-using var collection = GenerateLargeDataset(1_000_000).ToArrowCollection();
+using var collection = GenerateLargeDataset(1_000_000).ToFrozenArrow();
 
 // Query: Find active engineers over 30
 var results = collection
@@ -849,7 +849,7 @@ The following benchmarks were run on:
 | Storage | Memory Usage | Savings |
 |---------|-------------|---------|
 | `List<T>` | 1,784 MB | — |
-| `ArrowCollection<T>` | 988 MB | **44.6%** |
+| `FrozenArrow<T>` | 988 MB | **44.6%** |
 
 **Key observations**:
 - ArrowCollection achieves ~45% memory reduction on wide, sparse datasets
