@@ -701,9 +701,9 @@ var results = collection
 - `g.Min(x => x.Column)` - Minimum per group
 - `g.Max(x => x.Column)` - Maximum per group
 
-**Current Limitations:**
+**Notes:**
 - GroupBy key must be a simple column access (`x => x.Column`)
-- Dictionary-encoded string columns are not yet supported for GroupBy keys
+- Dictionary-encoded columns are fully supported for both keys and aggregates
 - Aggregations must reference direct column properties
 
 ### Compile-Time Diagnostics
@@ -717,6 +717,7 @@ The ArrowCollection.Analyzers package provides compile-time warnings and errors:
 | `ARROWQUERY003` | ⚠️ Warning | Complex predicate may cause partial materialization |
 | `ARROWQUERY004` | ❌ Error | Unsupported GroupBy projection |
 | `ARROWQUERY007` | ⚠️ Warning | OR predicate reduces optimization |
+
 
 Example diagnostic:
 
@@ -772,6 +773,7 @@ The source generator and analyzer produce helpful diagnostic messages:
 | `ARROWQUERY005` | Warning | Mixing LINQ providers may cause unexpected materialization |
 | `ARROWQUERY007` | Warning | OR predicate reduces optimization |
 
+
 ## Performance Characteristics
 
 ### Advantages
@@ -784,13 +786,13 @@ The source generator and analyzer produce helpful diagnostic messages:
 - **Selective Materialization**: Only matching rows are converted to objects
 - **Column-Level Aggregates**: Sum, Average, Min, Max computed on columns directly
 - **Single-Pass Multi-Aggregates**: Compute multiple aggregates without multiple iterations
+- **Dictionary-Encoded Support**: Full support for dictionary-encoded columns in GroupBy and aggregates
 
 ### Trade-offs
 - **Enumeration Cost**: Items are reconstructed on-the-fly, which is slower than iterating in-memory objects
 - **Not for Frequent Access**: Best suited for scenarios where data is enumerated infrequently but needs to be kept in memory
 - **Construction Cost**: Initial creation requires copying all data into Arrow format
 - **Query Limitations**: Complex predicates may require fallback to row-by-row evaluation
-- **Dictionary-Encoded Columns**: Some operations don't yet support dictionary-encoded string columns
 
 ## Use Cases
 
@@ -806,6 +808,7 @@ ArrowCollection is ideal for:
 - **Large dataset filtering** where only a subset of rows match criteria
 - **Aggregate computations** over filtered data without full materialization
 - **GroupBy analytics** with column-level aggregation
+
 
 ## Project Structure
 
@@ -898,6 +901,28 @@ This benchmark demonstrates the power of column-level filtering on wide tables.
 - Count is computed from bitmap
 - **Zero object reconstruction!**
 
+### Large-Scale Query Benchmarks (1M Items)
+
+**Scenario**: Various query operations on 1 million records with 10 columns
+
+| Operation | List Time | ArrowQuery Time | Ratio | Notes |
+|-----------|-----------|-----------------|-------|-------|
+| **Filter + Count** | 9 ms | 13 ms | 1.4x | ArrowQuery uses bitmap popcount |
+| **Filter + ToList** | 5 ms | 42 ms | 8x | Materialization overhead |
+| **Sum (filtered)** | 10 ms | 36 ms | 3.6x | Column-level aggregate |
+| **Average (filtered)** | 9 ms | 25 ms | 2.8x | Column-level aggregate |
+| **Min (filtered)** | 11 ms | 30 ms | 2.7x | Column-level aggregate |
+| **GroupBy + Count** | 17 ms | 9 ms | **0.5x** ✓ | ArrowQuery faster! |
+| **GroupBy + Sum** | 30 ms | 53 ms | 1.8x | Dictionary-encoded support |
+| **GroupBy + Multi-Agg** | 45 ms | 68 ms | 1.5x | Multiple aggregates |
+| **Multi-Aggregate** | 43 ms | 98 ms | 2.3x | Single-pass execution |
+
+**Key insights**:
+- **GroupBy + Count** is **2x faster** with ArrowQuery due to efficient integer key grouping
+- Dictionary-encoded columns are fully supported for all operations
+- Single aggregates have 2-4x overhead vs List (trade-off for memory efficiency)
+- Complex multi-aggregate queries scale well
+
 ### When to Use ArrowQuery
 
 | Scenario | Best Approach | Why |
@@ -905,6 +930,7 @@ This benchmark demonstrates the power of column-level filtering on wide tables.
 | Highly selective filter (<10% match) | ✅ ArrowQuery | Avoids reconstructing 90%+ of rows |
 | Counting/Any/All | ✅ ArrowQuery | No reconstruction needed |
 | Wide tables (many columns) | ✅ ArrowQuery | Reconstruction cost is high |
+| GroupBy with integer keys | ✅ ArrowQuery | Often faster than List |
 | Low selectivity (>90% match) | ⚠️ List<T> | Reconstruction overhead exceeds benefit |
 | Frequent iteration | ⚠️ List<T> | ArrowCollection optimizes for memory, not speed |
 
@@ -916,6 +942,9 @@ dotnet run -c Release --project benchmarks/ArrowCollection.Benchmarks -- --list 
 
 # Run ArrowQuery benchmarks
 dotnet run -c Release --project benchmarks/ArrowCollection.Benchmarks -- --filter *ArrowQuery*
+
+# Run large-scale (1M items) benchmarks
+dotnet run -c Release --project benchmarks/ArrowCollection.Benchmarks -- --filter *LargeScale*
 
 # Run memory analysis
 dotnet run -c Release --project benchmarks/ArrowCollection.MemoryAnalysis

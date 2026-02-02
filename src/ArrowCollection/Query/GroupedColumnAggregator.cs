@@ -10,11 +10,18 @@ internal static class GroupedColumnAggregator
 {
     /// <summary>
     /// Groups indices by key value and returns the grouped indices.
+    /// Supports both regular arrays and dictionary-encoded arrays.
     /// </summary>
     public static Dictionary<TKey, List<int>> GroupIndicesByKey<TKey>(
         IArrowArray keyColumn,
         ref SelectionBitmap selection) where TKey : notnull
     {
+        // Handle dictionary-encoded columns specially for better performance
+        if (keyColumn is DictionaryArray dictArray)
+        {
+            return DictionaryArrayHelper.GroupByDictionary<TKey>(dictArray, ref selection);
+        }
+
         var groups = new Dictionary<TKey, List<int>>();
 
         foreach (var i in selection.GetSelectedIndices())
@@ -221,6 +228,7 @@ internal static class GroupedColumnAggregator
                 DoubleArray doubleArray => doubleArray.Values[i],
                 FloatArray floatArray => floatArray.Values[i],
                 Decimal128Array decimalArray => (double)decimalArray.GetValue(i)!.Value,
+                DictionaryArray dictArray => DictionaryArrayHelper.GetNumericValue(dictArray, i),
                 _ => throw new NotSupportedException($"Sum not supported for {column.GetType().Name}")
             };
         }
@@ -280,6 +288,7 @@ internal static class GroupedColumnAggregator
             DoubleArray doubleArray => doubleArray.Values[index],
             FloatArray floatArray => floatArray.Values[index],
             Decimal128Array decimalArray => decimalArray.GetValue(index)!.Value,
+            DictionaryArray dictArray => DictionaryArrayHelper.GetNumericValue(dictArray, index),
             _ => throw new NotSupportedException($"Numeric access not supported for {column.GetType().Name}")
         };
         return (T)Convert.ChangeType(value, typeof(T));
@@ -295,8 +304,34 @@ internal static class GroupedColumnAggregator
             DoubleArray => SumIndices(column, indices),
             FloatArray => (float)SumIndices(column, indices),
             Decimal128Array => SumDecimalIndices((Decimal128Array)column, indices),
+            DictionaryArray dictArray => SumDictionaryIndices(dictArray, indices),
             _ => throw new NotSupportedException($"Sum not supported for {column.GetType().Name}")
         };
+    }
+
+    private static object SumDictionaryIndices(DictionaryArray dictArray, List<int> indices)
+    {
+        // Determine the result type based on dictionary value type
+        if (dictArray.Dictionary is Decimal128Array)
+        {
+            decimal sum = 0;
+            foreach (var i in indices)
+            {
+                if (!dictArray.IsNull(i))
+                    sum += DictionaryArrayHelper.GetDecimalValue(dictArray, i);
+            }
+            return sum;
+        }
+        else
+        {
+            double sum = 0;
+            foreach (var i in indices)
+            {
+                if (!dictArray.IsNull(i))
+                    sum += DictionaryArrayHelper.GetNumericValue(dictArray, i);
+            }
+            return sum;
+        }
     }
 
     private static decimal SumDecimalIndices(Decimal128Array column, List<int> indices)
@@ -327,8 +362,51 @@ internal static class GroupedColumnAggregator
             Int64Array => MinIndices<long>(column, indices),
             DoubleArray => MinIndices<double>(column, indices),
             Decimal128Array => MinDecimalIndices((Decimal128Array)column, indices),
+            DictionaryArray dictArray => MinDictionaryIndices(dictArray, indices),
             _ => throw new NotSupportedException($"Min not supported for {column.GetType().Name}")
         };
+    }
+
+    private static object MinDictionaryIndices(DictionaryArray dictArray, List<int> indices)
+    {
+        if (dictArray.Dictionary is Decimal128Array)
+        {
+            decimal min = decimal.MaxValue;
+            bool hasValue = false;
+            foreach (var i in indices)
+            {
+                if (!dictArray.IsNull(i))
+                {
+                    var value = DictionaryArrayHelper.GetDecimalValue(dictArray, i);
+                    if (!hasValue || value < min)
+                    {
+                        min = value;
+                        hasValue = true;
+                    }
+                }
+            }
+            if (!hasValue) throw new InvalidOperationException("Sequence contains no elements.");
+            return min;
+        }
+        else
+        {
+            double min = double.MaxValue;
+            bool hasValue = false;
+            foreach (var i in indices)
+            {
+                if (!dictArray.IsNull(i))
+                {
+                    var value = DictionaryArrayHelper.GetNumericValue(dictArray, i);
+                    if (!hasValue || value < min)
+                    {
+                        min = value;
+                        hasValue = true;
+                    }
+                }
+            }
+            if (!hasValue) throw new InvalidOperationException("Sequence contains no elements.");
+            return min;
+        }
     }
 
     private static decimal MinDecimalIndices(Decimal128Array column, List<int> indices)
@@ -360,8 +438,51 @@ internal static class GroupedColumnAggregator
             Int64Array => MaxIndices<long>(column, indices),
             DoubleArray => MaxIndices<double>(column, indices),
             Decimal128Array => MaxDecimalIndices((Decimal128Array)column, indices),
+            DictionaryArray dictArray => MaxDictionaryIndices(dictArray, indices),
             _ => throw new NotSupportedException($"Max not supported for {column.GetType().Name}")
         };
+    }
+
+    private static object MaxDictionaryIndices(DictionaryArray dictArray, List<int> indices)
+    {
+        if (dictArray.Dictionary is Decimal128Array)
+        {
+            decimal max = decimal.MinValue;
+            bool hasValue = false;
+            foreach (var i in indices)
+            {
+                if (!dictArray.IsNull(i))
+                {
+                    var value = DictionaryArrayHelper.GetDecimalValue(dictArray, i);
+                    if (!hasValue || value > max)
+                    {
+                        max = value;
+                        hasValue = true;
+                    }
+                }
+            }
+            if (!hasValue) throw new InvalidOperationException("Sequence contains no elements.");
+            return max;
+        }
+        else
+        {
+            double max = double.MinValue;
+            bool hasValue = false;
+            foreach (var i in indices)
+            {
+                if (!dictArray.IsNull(i))
+                {
+                    var value = DictionaryArrayHelper.GetNumericValue(dictArray, i);
+                    if (!hasValue || value > max)
+                    {
+                        max = value;
+                        hasValue = true;
+                    }
+                }
+            }
+            if (!hasValue) throw new InvalidOperationException("Sequence contains no elements.");
+            return max;
+        }
     }
 
     private static decimal MaxDecimalIndices(Decimal128Array column, List<int> indices)

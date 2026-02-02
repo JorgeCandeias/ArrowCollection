@@ -54,6 +54,7 @@ internal static class MultiAggregateExecutor
             DoubleArray doubleArray => SumDouble(doubleArray, ref selection),
             FloatArray floatArray => (float)SumFloat(floatArray, ref selection),
             Decimal128Array decimalArray => SumDecimal(decimalArray, ref selection),
+            DictionaryArray dictArray => SumDictionary(dictArray, ref selection),
             _ => throw new NotSupportedException($"Sum not supported for {column.GetType().Name}")
         };
     }
@@ -68,6 +69,7 @@ internal static class MultiAggregateExecutor
             DoubleArray doubleArray => AverageDouble(doubleArray, ref selection),
             FloatArray floatArray => AverageFloat(floatArray, ref selection),
             Decimal128Array decimalArray => (double)AverageDecimal(decimalArray, ref selection),
+            DictionaryArray dictArray => AverageDictionary(dictArray, ref selection),
             _ => throw new NotSupportedException($"Average not supported for {column.GetType().Name}")
         };
     }
@@ -81,6 +83,7 @@ internal static class MultiAggregateExecutor
             Int64Array int64Array => MinInt64(int64Array, ref selection),
             DoubleArray doubleArray => MinDouble(doubleArray, ref selection),
             Decimal128Array decimalArray => MinDecimal(decimalArray, ref selection),
+            DictionaryArray dictArray => MinDictionary(dictArray, ref selection),
             _ => throw new NotSupportedException($"Min not supported for {column.GetType().Name}")
         };
     }
@@ -94,6 +97,7 @@ internal static class MultiAggregateExecutor
             Int64Array int64Array => MaxInt64(int64Array, ref selection),
             DoubleArray doubleArray => MaxDouble(doubleArray, ref selection),
             Decimal128Array decimalArray => MaxDecimal(decimalArray, ref selection),
+            DictionaryArray dictArray => MaxDictionary(dictArray, ref selection),
             _ => throw new NotSupportedException($"Max not supported for {column.GetType().Name}")
         };
     }
@@ -402,6 +406,133 @@ internal static class MultiAggregateExecutor
         }
         if (!hasValue) throw new InvalidOperationException("Sequence contains no elements.");
         return max;
+    }
+
+    #endregion
+
+    #region DictionaryArray Support
+
+    private static object SumDictionary(DictionaryArray dictArray, ref SelectionBitmap selection)
+    {
+        if (dictArray.Dictionary is Decimal128Array)
+        {
+            decimal sum = 0;
+            foreach (var i in selection.GetSelectedIndices())
+            {
+                if (!dictArray.IsNull(i))
+                    sum += DictionaryArrayHelper.GetDecimalValue(dictArray, i);
+            }
+            return sum;
+        }
+        else
+        {
+            double sum = 0;
+            foreach (var i in selection.GetSelectedIndices())
+            {
+                if (!dictArray.IsNull(i))
+                    sum += DictionaryArrayHelper.GetNumericValue(dictArray, i);
+            }
+            return sum;
+        }
+    }
+
+    private static double AverageDictionary(DictionaryArray dictArray, ref SelectionBitmap selection)
+    {
+        double sum = 0;
+        int count = 0;
+        foreach (var i in selection.GetSelectedIndices())
+        {
+            if (!dictArray.IsNull(i))
+            {
+                sum += DictionaryArrayHelper.GetNumericValue(dictArray, i);
+                count++;
+            }
+        }
+        return count > 0 ? sum / count : 0;
+    }
+
+    private static object MinDictionary(DictionaryArray dictArray, ref SelectionBitmap selection)
+    {
+        if (dictArray.Dictionary is Decimal128Array)
+        {
+            decimal min = decimal.MaxValue;
+            bool hasValue = false;
+            foreach (var i in selection.GetSelectedIndices())
+            {
+                if (!dictArray.IsNull(i))
+                {
+                    var value = DictionaryArrayHelper.GetDecimalValue(dictArray, i);
+                    if (!hasValue || value < min)
+                    {
+                        min = value;
+                        hasValue = true;
+                    }
+                }
+            }
+            if (!hasValue) throw new InvalidOperationException("Sequence contains no elements.");
+            return min;
+        }
+        else
+        {
+            double min = double.MaxValue;
+            bool hasValue = false;
+            foreach (var i in selection.GetSelectedIndices())
+            {
+                if (!dictArray.IsNull(i))
+                {
+                    var value = DictionaryArrayHelper.GetNumericValue(dictArray, i);
+                    if (!hasValue || value < min)
+                    {
+                        min = value;
+                        hasValue = true;
+                    }
+                }
+            }
+            if (!hasValue) throw new InvalidOperationException("Sequence contains no elements.");
+            return min;
+        }
+    }
+
+    private static object MaxDictionary(DictionaryArray dictArray, ref SelectionBitmap selection)
+    {
+        if (dictArray.Dictionary is Decimal128Array)
+        {
+            decimal max = decimal.MinValue;
+            bool hasValue = false;
+            foreach (var i in selection.GetSelectedIndices())
+            {
+                if (!dictArray.IsNull(i))
+                {
+                    var value = DictionaryArrayHelper.GetDecimalValue(dictArray, i);
+                    if (!hasValue || value > max)
+                    {
+                        max = value;
+                        hasValue = true;
+                    }
+                }
+            }
+            if (!hasValue) throw new InvalidOperationException("Sequence contains no elements.");
+            return max;
+        }
+        else
+        {
+            double max = double.MinValue;
+            bool hasValue = false;
+            foreach (var i in selection.GetSelectedIndices())
+            {
+                if (!dictArray.IsNull(i))
+                {
+                    var value = DictionaryArrayHelper.GetNumericValue(dictArray, i);
+                    if (!hasValue || value > max)
+                    {
+                        max = value;
+                        hasValue = true;
+                    }
+                }
+            }
+            if (!hasValue) throw new InvalidOperationException("Sequence contains no elements.");
+            return max;
+        }
     }
 
     #endregion

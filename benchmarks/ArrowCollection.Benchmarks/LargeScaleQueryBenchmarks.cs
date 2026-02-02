@@ -197,16 +197,16 @@ public class LargeScaleQueryBenchmarks
     #region GroupBy with Sum
 
     /// <summary>
-    /// List baseline: GroupBy Age and sum salaries.
+    /// List baseline: GroupBy Age and sum salaries per group.
     /// </summary>
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("GroupBySum")]
-    public decimal List_GroupBySum()
+    public int List_GroupBySum()
     {
         return _list
             .GroupBy(x => x.Age)
             .Select(g => new { Age = g.Key, Total = g.Sum(x => x.Salary) })
-            .Sum(x => x.Total);
+            .ToList().Count;
     }
 
     /// <summary>
@@ -214,13 +214,13 @@ public class LargeScaleQueryBenchmarks
     /// </summary>
     [Benchmark]
     [BenchmarkCategory("GroupBySum")]
-    public decimal ArrowQuery_GroupBySum()
+    public int ArrowQuery_GroupBySum()
     {
         return _arrowCollection
             .AsQueryable()
             .GroupBy(x => x.Age)
             .Select(g => new { Age = g.Key, Total = g.Sum(x => x.Salary) })
-            .Sum(x => x.Total);
+            .ToList().Count;
     }
 
     #endregion
