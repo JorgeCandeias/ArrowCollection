@@ -298,6 +298,7 @@ public sealed class ArrowQueryProvider : IQueryProvider
         throw new NotSupportedException($"Result type '{resultType}' is not supported.");
     }
 
+
     private TResult ExecuteSimpleAggregate<TResult>(SimpleAggregateOperation aggregate, ref SelectionBitmap selection)
     {
         // Find the column by name
@@ -307,12 +308,13 @@ public sealed class ArrowQueryProvider : IQueryProvider
         
         var column = _recordBatch.Column(columnIndex);
 
+        // Use parallel aggregator when enabled
         var result = aggregate.Operation switch
         {
-            AggregationOperation.Sum => ColumnAggregator.ExecuteSum(column, ref selection, aggregate.ResultType),
-            AggregationOperation.Average => ColumnAggregator.ExecuteAverage(column, ref selection, aggregate.ResultType),
-            AggregationOperation.Min => ColumnAggregator.ExecuteMin(column, ref selection, aggregate.ResultType),
-            AggregationOperation.Max => ColumnAggregator.ExecuteMax(column, ref selection, aggregate.ResultType),
+            AggregationOperation.Sum => ParallelAggregator.ExecuteSumParallel(column, ref selection, aggregate.ResultType, ParallelOptions),
+            AggregationOperation.Average => ParallelAggregator.ExecuteAverageParallel(column, ref selection, aggregate.ResultType, ParallelOptions),
+            AggregationOperation.Min => ParallelAggregator.ExecuteMinParallel(column, ref selection, aggregate.ResultType, ParallelOptions),
+            AggregationOperation.Max => ParallelAggregator.ExecuteMaxParallel(column, ref selection, aggregate.ResultType, ParallelOptions),
             _ => throw new NotSupportedException($"Aggregate operation {aggregate.Operation} is not supported.")
         };
 

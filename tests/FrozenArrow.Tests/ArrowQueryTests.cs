@@ -1320,4 +1320,174 @@ public class ArrowQueryTests
     }
 
     #endregion
+
+    #region Parallel Aggregation Tests
+
+    [Fact]
+    public void ParallelAggregation_Sum_ProducesCorrectResult()
+    {
+        // Arrange - Use larger dataset to trigger parallel execution
+        using var collection = CreateLargeTestCollection(100_000);
+
+        // Act - Sequential
+        var sequentialResult = collection
+            .AsQueryable()
+            .AsSequential()
+            .Where(x => x.IsActive)
+            .Sum(x => x.Salary);
+
+        // Act - Parallel
+        var parallelResult = collection
+            .AsQueryable()
+            .AsParallel()
+            .Where(x => x.IsActive)
+            .Sum(x => x.Salary);
+
+        // Assert
+        Assert.Equal(sequentialResult, parallelResult);
+    }
+
+    [Fact]
+    public void ParallelAggregation_Average_ProducesCorrectResult()
+    {
+        // Arrange
+        using var collection = CreateLargeTestCollection(100_000);
+
+        // Act - Sequential
+        var sequentialResult = collection
+            .AsQueryable()
+            .AsSequential()
+            .Where(x => x.Age > 30)
+            .Average(x => x.Age);
+
+        // Act - Parallel
+        var parallelResult = collection
+            .AsQueryable()
+            .AsParallel()
+            .Where(x => x.Age > 30)
+            .Average(x => x.Age);
+
+        // Assert - floating point, so use precision
+        Assert.Equal(sequentialResult, parallelResult, precision: 10);
+    }
+
+    [Fact]
+    public void ParallelAggregation_Min_ProducesCorrectResult()
+    {
+        // Arrange
+        using var collection = CreateLargeTestCollection(100_000);
+
+        // Act - Sequential
+        var sequentialResult = collection
+            .AsQueryable()
+            .AsSequential()
+            .Where(x => x.IsActive)
+            .Min(x => x.Salary);
+
+        // Act - Parallel
+        var parallelResult = collection
+            .AsQueryable()
+            .AsParallel()
+            .Where(x => x.IsActive)
+            .Min(x => x.Salary);
+
+        // Assert
+        Assert.Equal(sequentialResult, parallelResult);
+    }
+
+    [Fact]
+    public void ParallelAggregation_Max_ProducesCorrectResult()
+    {
+        // Arrange
+        using var collection = CreateLargeTestCollection(100_000);
+
+        // Act - Sequential
+        var sequentialResult = collection
+            .AsQueryable()
+            .AsSequential()
+            .Where(x => x.IsActive)
+            .Max(x => x.Salary);
+
+        // Act - Parallel
+        var parallelResult = collection
+            .AsQueryable()
+            .AsParallel()
+            .Where(x => x.IsActive)
+            .Max(x => x.Salary);
+
+        // Assert
+        Assert.Equal(sequentialResult, parallelResult);
+    }
+
+    [Fact]
+    public void ParallelAggregation_SumInt_ProducesCorrectResult()
+    {
+        // Arrange
+        using var collection = CreateLargeTestCollection(100_000);
+
+        // Act - Sequential
+        var sequentialResult = collection
+            .AsQueryable()
+            .AsSequential()
+            .Where(x => x.Category == "Engineering")
+            .Sum(x => x.Age);
+
+        // Act - Parallel
+        var parallelResult = collection
+            .AsQueryable()
+            .AsParallel()
+            .Where(x => x.Category == "Engineering")
+            .Sum(x => x.Age);
+
+        // Assert
+        Assert.Equal(sequentialResult, parallelResult);
+    }
+
+    [Fact]
+    public void ParallelAggregation_MinInt_ProducesCorrectResult()
+    {
+        // Arrange
+        using var collection = CreateLargeTestCollection(100_000);
+
+        // Act - Sequential
+        var sequentialResult = collection
+            .AsQueryable()
+            .AsSequential()
+            .Where(x => x.Age > 40)
+            .Min(x => x.Age);
+
+        // Act - Parallel
+        var parallelResult = collection
+            .AsQueryable()
+            .AsParallel()
+            .Where(x => x.Age > 40)
+            .Min(x => x.Age);
+
+        // Assert
+        Assert.Equal(sequentialResult, parallelResult);
+    }
+
+    [Fact]
+    public void ParallelAggregation_MaxInt_ProducesCorrectResult()
+    {
+        // Arrange
+        using var collection = CreateLargeTestCollection(100_000);
+
+        // Act - Sequential
+        var sequentialResult = collection
+            .AsQueryable()
+            .AsSequential()
+            .Max(x => x.Age);
+
+        // Act - Parallel
+        var parallelResult = collection
+            .AsQueryable()
+            .AsParallel()
+            .Max(x => x.Age);
+
+        // Assert
+        Assert.Equal(sequentialResult, parallelResult);
+    }
+
+    #endregion
 }
