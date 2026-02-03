@@ -5,8 +5,13 @@ using FrozenArrow.Query;
 namespace FrozenArrow.Benchmarks;
 
 /// <summary>
-/// Benchmarks for SIMD-optimized grouped aggregation operations.
+/// Benchmarks for SIMD-optimized and single-pass grouped aggregation operations.
 /// Tests GroupBy with Sum, Count, Average, Min, Max across different group cardinalities.
+/// 
+/// Single-pass optimization kicks in when:
+/// - Key column is dictionary-encoded
+/// - Dictionary cardinality ? 256
+/// - Selection count ? 1000
 /// </summary>
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]

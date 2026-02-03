@@ -17,6 +17,10 @@ internal static class GroupedColumnAggregator
     
     // Threshold for using SIMD within a group's indices
     private const int SimdGroupThreshold = 64;
+    
+    // Maximum cardinality for array-based single-pass aggregation
+    private const int ArrayBasedMaxCardinality = 256;
+    
     /// <summary>
     /// Groups indices by key value and returns the grouped indices.
     /// Supports both regular arrays and dictionary-encoded arrays.
@@ -156,9 +160,194 @@ internal static class GroupedColumnAggregator
 
     /// <summary>
     /// Executes a full grouped query with multiple aggregates.
+    /// Uses single-pass aggregation for dictionary-encoded key columns with low cardinality.
     /// Returns a list of result objects with Key and aggregate values.
     /// </summary>
     public static List<GroupedResult<TKey>> ExecuteGroupedQuery<TKey>(
+        IArrowArray keyColumn,
+        RecordBatch batch,
+        ref SelectionBitmap selection,
+        IReadOnlyList<AggregationDescriptor> aggregations,
+        Dictionary<string, int> columnIndexMap) where TKey : notnull
+    {
+        // Use single-pass aggregation for dictionary-encoded columns with low cardinality
+        if (keyColumn is DictionaryArray dictArray && 
+            dictArray.Dictionary.Length <= ArrayBasedMaxCardinality &&
+            selection.CountSet() >= SinglePassThreshold)
+        {
+            return ExecuteGroupedQuerySinglePass<TKey>(dictArray, batch, ref selection, aggregations, columnIndexMap);
+        }
+
+        // Fall back to traditional two-pass approach
+        return ExecuteGroupedQueryTwoPass<TKey>(keyColumn, batch, ref selection, aggregations, columnIndexMap);
+    }
+
+    /// <summary>
+    /// Single-pass grouped aggregation for dictionary-encoded key columns.
+    /// Aggregates values on-the-fly without storing intermediate indices.
+    /// </summary>
+    private static List<GroupedResult<TKey>> ExecuteGroupedQuerySinglePass<TKey>(
+        DictionaryArray keyDictArray,
+        RecordBatch batch,
+        ref SelectionBitmap selection,
+        IReadOnlyList<AggregationDescriptor> aggregations,
+        Dictionary<string, int> columnIndexMap) where TKey : notnull
+    {
+        var dictionaryLength = keyDictArray.Dictionary.Length;
+        
+        // Create accumulators for each aggregate operation, indexed by dictionary index
+        var accumulators = new GroupAccumulator[dictionaryLength];
+        for (int i = 0; i < dictionaryLength; i++)
+        {
+            accumulators[i] = new GroupAccumulator(aggregations.Count);
+        }
+
+        // Pre-fetch value column arrays for each aggregation
+        var valueAccessors = new ValueAccessor[aggregations.Count];
+        for (int aggIdx = 0; aggIdx < aggregations.Count; aggIdx++)
+        {
+            var agg = aggregations[aggIdx];
+            if (agg.ColumnName is not null && columnIndexMap.TryGetValue(agg.ColumnName, out var colIdx))
+            {
+                valueAccessors[aggIdx] = new ValueAccessor(batch.Column(colIdx));
+            }
+        }
+
+        // Get key indices array for fast access
+        ReadOnlySpan<int> keyIndicesSpan = default;
+        ReadOnlySpan<sbyte> keyIndicesInt8Span = default;
+        bool useInt32KeyIndices = false;
+        bool useInt8KeyIndices = false;
+
+        if (keyDictArray.Indices is Int32Array keyInt32Indices)
+        {
+            keyIndicesSpan = keyInt32Indices.Values;
+            useInt32KeyIndices = true;
+        }
+        else if (keyDictArray.Indices is Int8Array keyInt8Indices)
+        {
+            keyIndicesInt8Span = keyInt8Indices.Values;
+            useInt8KeyIndices = true;
+        }
+
+        // Single pass: iterate through selected rows and accumulate
+        foreach (var rowIndex in selection.GetSelectedIndices())
+        {
+            if (keyDictArray.IsNull(rowIndex))
+                continue;
+
+            // Get the dictionary index for this row's key
+            int dictIndex;
+            if (useInt32KeyIndices)
+                dictIndex = keyIndicesSpan[rowIndex];
+            else if (useInt8KeyIndices)
+                dictIndex = keyIndicesInt8Span[rowIndex];
+            else
+                dictIndex = DictionaryArrayHelper.GetDictionaryIndex(keyDictArray.Indices, rowIndex);
+
+            ref var accumulator = ref accumulators[dictIndex];
+            accumulator.Count++;
+
+            // Accumulate each aggregate
+            for (int aggIdx = 0; aggIdx < aggregations.Count; aggIdx++)
+            {
+                var agg = aggregations[aggIdx];
+                ref var accessor = ref valueAccessors[aggIdx];
+
+                if (!accessor.IsValid)
+                    continue;
+
+                switch (agg.Operation)
+                {
+                    case AggregationOperation.Count:
+                    case AggregationOperation.LongCount:
+                        // Already tracked via accumulator.Count
+                        break;
+
+                    case AggregationOperation.Sum:
+                        if (!accessor.IsNull(rowIndex))
+                        {
+                            accumulator.Sums[aggIdx] += accessor.GetDouble(rowIndex);
+                        }
+                        break;
+
+                    case AggregationOperation.Average:
+                        if (!accessor.IsNull(rowIndex))
+                        {
+                            accumulator.Sums[aggIdx] += accessor.GetDouble(rowIndex);
+                            accumulator.NonNullCounts[aggIdx]++;
+                        }
+                        break;
+
+                    case AggregationOperation.Min:
+                        if (!accessor.IsNull(rowIndex))
+                        {
+                            var val = accessor.GetDouble(rowIndex);
+                            if (!accumulator.HasMinMax[aggIdx] || val < accumulator.Mins[aggIdx])
+                            {
+                                accumulator.Mins[aggIdx] = val;
+                                accumulator.HasMinMax[aggIdx] = true;
+                            }
+                        }
+                        break;
+
+                    case AggregationOperation.Max:
+                        if (!accessor.IsNull(rowIndex))
+                        {
+                            var val = accessor.GetDouble(rowIndex);
+                            if (!accumulator.HasMinMax[aggIdx] || val > accumulator.Maxs[aggIdx])
+                            {
+                                accumulator.Maxs[aggIdx] = val;
+                                accumulator.HasMinMax[aggIdx] = true;
+                            }
+                        }
+                        break;
+                }
+            }
+        }
+
+        // Build results from accumulators
+        var results = new List<GroupedResult<TKey>>();
+        for (int dictIndex = 0; dictIndex < dictionaryLength; dictIndex++)
+        {
+            ref var accumulator = ref accumulators[dictIndex];
+            if (accumulator.Count == 0)
+                continue;
+
+            var key = (TKey)DictionaryArrayHelper.GetValueFromDictionary(keyDictArray.Dictionary, dictIndex)!;
+            var result = new GroupedResult<TKey> { Key = key };
+
+            for (int aggIdx = 0; aggIdx < aggregations.Count; aggIdx++)
+            {
+                var agg = aggregations[aggIdx];
+                ref var accessor = ref valueAccessors[aggIdx];
+                
+                object value = agg.Operation switch
+                {
+                    AggregationOperation.Count => accumulator.Count,
+                    AggregationOperation.LongCount => (long)accumulator.Count,
+                    AggregationOperation.Sum => accessor.ConvertFromDouble(accumulator.Sums[aggIdx]),
+                    AggregationOperation.Average => accumulator.NonNullCounts[aggIdx] > 0 
+                        ? accumulator.Sums[aggIdx] / accumulator.NonNullCounts[aggIdx] 
+                        : 0.0,
+                    AggregationOperation.Min => accessor.ConvertFromDouble(accumulator.Mins[aggIdx]),
+                    AggregationOperation.Max => accessor.ConvertFromDouble(accumulator.Maxs[aggIdx]),
+                    _ => throw new NotSupportedException($"Aggregation {agg.Operation} is not supported.")
+                };
+
+                result.AggregateValues[agg.ResultPropertyName] = value;
+            }
+
+            results.Add(result);
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Traditional two-pass grouped aggregation: first group indices, then compute aggregates.
+    /// </summary>
+    private static List<GroupedResult<TKey>> ExecuteGroupedQueryTwoPass<TKey>(
         IArrowArray keyColumn,
         RecordBatch batch,
         ref SelectionBitmap selection,
@@ -192,6 +381,37 @@ internal static class GroupedColumnAggregator
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Accumulator for single-pass grouped aggregation.
+    /// Stores running totals for each aggregate operation per group.
+    /// </summary>
+    private struct GroupAccumulator
+    {
+        public int Count;
+        public double[] Sums;
+        public double[] Mins;
+        public double[] Maxs;
+        public int[] NonNullCounts;
+        public bool[] HasMinMax;
+
+        public GroupAccumulator(int aggregateCount)
+        {
+            Count = 0;
+            Sums = new double[aggregateCount];
+            Mins = new double[aggregateCount];
+            Maxs = new double[aggregateCount];
+            NonNullCounts = new int[aggregateCount];
+            HasMinMax = new bool[aggregateCount];
+            
+            // Initialize mins to max value and maxs to min value
+            for (int i = 0; i < aggregateCount; i++)
+            {
+                Mins[i] = double.MaxValue;
+                Maxs[i] = double.MinValue;
+            }
+        }
     }
 
     #region Helper Methods
@@ -796,6 +1016,100 @@ internal static class GroupedColumnAggregator
     }
 
     #endregion
+}
+
+/// <summary>
+/// Fast value accessor for Arrow arrays used in single-pass aggregation.
+/// Caches type information and array reference to avoid repeated type checks in hot loops.
+/// </summary>
+internal struct ValueAccessor
+{
+    private readonly IArrowArray? _array;
+    private readonly ValueColumnType _type;
+    private readonly Int32Array? _int32Array;
+    private readonly Int64Array? _int64Array;
+    private readonly DoubleArray? _doubleArray;
+    private readonly Decimal128Array? _decimalArray;
+    private readonly DictionaryArray? _dictArray;
+
+    public bool IsValid => _array is not null;
+
+    public ValueAccessor(IArrowArray? array)
+    {
+        _array = array;
+        
+        switch (array)
+        {
+            case Int32Array int32:
+                _type = ValueColumnType.Int32;
+                _int32Array = int32;
+                break;
+            case Int64Array int64:
+                _type = ValueColumnType.Int64;
+                _int64Array = int64;
+                break;
+            case DoubleArray dbl:
+                _type = ValueColumnType.Double;
+                _doubleArray = dbl;
+                break;
+            case Decimal128Array dec:
+                _type = ValueColumnType.Decimal;
+                _decimalArray = dec;
+                break;
+            case DictionaryArray dict:
+                _type = ValueColumnType.Dictionary;
+                _dictArray = dict;
+                break;
+            default:
+                _type = ValueColumnType.Other;
+                break;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly bool IsNull(int index)
+    {
+        return _array?.IsNull(index) ?? true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly double GetDouble(int index)
+    {
+        return _type switch
+        {
+            ValueColumnType.Int32 => _int32Array!.Values[index],
+            ValueColumnType.Int64 => _int64Array!.Values[index],
+            ValueColumnType.Double => _doubleArray!.Values[index],
+            ValueColumnType.Decimal => (double)_decimalArray!.GetValue(index)!.Value,
+            ValueColumnType.Dictionary => DictionaryArrayHelper.GetNumericValue(_dictArray!, index),
+            _ => throw new NotSupportedException()
+        };
+    }
+
+    public readonly object ConvertFromDouble(double value)
+    {
+        return _type switch
+        {
+            ValueColumnType.Int32 => (int)value,
+            ValueColumnType.Int64 => (long)value,
+            ValueColumnType.Decimal => (decimal)value,
+            ValueColumnType.Dictionary when _dictArray?.Dictionary is Decimal128Array => (decimal)value,
+            _ => value
+        };
+    }
+
+    /// <summary>
+    /// Value column type for fast dispatching.
+    /// </summary>
+    private enum ValueColumnType
+    {
+        Int32,
+        Int64,
+        Double,
+        Decimal,
+        Dictionary,
+        Other
+    }
 }
 
 /// <summary>
