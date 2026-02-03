@@ -841,6 +841,160 @@ public class ArrowQueryTests
 
     #endregion
 
+    #region GroupBy ToDictionary Tests (Phase 2b)
+
+    [Fact]
+    public void GroupBy_ToDictionary_WithCount_ReturnsCorrectDictionary()
+    {
+        // Arrange
+        using var collection = CreateTestCollection();
+
+        // Act - Group by Category, count per group, return as Dictionary
+        var results = collection
+            .AsQueryable()
+            .GroupBy(x => x.Category)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        // Assert
+        Assert.Equal(4, results.Count); // Engineering, Management, Marketing, Executive
+        Assert.Equal(5, results["Engineering"]); // Alice, Bob, Diana, Ivy, Jack
+        Assert.Equal(2, results["Management"]); // Charlie, Frank
+        Assert.Equal(2, results["Marketing"]); // Eve, Grace
+        Assert.Equal(1, results["Executive"]); // Henry
+    }
+
+    [Fact]
+    public void GroupBy_ToDictionary_WithSum_ReturnsSumPerGroup()
+    {
+        // Arrange
+        using var collection = CreateTestCollection();
+
+        // Act - Group by Category, sum salaries per group
+        var results = collection
+            .AsQueryable()
+            .GroupBy(x => x.Category)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Salary));
+
+        // Assert
+        // Engineering: 50000 + 75000 + 55000 + 45000 + 70000 = 295000
+        Assert.Equal(295000m, results["Engineering"]);
+        // Management: 90000 + 80000 = 170000
+        Assert.Equal(170000m, results["Management"]);
+        // Marketing: 65000 + 60000 = 125000
+        Assert.Equal(125000m, results["Marketing"]);
+        // Executive: 120000
+        Assert.Equal(120000m, results["Executive"]);
+    }
+
+    [Fact]
+    public void GroupBy_ToDictionary_WithAverage_ReturnsAveragePerGroup()
+    {
+        // Arrange
+        using var collection = CreateTestCollection();
+
+        // Act - Group by Category, average age per group
+        var results = collection
+            .AsQueryable()
+            .GroupBy(x => x.Category)
+            .ToDictionary(g => g.Key, g => g.Average(x => x.Age));
+
+        // Assert
+        // Engineering ages: 25, 35, 28, 23, 38 = 149 / 5 = 29.8
+        Assert.Equal(29.8, results["Engineering"], precision: 1);
+        // Management ages: 45, 40 = 85 / 2 = 42.5
+        Assert.Equal(42.5, results["Management"], precision: 1);
+        // Marketing ages: 32, 29 = 61 / 2 = 30.5
+        Assert.Equal(30.5, results["Marketing"], precision: 1);
+        // Executive: 55
+        Assert.Equal(55.0, results["Executive"], precision: 1);
+    }
+
+    [Fact]
+    public void GroupBy_ToDictionary_WithMin_ReturnsMinPerGroup()
+    {
+        // Arrange
+        using var collection = CreateTestCollection();
+
+        // Act - Group by Category, min salary per group
+        var results = collection
+            .AsQueryable()
+            .GroupBy(x => x.Category)
+            .ToDictionary(g => g.Key, g => g.Min(x => x.Salary));
+
+        // Assert
+        Assert.Equal(45000m, results["Engineering"]); // Ivy
+        Assert.Equal(80000m, results["Management"]); // Frank
+        Assert.Equal(60000m, results["Marketing"]); // Grace
+        Assert.Equal(120000m, results["Executive"]); // Henry (only one)
+    }
+
+    [Fact]
+    public void GroupBy_ToDictionary_WithMax_ReturnsMaxPerGroup()
+    {
+        // Arrange
+        using var collection = CreateTestCollection();
+
+        // Act - Group by Category, max salary per group
+        var results = collection
+            .AsQueryable()
+            .GroupBy(x => x.Category)
+            .ToDictionary(g => g.Key, g => g.Max(x => x.Salary));
+
+        // Assert
+        Assert.Equal(75000m, results["Engineering"]); // Bob
+        Assert.Equal(90000m, results["Management"]); // Charlie
+        Assert.Equal(65000m, results["Marketing"]); // Eve
+        Assert.Equal(120000m, results["Executive"]); // Henry
+    }
+
+    [Fact]
+    public void GroupBy_ToDictionary_WithFilter_FiltersBeforeGrouping()
+    {
+        // Arrange
+        using var collection = CreateTestCollection();
+
+        // Act - Filter active only, then group and count
+        var results = collection
+            .AsQueryable()
+            .Where(x => x.IsActive)
+            .GroupBy(x => x.Category)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        // Assert
+        // Active employees:
+        // Engineering: Alice, Bob, Diana, Ivy (4) - Jack is inactive
+        // Management: none (Charlie, Frank are inactive)
+        // Marketing: Eve, Grace (2)
+        // Executive: Henry (1)
+
+        Assert.Equal(3, results.Count); // No Management group (all inactive)
+        Assert.Equal(4, results["Engineering"]);
+        Assert.Equal(2, results["Marketing"]);
+        Assert.Equal(1, results["Executive"]);
+        Assert.False(results.ContainsKey("Management"));
+    }
+
+    [Fact]
+    public void GroupBy_ToDictionary_ByIntegerColumn_WorksCorrectly()
+    {
+        // Arrange
+        using var collection = CreateTestCollection();
+
+        // Act - Group by Age (integer column)
+        var results = collection
+            .AsQueryable()
+            .GroupBy(x => x.Age)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Salary));
+
+        // Assert - Each person has unique age in test data
+        Assert.Equal(10, results.Count);
+        Assert.Equal(50000m, results[25]); // Alice
+        Assert.Equal(75000m, results[35]); // Bob
+        Assert.Equal(120000m, results[55]); // Henry
+    }
+
+    #endregion
+
     #region Multi-Aggregate Tests (Phase 3)
 
     /// <summary>

@@ -646,6 +646,7 @@ var results = collection
 | `Select` | Partial | Column projection |
 | `Sum`, `Average`, `Min`, `Max` | ✓ | Column-level aggregates (no materialization) |
 | `GroupBy` + aggregates | ✓ | Column-level grouping with aggregates |
+| `GroupBy` + `ToDictionary` | ✓ | Returns Dictionary with aggregated values |
 | `ToList`, `ToArray` | ✓ | Materializes results |
 
 ### Column-Level Aggregations
@@ -678,6 +679,7 @@ var stats = collection
 
 Grouped aggregations are computed at the column level:
 
+
 ```csharp
 // Group by a column and compute aggregates per group
 var summary = collection
@@ -706,6 +708,37 @@ var results = collection
     .ToList();
 ```
 
+### GroupBy with ToDictionary
+
+For cases where you want to return grouped aggregates as a dictionary, use the optimized `ToDictionary` pattern:
+
+```csharp
+// Count per category as a dictionary
+Dictionary<string, int> countByCategory = collection
+    .AsQueryable()
+    .GroupBy(x => x.Category)
+    .ToDictionary(g => g.Key, g => g.Count());
+
+// Sum of salaries per department
+Dictionary<string, decimal> salaryByDept = collection
+    .AsQueryable()
+    .GroupBy(x => x.Department)
+    .ToDictionary(g => g.Key, g => g.Sum(x => x.Salary));
+
+// Average performance per category
+Dictionary<string, double> avgPerfByCategory = collection
+    .AsQueryable()
+    .GroupBy(x => x.Category)
+    .ToDictionary(g => g.Key, g => g.Average(x => x.PerformanceScore));
+
+// With filter applied first
+Dictionary<string, int> activeCountByCategory = collection
+    .AsQueryable()
+    .Where(x => x.IsActive)
+    .GroupBy(x => x.Category)
+    .ToDictionary(g => g.Key, g => g.Count());
+```
+
 **Supported GroupBy aggregates:**
 - `g.Key` - Group key
 - `g.Count()` / `g.LongCount()` - Count per group
@@ -718,6 +751,7 @@ var results = collection
 - GroupBy key must be a simple column access (`x => x.Column`)
 - Dictionary-encoded columns are fully supported for both keys and aggregates
 - Aggregations must reference direct column properties
+- `ToDictionary` key selector must be `g => g.Key`
 
 ### Compile-Time Diagnostics
 
@@ -728,6 +762,8 @@ the FrozenArrow.Analyzers package provides compile-time warnings and errors:
 | `ARROWQUERY001` | ⚠️ Warning | Using `Enumerable.Where()` instead of `Queryable.Where()` |
 | `ARROWQUERY002` | ❌ Error | Unsupported LINQ method on ArrowQuery |
 | `ARROWQUERY003` | ⚠️ Warning | Complex predicate may cause partial materialization |
+
+
 | `ARROWQUERY004` | ❌ Error | Unsupported GroupBy projection |
 | `ARROWQUERY007` | ⚠️ Warning | OR predicate reduces optimization |
 
@@ -1015,9 +1051,9 @@ FrozenArrow was benchmarked against in-process DuckDB to understand where each a
 | **Compound Filter** (3 conditions) | 724 μs | 3,801 μs | 1,355 μs | 5.3x slower | 1.9x slower |
 | **Take** (100 items) | 213 ns | 621 μs | 232 μs | 2,914x slower | 1,088x slower |
 | **Skip+Take** (pagination) | 2.5 μs | 636 μs | 233 μs | 253x slower | 93x slower |
-| **GroupBy + Count** | 2,220 μs | ❌ Error | 2,724 μs | N/A | 1.2x slower |
-| **GroupBy + Sum** | 2,837 μs | ❌ Error | 3,418 μs | N/A | 1.2x slower |
-| **GroupBy + Average** | 3,109 μs | ❌ Error | 2,539 μs | N/A | **1.2x faster** ✓ |
+| **GroupBy + Count** | 2,220 μs | 879 μs | 2,777 μs | **2.5x faster** ✓ | 1.3x slower |
+| **GroupBy + Sum** | 2,782 μs | 4,837 μs | 3,872 μs | 1.7x slower | 1.4x slower |
+| **GroupBy + Average** | 3,109 μs | 4,200 μs | 2,539 μs | 1.4x slower | **1.2x faster** ✓ |
 | **ToList** (~5% selectivity) | 336 μs | 5,194 μs | 7,463 μs | 15.5x slower | 22x slower |
 
 #### 1M Items (10 columns)
@@ -1036,19 +1072,18 @@ FrozenArrow was benchmarked against in-process DuckDB to understand where each a
 | **Compound Filter** (3 conditions) | 9.7 ms | 35.7 ms | 2.2 ms | 3.7x slower | **4.5x faster** ✓ |
 | **Take** (100 items) | 214 ns | 7.7 ms | 257 μs | 36,000x slower | 1,202x slower |
 | **Skip+Take** (pagination) | 2.5 μs | 7.6 ms | 253 μs | 3,033x slower | 102x slower |
-| **GroupBy + Count** | 24.0 ms | ❌ Error | 4.0 ms | N/A | **6x faster** ✓ |
-| **GroupBy + Sum** | 42.2 ms | ❌ Error | 5.0 ms | N/A | **8.4x faster** ✓ |
-| **GroupBy + Average** | 31.3 ms | ❌ Error | 3.2 ms | N/A | **9.8x faster** ✓ |
+| **GroupBy + Count** | 24.8 ms | 9.8 ms | 4.6 ms | **2.5x faster** ✓ | **5.3x faster** ✓ |
+| **GroupBy + Sum** | 42.5 ms | 53.1 ms | 5.3 ms | 1.2x slower | **8x faster** ✓ |
+| **GroupBy + Average** | 31.3 ms | 35.0 ms | 3.2 ms | 1.1x slower | **9.8x faster** ✓ |
 | **ToList** (~5% selectivity) | 5.2 ms | 53.5 ms | 42.8 ms | 10.3x slower | 8.3x slower |
 
 **Key insights**:
 - **DuckDB dominates at scale**: At 1M items, DuckDB is 8-22x faster than List for aggregations
-- **DuckDB excels at GroupBy**: 6-10x faster than List (FrozenArrow GroupBy+ToDictionary has issues)
+- **FrozenArrow wins GroupBy+Count**: 2.5x faster than List due to columnar counting
+- **DuckDB excels at GroupBy+Sum/Avg**: Native OLAP optimizations
 - **List wins for short-circuit operations**: Any/First are nearly instant when data matches early
-- **FrozenArrow is between List and DuckDB**: Generally 2-6x slower than List for queries
-- **FrozenArrow ToList is competitive**: Only 10x slower than List at 1M scale (vs DuckDB's 8x)
-
-**FrozenArrow GroupBy Note**: The `GroupBy().ToDictionary()` pattern currently has issues and failed during benchmarks. Use `LargeScaleQueryBenchmarks` for GroupBy benchmarks with the `GroupBy().Select()` pattern which works correctly.
+- **FrozenArrow is between List and DuckDB**: Generally 1-6x slower than List for queries
+- **FrozenArrow ToList is competitive**: Only 10x slower than List at 1M scale
 
 **When to use each**:
 

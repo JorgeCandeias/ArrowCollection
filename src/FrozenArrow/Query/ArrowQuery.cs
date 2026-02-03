@@ -338,9 +338,26 @@ public sealed class ArrowQueryProvider : IQueryProvider
             _columnIndexMap);
 
         // Build result objects
-        // TResult should be IEnumerable<SomeProjectionType>
         var resultType = typeof(TResult);
         
+        // Handle Dictionary<TKey, TValue> result (from ToDictionary)
+        if (resultType.IsGenericType && 
+            resultType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+        {
+            var dictKeyType = resultType.GetGenericArguments()[0];
+            var dictValueType = resultType.GetGenericArguments()[1];
+            
+            // Verify the key types match
+            if (dictKeyType != typeof(TKey))
+            {
+                throw new InvalidOperationException(
+                    $"Dictionary key type '{dictKeyType}' does not match group key type '{typeof(TKey)}'.");
+            }
+
+            return BuildDictionaryFromGroups<TKey, TResult>(groupedResults, dictValueType, plan);
+        }
+
+        // Handle IEnumerable<SomeProjectionType>
         if (resultType.IsGenericType && 
             (resultType.GetGenericTypeDefinition() == typeof(IEnumerable<>) ||
              resultType.GetGenericTypeDefinition() == typeof(IQueryable<>)))
@@ -350,7 +367,49 @@ public sealed class ArrowQueryProvider : IQueryProvider
             return (TResult)results;
         }
 
-        throw new NotSupportedException($"GroupBy result type '{resultType}' is not supported. Use .ToList() or enumerate the results.");
+        throw new NotSupportedException($"GroupBy result type '{resultType}' is not supported. Use .ToList(), .ToDictionary(), or enumerate the results.");
+    }
+
+    private static TResult BuildDictionaryFromGroups<TKey, TResult>(
+        List<GroupedResult<TKey>> groupedResults,
+        Type valueType,
+        QueryPlan plan) where TKey : notnull
+    {
+        // Get the aggregation descriptor for the value
+        var valueAggregation = plan.ToDictionaryValueAggregation ?? plan.Aggregations.FirstOrDefault();
+        if (valueAggregation is null)
+        {
+            throw new InvalidOperationException("No aggregation found for ToDictionary value.");
+        }
+
+        // Create the dictionary using reflection for the value type
+        var dictType = typeof(Dictionary<,>).MakeGenericType(typeof(TKey), valueType);
+        var dict = (System.Collections.IDictionary)Activator.CreateInstance(dictType, groupedResults.Count)!;
+
+        foreach (var group in groupedResults)
+        {
+            // Get the aggregated value from the group
+            object? value = null;
+            
+            if (group.AggregateValues.TryGetValue(valueAggregation.ResultPropertyName, out var aggValue))
+            {
+                value = Convert.ChangeType(aggValue, valueType);
+            }
+            else if (group.AggregateValues.Count == 1)
+            {
+                // Fallback: if there's only one aggregate, use it
+                value = Convert.ChangeType(group.AggregateValues.Values.First(), valueType);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"Could not find aggregate value '{valueAggregation.ResultPropertyName}' in group results.");
+            }
+
+            dict.Add(group.Key, value!);
+        }
+
+        return (TResult)dict;
     }
 
 
@@ -658,7 +717,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
         "Where", "Select", "First", "FirstOrDefault", "Single", "SingleOrDefault",
         "Any", "All", "Count", "LongCount", "Take", "Skip", "ToList", "ToArray",
         "OrderBy", "OrderByDescending", "ThenBy", "ThenByDescending",
-        "Sum", "Average", "Min", "Max", "GroupBy"
+        "Sum", "Average", "Min", "Max", "GroupBy", "ToDictionary"
     ];
 
     private static readonly HashSet<string> AggregateMethods =
@@ -672,6 +731,10 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
     private string _groupByKeyResultPropertyName = "Key"; // Default to "Key"
     private readonly List<AggregationDescriptor> _aggregations = [];
     private bool _insideGroupByProjection; // Flag to allow Enumerable methods inside GroupBy projection
+    
+    // ToDictionary support
+    private bool _isToDictionaryQuery;
+    private AggregationDescriptor? _toDictionaryValueAggregation;
 
     public QueryPlan Analyze(Expression expression)
     {
@@ -691,14 +754,40 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
             GroupByKeyType = _groupByKeyType,
             GroupByKeyResultPropertyName = _groupByKeyResultPropertyName,
             Aggregations = _aggregations,
+            IsToDictionaryQuery = _isToDictionaryQuery,
+            ToDictionaryValueAggregation = _toDictionaryValueAggregation,
             EstimatedSelectivity = EstimateSelectivity()
         };
     }
+
 
     protected override Expression VisitMethodCall(MethodCallExpression node)
     {
         var methodName = node.Method.Name;
         var declaringType = node.Method.DeclaringType?.FullName ?? "";
+
+        // Handle ArrowQueryExtensions.ToDictionary
+        if (declaringType == "FrozenArrow.Query.ArrowQueryExtensions" && methodName == "ToDictionary")
+        {
+            // Check if the source is a GroupBy call
+            if (node.Arguments.Count >= 3)
+            {
+                var source = node.Arguments[0];
+                if (IsGroupByCall(source))
+                {
+                    // First analyze the GroupBy (if not already done)
+                    if (_groupByColumn is null)
+                    {
+                        AnalyzeGroupByFromSource(source);
+                    }
+                    // Then analyze the ToDictionary selectors
+                    AnalyzeToDictionaryAfterGroupBy(node);
+                    // Visit only the underlying source (skip GroupBy + ToDictionary lambdas)
+                    VisitUnderlyingSource(source);
+                    return node; // Don't call base.VisitMethodCall
+                }
+            }
+        }
 
         // Allow Enumerable methods inside GroupBy projection (g.Count(), g.Sum(), etc.)
         if (declaringType == "System.Linq.Enumerable" && !_insideGroupByProjection)
@@ -916,6 +1005,173 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
                 _unsupportedReasons.Add("GroupBy key selector must be a simple property access (x => x.Property).");
             }
         }
+    }
+
+    private void AnalyzeToDictionaryAfterGroupBy(MethodCallExpression node)
+    {
+        // Parse: .GroupBy(x => x.Category).ToDictionary(g => g.Key, g => g.Count())
+        // or:    .GroupBy(x => x.Category).ToDictionary(g => g.Key, g => g.Sum(x => x.Salary))
+        
+        _isToDictionaryQuery = true;
+        _insideGroupByProjection = true;
+
+        try
+        {
+            // Arguments[0] is the source (GroupBy result)
+            // Arguments[1] is the key selector: g => g.Key
+            // Arguments[2] is the element/value selector: g => g.Count() or g => g.Sum(x => x.Salary)
+
+            // Validate key selector is g => g.Key
+            var keySelectorArg = node.Arguments[1];
+            if (!ValidateToDictionaryKeySelector(keySelectorArg))
+            {
+                _hasUnsupportedPatterns = true;
+                _unsupportedReasons.Add("ToDictionary key selector must be 'g => g.Key'.");
+                return;
+            }
+
+            // Parse the element/value selector
+            var elementSelectorArg = node.Arguments[2];
+            var aggregation = ParseToDictionaryElementSelector(elementSelectorArg);
+            
+            if (aggregation is not null)
+            {
+                _toDictionaryValueAggregation = aggregation;
+                _aggregations.Add(aggregation);
+                
+                if (aggregation.ColumnName is not null)
+                {
+                    _columnsAccessed.Add(aggregation.ColumnName);
+                }
+            }
+            else
+            {
+                _hasUnsupportedPatterns = true;
+                _unsupportedReasons.Add(
+                    "ToDictionary element selector must be an aggregate: g.Count(), g.Sum(x => x.Col), " +
+                    "g.Average(x => x.Col), g.Min(x => x.Col), or g.Max(x => x.Col).");
+            }
+        }
+        finally
+        {
+            _insideGroupByProjection = false;
+        }
+    }
+
+    private static bool ValidateToDictionaryKeySelector(Expression keySelectorArg)
+    {
+        // Expect: g => g.Key
+        LambdaExpression? lambda = null;
+        
+        if (keySelectorArg is UnaryExpression unary && unary.Operand is LambdaExpression lambda1)
+        {
+            lambda = lambda1;
+        }
+        else if (keySelectorArg is LambdaExpression lambda2)
+        {
+            lambda = lambda2;
+        }
+
+        if (lambda is null)
+            return false;
+
+        // Check body is g.Key
+        if (lambda.Body is MemberExpression memberExpr &&
+            memberExpr.Expression == lambda.Parameters[0] &&
+            memberExpr.Member.Name == "Key")
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private AggregationDescriptor? ParseToDictionaryElementSelector(Expression elementSelectorArg)
+    {
+        // Expect: g => g.Count(), g => g.Sum(x => x.Salary), etc.
+        LambdaExpression? lambda = null;
+        
+        if (elementSelectorArg is UnaryExpression unary && unary.Operand is LambdaExpression lambda1)
+        {
+            lambda = lambda1;
+        }
+        else if (elementSelectorArg is LambdaExpression lambda2)
+        {
+            lambda = lambda2;
+        }
+
+        if (lambda is null)
+            return null;
+
+        var body = lambda.Body;
+        var groupParam = lambda.Parameters[0];
+
+        // Check for g.Count() or g.LongCount()
+        if (body is MethodCallExpression countCall)
+        {
+            if ((countCall.Method.Name == "Count" || countCall.Method.Name == "LongCount") &&
+                countCall.Arguments.Count >= 1 &&
+                IsGroupParameterAccess(countCall.Arguments[0], groupParam))
+            {
+                return new AggregationDescriptor
+                {
+                    Operation = countCall.Method.Name == "Count" 
+                        ? AggregationOperation.Count 
+                        : AggregationOperation.LongCount,
+                    ColumnName = null,
+                    ResultPropertyName = "Value" // Default for dictionary value
+                };
+            }
+
+            // Check for g.Sum(x => x.Salary), g.Average(...), g.Min(...), g.Max(...)
+            if (AggregateMethods.Contains(countCall.Method.Name) &&
+                countCall.Arguments.Count >= 2 &&
+                IsGroupParameterAccess(countCall.Arguments[0], groupParam))
+            {
+                var selectorArg = countCall.Arguments[1];
+                LambdaExpression? aggLambda = null;
+
+                if (selectorArg is UnaryExpression aggUnary && aggUnary.Operand is LambdaExpression aggLambda1)
+                {
+                    aggLambda = aggLambda1;
+                }
+                else if (selectorArg is LambdaExpression aggLambda2)
+                {
+                    aggLambda = aggLambda2;
+                }
+
+                if (aggLambda is not null)
+                {
+                    var columnName = ExtractColumnNameFromSelector(aggLambda);
+                    if (columnName is not null)
+                    {
+                        var operation = countCall.Method.Name switch
+                        {
+                            "Sum" => AggregationOperation.Sum,
+                            "Average" => AggregationOperation.Average,
+                            "Min" => AggregationOperation.Min,
+                            "Max" => AggregationOperation.Max,
+                            _ => throw new NotSupportedException($"Unknown aggregate: {countCall.Method.Name}")
+                        };
+
+                        return new AggregationDescriptor
+                        {
+                            Operation = operation,
+                            ColumnName = columnName,
+                            ResultPropertyName = "Value" // Default for dictionary value
+                        };
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsGroupParameterAccess(Expression expr, ParameterExpression groupParam)
+    {
+        return expr == groupParam ||
+               (expr is UnaryExpression unary && unary.Operand == groupParam);
     }
 
     private void AnalyzeGroupByProjection(MethodCallExpression node)

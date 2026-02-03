@@ -61,6 +61,16 @@ public sealed class QueryPlan
     public SimpleAggregateOperation? SimpleAggregate { get; init; }
 
     /// <summary>
+    /// Gets whether this query ends with ToDictionary after GroupBy.
+    /// </summary>
+    public bool IsToDictionaryQuery { get; init; }
+
+    /// <summary>
+    /// Gets the single aggregation to use as the dictionary value (for ToDictionary queries).
+    /// </summary>
+    public AggregationDescriptor? ToDictionaryValueAggregation { get; init; }
+
+    /// <summary>
     /// Gets the estimated selectivity of the filter (0.0 to 1.0).
     /// This is an estimate of what fraction of rows will pass the filter.
     /// </summary>
@@ -110,6 +120,12 @@ public sealed class QueryPlan
         {
             var colDisplay = SimpleAggregate.ColumnName ?? "";
             lines.Add($"  Aggregate: {SimpleAggregate.Operation}({colDisplay}) [Column-Level]");
+        }
+
+        if (IsToDictionaryQuery && ToDictionaryValueAggregation is not null)
+        {
+            var colDisplay = ToDictionaryValueAggregation.ColumnName ?? "";
+            lines.Add($"  ToDictionary: Key={GroupByColumn}, Value={ToDictionaryValueAggregation.Operation}({colDisplay})");
         }
 
         lines.Add($"  Est. Selectivity: {EstimatedSelectivity:P0}");

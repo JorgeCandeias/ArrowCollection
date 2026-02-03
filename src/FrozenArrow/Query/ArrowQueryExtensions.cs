@@ -189,4 +189,60 @@ public static class ArrowQueryExtensions
 
         return provider.ExecuteMultiAggregate(arrowQuery.Expression, aggregateSelector);
     }
+
+    /// <summary>
+    /// Creates a Dictionary from a grouped query, using the group key as the dictionary key
+    /// and computing an aggregate as the dictionary value.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method provides optimized execution for the common pattern of:
+    /// <code>
+    /// collection.AsQueryable()
+    ///     .GroupBy(x => x.Category)
+    ///     .ToDictionary(g => g.Key, g => g.Count());
+    /// </code>
+    /// </para>
+    /// <para>
+    /// The aggregation is computed at the column level without materializing the grouped items.
+    /// Supported aggregates: Count(), LongCount(), Sum(x => x.Col), Average(x => x.Col), 
+    /// Min(x => x.Col), Max(x => x.Col).
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="TKey">The type of the grouping key.</typeparam>
+    /// <typeparam name="TSource">The type of the source elements.</typeparam>
+    /// <typeparam name="TValue">The type of the dictionary values (aggregate result).</typeparam>
+    /// <param name="source">The grouped query.</param>
+    /// <param name="keySelector">A function to extract the key (must be g => g.Key).</param>
+    /// <param name="elementSelector">A function to compute the value (must be an aggregate like g.Count()).</param>
+    /// <returns>A Dictionary with group keys and aggregated values.</returns>
+    public static Dictionary<TKey, TValue> ToDictionary<TKey, TSource, TValue>(
+        this IQueryable<IGrouping<TKey, TSource>> source,
+        System.Linq.Expressions.Expression<Func<IGrouping<TKey, TSource>, TKey>> keySelector,
+        System.Linq.Expressions.Expression<Func<IGrouping<TKey, TSource>, TValue>> elementSelector)
+        where TKey : notnull
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(keySelector);
+        ArgumentNullException.ThrowIfNull(elementSelector);
+
+        // Check if this is an ArrowQuery - if so, use optimized path
+        if (source.Provider is ArrowQueryProvider provider)
+        {
+            // Build a method call expression for ToDictionary
+            var toDictionaryCall = System.Linq.Expressions.Expression.Call(
+                typeof(ArrowQueryExtensions),
+                nameof(ToDictionary),
+                [typeof(TKey), typeof(TSource), typeof(TValue)],
+                source.Expression,
+                keySelector,
+                elementSelector);
+
+            // Execute through the provider
+            return provider.Execute<Dictionary<TKey, TValue>>(toDictionaryCall);
+        }
+
+        // Fallback to standard LINQ
+        return Enumerable.ToDictionary(source, keySelector.Compile(), elementSelector.Compile());
+    }
 }
