@@ -1,7 +1,10 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 using Apache.Arrow;
+
+
 
 namespace FrozenArrow.Query;
 
@@ -20,6 +23,11 @@ namespace FrozenArrow.Query;
 /// - Dense: 1M loop iterations with bit checks
 /// - Block: ~15.6K block loads + ~500K value accesses (no wasted iterations)
 /// 
+/// Dense Block Optimization:
+/// When a block is fully selected (all 64 bits set), we use SIMD to sum
+/// all 64 contiguous values at once instead of iterating bit-by-bit.
+/// This provides up to 8x speedup for dense selections.
+/// 
 /// Null Bitmap Optimization:
 /// When hasNulls is true, the caller should pre-apply the null bitmap to the selection
 /// using SelectionBitmap.AndWithNullBitmapRange() before calling these methods.
@@ -30,6 +38,7 @@ internal static class BlockBasedAggregator
     /// <summary>
     /// Computes sum of Int32 values using block-based bitmap iteration.
     /// For nullable columns, call AndWithNullBitmapRange first to pre-apply null mask.
+    /// Uses SIMD vectorization for fully-selected (dense) blocks.
     /// </summary>
     /// <param name="array">The Int32 array to sum.</param>
     /// <param name="selectionBuffer">Selection bitmap buffer (pre-masked with null bitmap if applicable).</param>
@@ -104,17 +113,68 @@ internal static class BlockBasedAggregator
             }
             else
             {
-                // No nulls OR nulls pre-applied - faster path without null checks
-                while (block != 0)
+                // DENSE BLOCK OPTIMIZATION: When all 64 bits are set, use SIMD
+                // This is much faster than iterating bit-by-bit
+                if (block == ulong.MaxValue)
                 {
-                    int bitIndex = BitOperations.TrailingZeroCount(block);
-                    int rowIndex = blockStartBit + bitIndex;
-                    sum += Unsafe.Add(ref valuesRef, rowIndex);
-                    block &= block - 1;
+                    sum += SumInt32DenseBlock(ref valuesRef, blockStartBit);
+                }
+                else
+                {
+                    // Sparse block - iterate set bits using TrailingZeroCount
+                    while (block != 0)
+                    {
+                        int bitIndex = BitOperations.TrailingZeroCount(block);
+                        int rowIndex = blockStartBit + bitIndex;
+                        sum += Unsafe.Add(ref valuesRef, rowIndex);
+                        block &= block - 1;
+                    }
                 }
             }
         }
         
+        return sum;
+    }
+
+    /// <summary>
+    /// SIMD-optimized sum of 64 contiguous Int32 values.
+    /// Processes 8 values at a time using AVX2, widening to Int64 to prevent overflow.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static long SumInt32DenseBlock(ref int valuesRef, int startIndex)
+    {
+        long sum = 0;
+        int i = 0;
+
+        // AVX2 path: Process 8 Int32 values at a time, widen to Int64 to prevent overflow
+        if (Vector256.IsHardwareAccelerated)
+        {
+            // Process 64 values in 8 iterations of 8 values each
+            for (; i <= 56; i += 8)
+            {
+                var vec = Vector256.LoadUnsafe(ref Unsafe.Add(ref valuesRef, startIndex + i));
+                // Widen Int32 to Int64 to prevent overflow during sum
+                var (lower, upper) = Vector256.Widen(vec);
+                sum += Vector256.Sum(lower) + Vector256.Sum(upper);
+            }
+        }
+        else if (Vector128.IsHardwareAccelerated)
+        {
+            // SSE path: Process 4 Int32 values at a time
+            for (; i <= 60; i += 4)
+            {
+                var vec = Vector128.LoadUnsafe(ref Unsafe.Add(ref valuesRef, startIndex + i));
+                var (lower, upper) = Vector128.Widen(vec);
+                sum += Vector128.Sum(lower) + Vector128.Sum(upper);
+            }
+        }
+
+        // Scalar remainder (handles cases where SIMD is not available or remaining elements)
+        for (; i < 64; i++)
+        {
+            sum += Unsafe.Add(ref valuesRef, startIndex + i);
+        }
+
         return sum;
     }
 
@@ -208,6 +268,7 @@ internal static class BlockBasedAggregator
     /// <summary>
     /// Computes sum of Double values using block-based bitmap iteration.
     /// For nullable columns, call AndWithNullBitmapRange first to pre-apply null mask.
+    /// Uses SIMD vectorization for fully-selected (dense) blocks.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static double SumDoubleBlockBased(
@@ -270,17 +331,68 @@ internal static class BlockBasedAggregator
             }
             else
             {
-                // No nulls OR nulls pre-applied - faster path without null checks
-                while (block != 0)
+                // DENSE BLOCK OPTIMIZATION: When all 64 bits are set, use SIMD
+                if (block == ulong.MaxValue)
                 {
-                    int bitIndex = BitOperations.TrailingZeroCount(block);
-                    int rowIndex = blockStartBit + bitIndex;
-                    sum += Unsafe.Add(ref valuesRef, rowIndex);
-                    block &= block - 1;
+                    sum += SumDoubleDenseBlock(ref valuesRef, blockStartBit);
+                }
+                else
+                {
+                    // Sparse block - iterate set bits using TrailingZeroCount
+                    while (block != 0)
+                    {
+                        int bitIndex = BitOperations.TrailingZeroCount(block);
+                        int rowIndex = blockStartBit + bitIndex;
+                        sum += Unsafe.Add(ref valuesRef, rowIndex);
+                        block &= block - 1;
+                    }
                 }
             }
         }
         
+        return sum;
+    }
+
+    /// <summary>
+    /// SIMD-optimized sum of 64 contiguous Double values.
+    /// Processes 4 values at a time using AVX2.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static double SumDoubleDenseBlock(ref double valuesRef, int startIndex)
+    {
+        double sum = 0;
+        int i = 0;
+
+        // AVX2 path: Process 4 Double values at a time
+        if (Vector256.IsHardwareAccelerated)
+        {
+            var sumVec = Vector256<double>.Zero;
+            // Process 64 values in 16 iterations of 4 values each
+            for (; i <= 60; i += 4)
+            {
+                var vec = Vector256.LoadUnsafe(ref Unsafe.Add(ref valuesRef, startIndex + i));
+                sumVec = Vector256.Add(sumVec, vec);
+            }
+            sum = Vector256.Sum(sumVec);
+        }
+        else if (Vector128.IsHardwareAccelerated)
+        {
+            // SSE path: Process 2 Double values at a time
+            var sumVec = Vector128<double>.Zero;
+            for (; i <= 62; i += 2)
+            {
+                var vec = Vector128.LoadUnsafe(ref Unsafe.Add(ref valuesRef, startIndex + i));
+                sumVec = Vector128.Add(sumVec, vec);
+            }
+            sum = Vector128.Sum(sumVec);
+        }
+
+        // Scalar remainder
+        for (; i < 64; i++)
+        {
+            sum += Unsafe.Add(ref valuesRef, startIndex + i);
+        }
+
         return sum;
     }
 
@@ -448,14 +560,23 @@ internal static class BlockBasedAggregator
             }
             else
             {
-                // No nulls OR nulls pre-applied - faster path without null checks
-                while (block != 0)
+                // DENSE BLOCK OPTIMIZATION: When all 64 bits are set, use SIMD
+                if (block == ulong.MaxValue)
                 {
-                    int bitIndex = BitOperations.TrailingZeroCount(block);
-                    int rowIndex = blockStartBit + bitIndex;
-                    sum += Unsafe.Add(ref valuesRef, rowIndex);
-                    count++;
-                    block &= block - 1;
+                    sum += SumInt32DenseBlock(ref valuesRef, blockStartBit);
+                    count += 64;
+                }
+                else
+                {
+                    // Sparse block - iterate set bits
+                    while (block != 0)
+                    {
+                        int bitIndex = BitOperations.TrailingZeroCount(block);
+                        int rowIndex = blockStartBit + bitIndex;
+                        sum += Unsafe.Add(ref valuesRef, rowIndex);
+                        count++;
+                        block &= block - 1;
+                    }
                 }
             }
         }
@@ -477,6 +598,7 @@ internal static class BlockBasedAggregator
     /// <summary>
     /// Computes sum and count of Double values using block-based bitmap iteration.
     /// For nullable columns, call AndWithNullBitmapRange first to pre-apply null mask.
+    /// Uses SIMD vectorization for fully-selected (dense) blocks.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static (double sum, int count) SumAndCountDoubleBlockBased(
@@ -541,14 +663,23 @@ internal static class BlockBasedAggregator
             }
             else
             {
-                // No nulls OR nulls pre-applied - faster path without null checks
-                while (block != 0)
+                // DENSE BLOCK OPTIMIZATION: When all 64 bits are set, use SIMD
+                if (block == ulong.MaxValue)
                 {
-                    int bitIndex = BitOperations.TrailingZeroCount(block);
-                    int rowIndex = blockStartBit + bitIndex;
-                    sum += Unsafe.Add(ref valuesRef, rowIndex);
-                    count++;
-                    block &= block - 1;
+                    sum += SumDoubleDenseBlock(ref valuesRef, blockStartBit);
+                    count += 64;
+                }
+                else
+                {
+                    // Sparse block - iterate set bits
+                    while (block != 0)
+                    {
+                        int bitIndex = BitOperations.TrailingZeroCount(block);
+                        int rowIndex = blockStartBit + bitIndex;
+                        sum += Unsafe.Add(ref valuesRef, rowIndex);
+                        count++;
+                        block &= block - 1;
+                    }
                 }
             }
         }

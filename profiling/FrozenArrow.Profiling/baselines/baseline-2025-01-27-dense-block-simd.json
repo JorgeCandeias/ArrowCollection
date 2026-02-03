@@ -1,0 +1,258 @@
+[
+  {
+    "ScenarioName": "Filter",
+    "Description": "Filter \u002B Count with varying selectivity",
+    "RowCount": 1000000,
+    "Iterations": 5,
+    "SamplesMicroseconds": [
+      26428.6,
+      25723.2,
+      25328.4,
+      24803.9,
+      25078.5
+    ],
+    "MinMicroseconds": 24803.9,
+    "MaxMicroseconds": 26428.6,
+    "MedianMicroseconds": 25328.4,
+    "AverageMicroseconds": 25472.52,
+    "StdDevMicroseconds": 632.456415099095,
+    "RowsPerSecond": 39481372.68836563,
+    "MillionRowsPerSecond": 39.48137268836563,
+    "PhaseDetails": null,
+    "AllocatedBytes": 40355,
+    "Metadata": {
+      "HighSelectivity": "Age \u003E 55 -\u003E 199452 rows",
+      "LowSelectivity": "IsActive -\u003E 699215 rows",
+      "MultiFilter": "Age \u003E 30 \u0026\u0026 IsActive \u0026\u0026 Salary \u003E 50000 -\u003E 466007 rows"
+    },
+    "Timestamp": "2026-02-03T22:31:12.3444873Z"
+  },
+  {
+    "ScenarioName": "Aggregate",
+    "Description": "Sum, Average, Min, Max aggregations",
+    "RowCount": 1000000,
+    "Iterations": 5,
+    "SamplesMicroseconds": [
+      3661.5,
+      3416.8,
+      3411,
+      3389.9,
+      3421.7
+    ],
+    "MinMicroseconds": 3389.9,
+    "MaxMicroseconds": 3661.5,
+    "MedianMicroseconds": 3416.8,
+    "AverageMicroseconds": 3460.1799999999994,
+    "StdDevMicroseconds": 113.19256601031711,
+    "RowsPerSecond": 292671505.50222427,
+    "MillionRowsPerSecond": 292.67150550222425,
+    "PhaseDetails": null,
+    "AllocatedBytes": 39644,
+    "Metadata": {
+      "Sum": "115,047,497,862.12",
+      "Average": "115,047.50",
+      "Min": "30,000.11",
+      "Max": "199,999.96"
+    },
+    "Timestamp": "2026-02-03T22:31:12.7013485Z"
+  },
+  {
+    "ScenarioName": "SparseAggregation",
+    "Description": "Aggregation with varying selection sparsity (1%, 10%, 50%)",
+    "RowCount": 1000000,
+    "Iterations": 5,
+    "SamplesMicroseconds": [
+      34477.8,
+      34234.2,
+      29818.7,
+      30108.1,
+      30082.9
+    ],
+    "MinMicroseconds": 29818.7,
+    "MaxMicroseconds": 34477.8,
+    "MedianMicroseconds": 30108.1,
+    "AverageMicroseconds": 31744.339999999997,
+    "StdDevMicroseconds": 2388.3550831063626,
+    "RowsPerSecond": 33213653.468667902,
+    "MillionRowsPerSecond": 33.2136534686679,
+    "PhaseDetails": null,
+    "AllocatedBytes": 202216,
+    "Metadata": {
+      "1PctSelectivity": "22,112 rows (2.2%), Sum=2,538,683,232.62",
+      "10PctSelectivity": "88,543 rows (8.9%), Sum=10,183,164,093.35",
+      "50PctSelectivity": "489,243 rows (48.9%), Sum=56,312,271,100.27",
+      "100PctSelectivity": "1,000,000 rows, Sum=115,047,497,862.12"
+    },
+    "Timestamp": "2026-02-03T22:31:13.2102622Z"
+  },
+  {
+    "ScenarioName": "GroupBy",
+    "Description": "GroupBy \u002B aggregations",
+    "RowCount": 1000000,
+    "Iterations": 5,
+    "SamplesMicroseconds": [
+      26708.3,
+      27194.1,
+      26522.8,
+      26488.5,
+      26668.7
+    ],
+    "MinMicroseconds": 26488.5,
+    "MaxMicroseconds": 27194.1,
+    "MedianMicroseconds": 26668.7,
+    "AverageMicroseconds": 26716.48,
+    "StdDevMicroseconds": 282.82394170225353,
+    "RowsPerSecond": 37497140.84301072,
+    "MillionRowsPerSecond": 37.497140843010726,
+    "PhaseDetails": null,
+    "AllocatedBytes": 65760,
+    "Metadata": {
+      "GroupCount": "20 groups",
+      "TotalSalary": "115,047,497,862.12"
+    },
+    "Timestamp": "2026-02-03T22:31:13.6573448Z"
+  },
+  {
+    "ScenarioName": "FusedExecution",
+    "Description": "Fused filter\u002Baggregate vs separate passes",
+    "RowCount": 1000000,
+    "Iterations": 5,
+    "SamplesMicroseconds": [
+      10406.1,
+      9985.5,
+      10566.1,
+      9982.8,
+      9960.5
+    ],
+    "MinMicroseconds": 9960.5,
+    "MaxMicroseconds": 10566.1,
+    "MedianMicroseconds": 9985.5,
+    "AverageMicroseconds": 10180.2,
+    "StdDevMicroseconds": 285.08444363030435,
+    "RowsPerSecond": 100145210.5553052,
+    "MillionRowsPerSecond": 100.1452105553052,
+    "PhaseDetails": null,
+    "AllocatedBytes": 58996,
+    "Metadata": {
+      "FusedSum": "60,793,615,433.65",
+      "MatchCount": "528,216 rows matched"
+    },
+    "Timestamp": "2026-02-03T22:31:13.9626127Z"
+  },
+  {
+    "ScenarioName": "ParallelComparison",
+    "Description": "Sequential vs parallel execution",
+    "RowCount": 1000000,
+    "Iterations": 5,
+    "SamplesMicroseconds": [
+      24668,
+      24797.6,
+      24770.6,
+      25265.9,
+      24838.1
+    ],
+    "MinMicroseconds": 24668,
+    "MaxMicroseconds": 25265.9,
+    "MedianMicroseconds": 24797.6,
+    "AverageMicroseconds": 24868.04,
+    "StdDevMicroseconds": 231.1175739748071,
+    "RowsPerSecond": 40326483.20805239,
+    "MillionRowsPerSecond": 40.32648320805239,
+    "PhaseDetails": null,
+    "AllocatedBytes": 56990,
+    "Metadata": {
+      "SequentialTime": "17177.4 ?s",
+      "ParallelTime": "2216.4 ?s",
+      "Speedup": "7.75x",
+      "ProcessorCount": "24 cores"
+    },
+    "Timestamp": "2026-02-03T22:31:14.3866087Z"
+  },
+  {
+    "ScenarioName": "BitmapOperations",
+    "Description": "SelectionBitmap create, popcount, iterate",
+    "RowCount": 1000000,
+    "Iterations": 5,
+    "SamplesMicroseconds": [
+      571.9,
+      553.6,
+      557.4,
+      555.4,
+      560.3
+    ],
+    "MinMicroseconds": 553.6,
+    "MaxMicroseconds": 571.9,
+    "MedianMicroseconds": 557.4,
+    "AverageMicroseconds": 559.72,
+    "StdDevMicroseconds": 7.248930955665108,
+    "RowsPerSecond": 1794043774.668102,
+    "MillionRowsPerSecond": 1794.043774668102,
+    "PhaseDetails": null,
+    "AllocatedBytes": 24,
+    "Metadata": {
+      "CountSet": "666,666",
+      "IteratedCount": "666,666",
+      "BitmapSize": "122.1 KB",
+      "HardwarePopCount": "true",
+      "SIMD": "AVX2=True, AVX512=False"
+    },
+    "Timestamp": "2026-02-03T22:31:14.6408146Z"
+  },
+  {
+    "ScenarioName": "PredicateEvaluation",
+    "Description": "Predicate evaluation with SIMD optimization",
+    "RowCount": 1000000,
+    "Iterations": 5,
+    "SamplesMicroseconds": [
+      10104.5,
+      9765.9,
+      10038.5,
+      9881.2,
+      10041.5
+    ],
+    "MinMicroseconds": 9765.9,
+    "MaxMicroseconds": 10104.5,
+    "MedianMicroseconds": 10038.5,
+    "AverageMicroseconds": 9966.320000000002,
+    "StdDevMicroseconds": 139.07667669311056,
+    "RowsPerSecond": 99616476.56522389,
+    "MillionRowsPerSecond": 99.61647656522389,
+    "PhaseDetails": null,
+    "AllocatedBytes": 45968,
+    "Metadata": {
+      "Int32Match": "533,691 (53.4%)",
+      "DoubleMatch": "706,633 (70.7%)",
+      "BoolMatch": "699,215 (69.9%)",
+      "MultiMatch": "434,907 (43.5%)"
+    },
+    "Timestamp": "2026-02-03T22:31:14.955325Z"
+  },
+  {
+    "ScenarioName": "Enumeration",
+    "Description": "Result materialization (ToList, foreach)",
+    "RowCount": 1000000,
+    "Iterations": 5,
+    "SamplesMicroseconds": [
+      118051.2,
+      79580.3,
+      146739.1,
+      145539.5,
+      108330.6
+    ],
+    "MinMicroseconds": 79580.3,
+    "MaxMicroseconds": 146739.1,
+    "MedianMicroseconds": 118051.2,
+    "AverageMicroseconds": 119648.13999999998,
+    "StdDevMicroseconds": 28019.41901455132,
+    "RowsPerSecond": 8470900.761703396,
+    "MillionRowsPerSecond": 8.470900761703396,
+    "PhaseDetails": null,
+    "AllocatedBytes": 121552892,
+    "Metadata": {
+      "ToListCount": "533,691 items",
+      "ForeachCount": "310,936 items",
+      "FirstId": "0"
+    },
+    "Timestamp": "2026-02-03T22:31:16.1462531Z"
+  }
+]
