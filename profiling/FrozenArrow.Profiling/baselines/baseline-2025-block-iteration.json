@@ -1,0 +1,36 @@
+[
+  {
+    "ScenarioName": "Aggregate",
+    "Description": "Sum, Average, Min, Max aggregations",
+    "RowCount": 1000000,
+    "Iterations": 10,
+    "SamplesMicroseconds": [
+      3933.8,
+      3631.1,
+      3637.9,
+      3397.3,
+      3289.9,
+      3410,
+      3512,
+      3503.3,
+      3689.9,
+      3524.6
+    ],
+    "MinMicroseconds": 3289.9,
+    "MaxMicroseconds": 3933.8,
+    "MedianMicroseconds": 3518.3,
+    "AverageMicroseconds": 3552.9800000000005,
+    "StdDevMicroseconds": 181.33107106431967,
+    "RowsPerSecond": 284228178.38160473,
+    "MillionRowsPerSecond": 284.2281783816047,
+    "PhaseDetails": null,
+    "AllocatedBytes": 39296,
+    "Metadata": {
+      "Sum": "115,047,497,862.12",
+      "Average": "115,047.50",
+      "Min": "30,000.11",
+      "Max": "199,999.96"
+    },
+    "Timestamp": "2026-02-03T21:37:58.8757231Z"
+  }
+]

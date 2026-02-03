@@ -1,0 +1,109 @@
+[
+  {
+    "ScenarioName": "SparseAggregation",
+    "Description": "Aggregation with varying selection sparsity (1%, 10%, 50%)",
+    "RowCount": 1000000,
+    "Iterations": 10,
+    "SamplesMicroseconds": [
+      74321.7,
+      74140.6,
+      68359.9,
+      29025.8,
+      29327,
+      28860.5,
+      29798,
+      29566.3,
+      28843.3,
+      29452.1
+    ],
+    "MinMicroseconds": 28843.3,
+    "MaxMicroseconds": 74321.7,
+    "MedianMicroseconds": 29509.199999999997,
+    "AverageMicroseconds": 42169.52,
+    "StdDevMicroseconds": 20837.68733392029,
+    "RowsPerSecond": 33887736.70584089,
+    "MillionRowsPerSecond": 33.887736705840894,
+    "PhaseDetails": {
+      "Sum1PctFilter": {
+        "PhaseName": "Sum1PctFilter",
+        "SamplesMicroseconds": [
+          26039.5,
+          23734.3,
+          23666.7,
+          9141.5,
+          8827.8,
+          8659.7,
+          8680.8,
+          8688.2,
+          8628,
+          8603.9
+        ],
+        "AverageMicroseconds": 13467.039999999999,
+        "PercentageOfTotal": 31.935483258998442,
+        "InvocationCount": 1
+      },
+      "Sum10PctFilter": {
+        "PhaseName": "Sum10PctFilter",
+        "SamplesMicroseconds": [
+          24741.5,
+          23803.1,
+          23371.5,
+          8316.2,
+          9369.6,
+          8625.5,
+          8456.5,
+          8902,
+          8792.2,
+          8688.5
+        ],
+        "AverageMicroseconds": 13306.66,
+        "PercentageOfTotal": 31.555161168540693,
+        "InvocationCount": 1
+      },
+      "Sum50PctFilter": {
+        "PhaseName": "Sum50PctFilter",
+        "SamplesMicroseconds": [
+          24050.5,
+          23946.3,
+          23837.5,
+          9022.2,
+          9359.4,
+          9573.8,
+          9154.9,
+          9260.9,
+          9983.6,
+          9256.6
+        ],
+        "AverageMicroseconds": 13744.569999999998,
+        "PercentageOfTotal": 32.59361263775352,
+        "InvocationCount": 1
+      },
+      "Sum100PctNoFilter": {
+        "PhaseName": "Sum100PctNoFilter",
+        "SamplesMicroseconds": [
+          3227.7,
+          2884.8,
+          3099.3,
+          2950.3,
+          3183.6,
+          2964.6,
+          3183.2,
+          2993.4,
+          2901.9,
+          2814.8
+        ],
+        "AverageMicroseconds": 3020.36,
+        "PercentageOfTotal": 7.162424424086403,
+        "InvocationCount": 1
+      }
+    },
+    "AllocatedBytes": 405420,
+    "Metadata": {
+      "1PctSelectivity": "22,112 rows (2.2%), Sum=2,538,683,232.62",
+      "10PctSelectivity": "88,543 rows (8.9%), Sum=10,183,164,093.35",
+      "50PctSelectivity": "489,243 rows (48.9%), Sum=56,312,271,100.27",
+      "100PctSelectivity": "1,000,000 rows, Sum=115,047,497,862.12"
+    },
+    "Timestamp": "2026-02-03T21:47:39.7167955Z"
+  }
+]

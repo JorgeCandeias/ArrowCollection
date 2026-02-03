@@ -63,17 +63,10 @@ internal static class ParallelAggregator
         {
             var startRow = chunkIndex * chunkSize;
             var endRow = Math.Min(startRow + chunkSize, length);
-            var values = array.Values; // Get span inside lambda
-
-            long chunkSum = 0;
-            for (int i = startRow; i < endRow; i++)
-            {
-                if (SelectionBitmap.IsSet(selectionBuffer, i) && !array.IsNull(i))
-                {
-                    chunkSum += values[i];
-                }
-            }
-            partialSums[chunkIndex] = chunkSum;
+            
+            // Use block-based iteration for efficient sparse access
+            partialSums[chunkIndex] = BlockBasedAggregator.SumInt32BlockBased(
+                array, selectionBuffer, startRow, endRow);
         });
 
         long total = 0;
@@ -95,17 +88,10 @@ internal static class ParallelAggregator
         {
             var startRow = chunkIndex * chunkSize;
             var endRow = Math.Min(startRow + chunkSize, length);
-            var values = array.Values;
-
-            long chunkSum = 0;
-            for (int i = startRow; i < endRow; i++)
-            {
-                if (SelectionBitmap.IsSet(selectionBuffer, i) && !array.IsNull(i))
-                {
-                    chunkSum += values[i];
-                }
-            }
-            partialSums[chunkIndex] = chunkSum;
+            
+            // Use block-based iteration for efficient sparse access
+            partialSums[chunkIndex] = BlockBasedAggregator.SumInt64BlockBased(
+                array, selectionBuffer, startRow, endRow);
         });
 
         long total = 0;
@@ -127,17 +113,10 @@ internal static class ParallelAggregator
         {
             var startRow = chunkIndex * chunkSize;
             var endRow = Math.Min(startRow + chunkSize, length);
-            var values = array.Values;
-
-            double chunkSum = 0;
-            for (int i = startRow; i < endRow; i++)
-            {
-                if (SelectionBitmap.IsSet(selectionBuffer, i) && !array.IsNull(i))
-                {
-                    chunkSum += values[i];
-                }
-            }
-            partialSums[chunkIndex] = chunkSum;
+            
+            // Use block-based iteration for efficient sparse access
+            partialSums[chunkIndex] = BlockBasedAggregator.SumDoubleBlockBased(
+                array, selectionBuffer, startRow, endRow);
         });
 
         double total = 0;
@@ -159,16 +138,10 @@ internal static class ParallelAggregator
         {
             var startRow = chunkIndex * chunkSize;
             var endRow = Math.Min(startRow + chunkSize, length);
-
-            decimal chunkSum = 0;
-            for (int i = startRow; i < endRow; i++)
-            {
-                if (SelectionBitmap.IsSet(selectionBuffer, i) && !array.IsNull(i))
-                {
-                    chunkSum += array.GetValue(i)!.Value;
-                }
-            }
-            partialSums[chunkIndex] = chunkSum;
+            
+            // Use block-based iteration for efficient sparse access
+            partialSums[chunkIndex] = BlockBasedAggregator.SumDecimalBlockBased(
+                array, selectionBuffer, startRow, endRow);
         });
 
         decimal total = 0;
@@ -223,19 +196,11 @@ internal static class ParallelAggregator
         {
             var startRow = chunkIndex * chunkSize;
             var endRow = Math.Min(startRow + chunkSize, length);
-            var values = array.Values;
-
-            long chunkSum = 0;
-            int count = 0;
-            for (int i = startRow; i < endRow; i++)
-            {
-                if (SelectionBitmap.IsSet(selectionBuffer, i) && !array.IsNull(i))
-                {
-                    chunkSum += values[i];
-                    count++;
-                }
-            }
-            partialSums[chunkIndex] = chunkSum;
+            
+            // Use block-based iteration for efficient sparse access
+            var (sum, count) = BlockBasedAggregator.SumAndCountInt32BlockBased(
+                array, selectionBuffer, startRow, endRow);
+            partialSums[chunkIndex] = sum;
             partialCounts[chunkIndex] = count;
         });
 
@@ -305,19 +270,11 @@ internal static class ParallelAggregator
         {
             var startRow = chunkIndex * chunkSize;
             var endRow = Math.Min(startRow + chunkSize, length);
-            var values = array.Values;
-
-            double chunkSum = 0;
-            int count = 0;
-            for (int i = startRow; i < endRow; i++)
-            {
-                if (SelectionBitmap.IsSet(selectionBuffer, i) && !array.IsNull(i))
-                {
-                    chunkSum += values[i];
-                    count++;
-                }
-            }
-            partialSums[chunkIndex] = chunkSum;
+            
+            // Use block-based iteration for efficient sparse access
+            var (sum, count) = BlockBasedAggregator.SumAndCountDoubleBlockBased(
+                array, selectionBuffer, startRow, endRow);
+            partialSums[chunkIndex] = sum;
             partialCounts[chunkIndex] = count;
         });
 
@@ -420,24 +377,12 @@ internal static class ParallelAggregator
         {
             var startRow = chunkIndex * chunkSize;
             var endRow = Math.Min(startRow + chunkSize, length);
-            var values = array.Values;
-
-            int chunkMin = int.MaxValue;
-            bool foundValue = false;
-            for (int i = startRow; i < endRow; i++)
-            {
-                if (SelectionBitmap.IsSet(selectionBuffer, i) && !array.IsNull(i))
-                {
-                    var value = values[i];
-                    if (!foundValue || value < chunkMin)
-                    {
-                        chunkMin = value;
-                        foundValue = true;
-                    }
-                }
-            }
-            partialMins[chunkIndex] = chunkMin;
-            hasValues[chunkIndex] = foundValue;
+            
+            // Use block-based iteration for efficient sparse access
+            var (min, hasValue) = BlockBasedAggregator.MinInt32BlockBased(
+                array, selectionBuffer, startRow, endRow);
+            partialMins[chunkIndex] = min;
+            hasValues[chunkIndex] = hasValue;
         });
 
         int globalMin = int.MaxValue;
@@ -524,24 +469,12 @@ internal static class ParallelAggregator
         {
             var startRow = chunkIndex * chunkSize;
             var endRow = Math.Min(startRow + chunkSize, length);
-            var values = array.Values;
-
-            double chunkMin = double.MaxValue;
-            bool foundValue = false;
-            for (int i = startRow; i < endRow; i++)
-            {
-                if (SelectionBitmap.IsSet(selectionBuffer, i) && !array.IsNull(i))
-                {
-                    var value = values[i];
-                    if (!foundValue || value < chunkMin)
-                    {
-                        chunkMin = value;
-                        foundValue = true;
-                    }
-                }
-            }
-            partialMins[chunkIndex] = chunkMin;
-            hasValues[chunkIndex] = foundValue;
+            
+            // Use block-based iteration for efficient sparse access
+            var (min, hasValue) = BlockBasedAggregator.MinDoubleBlockBased(
+                array, selectionBuffer, startRow, endRow);
+            partialMins[chunkIndex] = min;
+            hasValues[chunkIndex] = hasValue;
         });
 
         double globalMin = double.MaxValue;
@@ -659,24 +592,12 @@ internal static class ParallelAggregator
         {
             var startRow = chunkIndex * chunkSize;
             var endRow = Math.Min(startRow + chunkSize, length);
-            var values = array.Values;
-
-            int chunkMax = int.MinValue;
-            bool foundValue = false;
-            for (int i = startRow; i < endRow; i++)
-            {
-                if (SelectionBitmap.IsSet(selectionBuffer, i) && !array.IsNull(i))
-                {
-                    var value = values[i];
-                    if (!foundValue || value > chunkMax)
-                    {
-                        chunkMax = value;
-                        foundValue = true;
-                    }
-                }
-            }
-            partialMaxs[chunkIndex] = chunkMax;
-            hasValues[chunkIndex] = foundValue;
+            
+            // Use block-based iteration for efficient sparse access
+            var (max, hasValue) = BlockBasedAggregator.MaxInt32BlockBased(
+                array, selectionBuffer, startRow, endRow);
+            partialMaxs[chunkIndex] = max;
+            hasValues[chunkIndex] = hasValue;
         });
 
         int globalMax = int.MinValue;
@@ -763,24 +684,12 @@ internal static class ParallelAggregator
         {
             var startRow = chunkIndex * chunkSize;
             var endRow = Math.Min(startRow + chunkSize, length);
-            var values = array.Values;
-
-            double chunkMax = double.MinValue;
-            bool foundValue = false;
-            for (int i = startRow; i < endRow; i++)
-            {
-                if (SelectionBitmap.IsSet(selectionBuffer, i) && !array.IsNull(i))
-                {
-                    var value = values[i];
-                    if (!foundValue || value > chunkMax)
-                    {
-                        chunkMax = value;
-                        foundValue = true;
-                    }
-                }
-            }
-            partialMaxs[chunkIndex] = chunkMax;
-            hasValues[chunkIndex] = foundValue;
+            
+            // Use block-based iteration for efficient sparse access
+            var (max, hasValue) = BlockBasedAggregator.MaxDoubleBlockBased(
+                array, selectionBuffer, startRow, endRow);
+            partialMaxs[chunkIndex] = max;
+            hasValues[chunkIndex] = hasValue;
         });
 
         double globalMax = double.MinValue;

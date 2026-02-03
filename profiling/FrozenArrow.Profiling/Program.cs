@@ -137,6 +137,7 @@ public static class Program
             
               filter            Filter operations with varying selectivity
               aggregate         Sum, Average, Min, Max aggregations
+              sparseagg         Aggregation with sparse selections (1%, 10%, 50%)
               groupby           GroupBy with aggregations
               fused             Fused filter+aggregate (single-pass)
               parallel          Parallel vs sequential comparison
@@ -165,6 +166,7 @@ public static class Program
             "all" => GetAllScenarios(),
             "filter" => [new FilterScenario()],
             "aggregate" => [new AggregateScenario()],
+            "sparseagg" => [new SparseAggregationScenario()],
             "groupby" => [new GroupByScenario()],
             "fused" => [new FusedExecutionScenario()],
             "parallel" => [new ParallelComparisonScenario()],
@@ -208,6 +210,7 @@ public static class Program
     [
         new FilterScenario(),
         new AggregateScenario(),
+        new SparseAggregationScenario(),
         new GroupByScenario(),
         new FusedExecutionScenario(),
         new ParallelComparisonScenario(),
