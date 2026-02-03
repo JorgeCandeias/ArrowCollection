@@ -2,12 +2,11 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
 using FrozenArrow.Query;
 
-namespace FrozenArrow.Benchmarks;
+namespace FrozenArrow.Benchmarks.Internals;
 
 /// <summary>
 /// Benchmarks for SelectionBitmap SIMD-optimized operations.
-/// Measures performance of And, Or, Not, CountSet, Any, and All operations
-/// across different bitmap sizes.
+/// These are internal component benchmarks for optimization work.
 /// </summary>
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
@@ -20,18 +19,17 @@ public class SelectionBitmapBenchmarks
     private SelectionBitmap _bitmap2;
     private SelectionBitmap _sparseBitmap;
 
-    [Params(1_000, 10_000, 100_000, 1_000_000)]
+    [Params(10_000, 100_000, 1_000_000)]
     public int BitCount { get; set; }
 
     [GlobalSetup]
     public void Setup()
     {
-        // Create bitmaps with different patterns for realistic testing
         _bitmap1 = SelectionBitmap.Create(BitCount, initialValue: true);
         _bitmap2 = SelectionBitmap.Create(BitCount, initialValue: true);
         _sparseBitmap = SelectionBitmap.Create(BitCount, initialValue: false);
 
-        // Set alternating pattern in bitmap2 for interesting AND/OR results
+        // Set alternating pattern in bitmap2
         for (int i = 0; i < BitCount; i += 2)
         {
             _bitmap2.Clear(i);
@@ -56,38 +54,28 @@ public class SelectionBitmapBenchmarks
         _sparseBitmap.Dispose();
     }
 
-    #region CountSet Benchmarks
+    #region CountSet
 
     [Benchmark]
     [BenchmarkCategory("CountSet")]
-    public int CountSet_Dense()
-    {
-        return _bitmap1.CountSet();
-    }
+    public int CountSet_Dense() => _bitmap1.CountSet();
 
     [Benchmark]
     [BenchmarkCategory("CountSet")]
-    public int CountSet_Alternating()
-    {
-        return _bitmap2.CountSet();
-    }
+    public int CountSet_Alternating() => _bitmap2.CountSet();
 
     [Benchmark]
     [BenchmarkCategory("CountSet")]
-    public int CountSet_Sparse()
-    {
-        return _sparseBitmap.CountSet();
-    }
+    public int CountSet_Sparse() => _sparseBitmap.CountSet();
 
     #endregion
 
-    #region And Benchmarks
+    #region And
 
     [Benchmark]
     [BenchmarkCategory("And")]
     public void And_Dense()
     {
-        // Create fresh bitmap to avoid modifying the shared one
         using var bitmap = SelectionBitmap.Create(BitCount, initialValue: true);
         bitmap.And(_bitmap2);
     }
@@ -102,7 +90,7 @@ public class SelectionBitmapBenchmarks
 
     #endregion
 
-    #region Or Benchmarks
+    #region Or
 
     [Benchmark]
     [BenchmarkCategory("Or")]
@@ -122,7 +110,7 @@ public class SelectionBitmapBenchmarks
 
     #endregion
 
-    #region Not Benchmarks
+    #region Not
 
     [Benchmark]
     [BenchmarkCategory("Not")]
@@ -132,84 +120,34 @@ public class SelectionBitmapBenchmarks
         bitmap.Not();
     }
 
-    [Benchmark]
-    [BenchmarkCategory("Not")]
-    public void Not_Sparse()
-    {
-        using var bitmap = SelectionBitmap.Create(BitCount, initialValue: false);
-        // Set some bits
-        for (int i = 0; i < BitCount; i += 20)
-        {
-            bitmap.Set(i);
-        }
-        bitmap.Not();
-    }
-
     #endregion
 
-    #region AndNot Benchmarks
-
-    [Benchmark]
-    [BenchmarkCategory("AndNot")]
-    public void AndNot_Dense()
-    {
-        using var bitmap = SelectionBitmap.Create(BitCount, initialValue: true);
-        bitmap.AndNot(_bitmap2);
-    }
-
-    #endregion
-
-    #region Any Benchmarks
+    #region Any/All
 
     [Benchmark]
     [BenchmarkCategory("Any")]
-    public bool Any_Dense()
-    {
-        return _bitmap1.Any();
-    }
+    public bool Any_Dense() => _bitmap1.Any();
 
     [Benchmark]
     [BenchmarkCategory("Any")]
-    public bool Any_Empty()
-    {
-        using var bitmap = SelectionBitmap.Create(BitCount, initialValue: false);
-        return bitmap.Any();
-    }
-
-    [Benchmark]
-    [BenchmarkCategory("Any")]
-    public bool Any_Sparse()
-    {
-        return _sparseBitmap.Any();
-    }
-
-    #endregion
-
-    #region All Benchmarks
+    public bool Any_Sparse() => _sparseBitmap.Any();
 
     [Benchmark]
     [BenchmarkCategory("All")]
-    public bool All_Dense()
-    {
-        return _bitmap1.All();
-    }
+    public bool All_Dense() => _bitmap1.All();
 
     [Benchmark]
     [BenchmarkCategory("All")]
-    public bool All_Alternating()
-    {
-        return _bitmap2.All();
-    }
+    public bool All_Alternating() => _bitmap2.All();
 
     #endregion
 
-    #region Combined Operations (Realistic Query Scenario)
+    #region Combined Operations
 
     [Benchmark]
     [BenchmarkCategory("Combined")]
     public int CombinedQuery_TwoPredicates()
     {
-        // Simulates: WHERE col1 > X AND col2 == Y
         using var result = SelectionBitmap.Create(BitCount, initialValue: true);
         result.And(_bitmap2);
         result.And(_sparseBitmap);
@@ -220,7 +158,6 @@ public class SelectionBitmapBenchmarks
     [BenchmarkCategory("Combined")]
     public int CombinedQuery_OrThenAnd()
     {
-        // Simulates: WHERE (col1 > X OR col2 > Y) AND col3 == Z
         using var temp = SelectionBitmap.Create(BitCount, initialValue: false);
         temp.Or(_bitmap2);
         temp.Or(_sparseBitmap);

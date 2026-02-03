@@ -45,7 +45,7 @@ public class HeavyRecordBenchmarks
 
     #region Construction Benchmarks
 
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("Heavy", "Construction")]
     public List<HeavyBenchmarkItem> List_Construction_Heavy_1M()
     {

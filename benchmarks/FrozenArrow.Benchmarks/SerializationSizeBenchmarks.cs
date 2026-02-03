@@ -78,7 +78,7 @@ public class SerializationSizeBenchmarks
 
     #region Arrow Benchmarks
 
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("Serialization")]
     public long Arrow_NoCompression()
     {

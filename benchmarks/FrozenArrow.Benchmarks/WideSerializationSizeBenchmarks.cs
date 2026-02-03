@@ -47,7 +47,7 @@ public class WideSerializationSizeBenchmarks
 
     #region Arrow Benchmarks
 
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("WideData_Serialization")]
     public long Arrow_NoCompression()
     {

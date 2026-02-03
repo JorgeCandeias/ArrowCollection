@@ -1,20 +1,19 @@
+using FrozenArrow.Query;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
 using DuckDB.NET.Data;
-using FrozenArrow.Query;
 
 namespace FrozenArrow.Benchmarks;
 
 /// <summary>
-/// Benchmarks for aggregation operations (Sum, Average, Min, Max) across all technologies.
-/// Tests both dense and sparse selections.
+/// Benchmarks for pagination operations (Take, Skip, First, Any) across all technologies.
 /// </summary>
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [GroupBenchmarksBy(BenchmarkDotNet.Configs.BenchmarkLogicalGroupRule.ByCategory)]
 [CategoriesColumn]
 [ShortRunJob]
-public class AggregationBenchmarks
+public class PaginationBenchmarks
 {
     private List<QueryBenchmarkItem> _list = null!;
     private FrozenArrow<QueryBenchmarkItem> _frozenArrow = null!;
@@ -75,110 +74,110 @@ public class AggregationBenchmarks
         _duckDbConnection.Dispose();
     }
 
-    #region Sum (Filtered ~70% selectivity)
+    #region Any (Short-circuit evaluation)
 
     [Benchmark]
-    [BenchmarkCategory("Sum")]
-    public decimal List_Sum()
+    [BenchmarkCategory("Any")]
+    public bool List_Any()
     {
-        return _list.Where(x => x.IsActive).Sum(x => x.Salary);
+        return _list.Any(x => x.Age > 55 && x.Category == "Executive");
     }
 
     [Benchmark]
-    [BenchmarkCategory("Sum")]
-    public decimal FrozenArrow_Sum()
+    [BenchmarkCategory("Any")]
+    public bool FrozenArrow_Any()
     {
-        return _frozenArrow.AsQueryable().Where(x => x.IsActive).Sum(x => x.Salary);
+        return _frozenArrow.AsQueryable().Any(x => x.Age > 55 && x.Category == "Executive");
     }
 
     [Benchmark]
-    [BenchmarkCategory("Sum")]
-    public decimal DuckDB_Sum()
+    [BenchmarkCategory("Any")]
+    public bool DuckDB_Any()
     {
         using var cmd = _duckDbConnection.CreateCommand();
-        cmd.CommandText = "SELECT SUM(Salary) FROM items WHERE IsActive = true";
-        return Convert.ToDecimal(cmd.ExecuteScalar());
+        cmd.CommandText = "SELECT EXISTS(SELECT 1 FROM items WHERE Age > 55 AND Category = 'Executive')";
+        return Convert.ToBoolean(cmd.ExecuteScalar());
     }
 
     #endregion
 
-    #region Average (Filtered)
+    #region First (Stop at first match)
 
     [Benchmark]
-    [BenchmarkCategory("Average")]
-    public double List_Average()
+    [BenchmarkCategory("First")]
+    public int List_First()
     {
-        return _list.Where(x => x.Age > 30).Average(x => x.PerformanceScore);
+        return _list.First(x => x.Age > 55).Id;
     }
 
     [Benchmark]
-    [BenchmarkCategory("Average")]
-    public double FrozenArrow_Average()
+    [BenchmarkCategory("First")]
+    public int FrozenArrow_First()
     {
-        return _frozenArrow.AsQueryable().Where(x => x.Age > 30).Average(x => x.PerformanceScore);
+        return _frozenArrow.AsQueryable().First(x => x.Age > 55).Id;
     }
 
     [Benchmark]
-    [BenchmarkCategory("Average")]
-    public double DuckDB_Average()
+    [BenchmarkCategory("First")]
+    public int DuckDB_First()
     {
         using var cmd = _duckDbConnection.CreateCommand();
-        cmd.CommandText = "SELECT AVG(PerformanceScore) FROM items WHERE Age > 30";
-        return Convert.ToDouble(cmd.ExecuteScalar());
+        cmd.CommandText = "SELECT Id FROM items WHERE Age > 55 LIMIT 1";
+        return Convert.ToInt32(cmd.ExecuteScalar());
     }
 
     #endregion
 
-    #region Min (Filtered)
+    #region Take (Limit results)
 
     [Benchmark]
-    [BenchmarkCategory("Min")]
-    public decimal List_Min()
+    [BenchmarkCategory("Take")]
+    public int List_Take()
     {
-        return _list.Where(x => x.Age > 40).Min(x => x.Salary);
+        return _list.Where(x => x.IsActive).Take(100).Count();
     }
 
     [Benchmark]
-    [BenchmarkCategory("Min")]
-    public decimal FrozenArrow_Min()
+    [BenchmarkCategory("Take")]
+    public int FrozenArrow_Take()
     {
-        return _frozenArrow.AsQueryable().Where(x => x.Age > 40).Min(x => x.Salary);
+        return _frozenArrow.AsQueryable().Where(x => x.IsActive).Take(100).Count();
     }
 
     [Benchmark]
-    [BenchmarkCategory("Min")]
-    public decimal DuckDB_Min()
+    [BenchmarkCategory("Take")]
+    public int DuckDB_Take()
     {
         using var cmd = _duckDbConnection.CreateCommand();
-        cmd.CommandText = "SELECT MIN(Salary) FROM items WHERE Age > 40";
-        return Convert.ToDecimal(cmd.ExecuteScalar());
+        cmd.CommandText = "SELECT COUNT(*) FROM (SELECT 1 FROM items WHERE IsActive = true LIMIT 100)";
+        return Convert.ToInt32(cmd.ExecuteScalar());
     }
 
     #endregion
 
-    #region Max (Filtered)
+    #region Skip + Take (Pagination)
 
     [Benchmark]
-    [BenchmarkCategory("Max")]
-    public decimal List_Max()
+    [BenchmarkCategory("SkipTake")]
+    public int List_SkipTake()
     {
-        return _list.Where(x => x.Age > 40).Max(x => x.Salary);
+        return _list.Where(x => x.IsActive).Skip(1000).Take(100).Count();
     }
 
     [Benchmark]
-    [BenchmarkCategory("Max")]
-    public decimal FrozenArrow_Max()
+    [BenchmarkCategory("SkipTake")]
+    public int FrozenArrow_SkipTake()
     {
-        return _frozenArrow.AsQueryable().Where(x => x.Age > 40).Max(x => x.Salary);
+        return _frozenArrow.AsQueryable().Where(x => x.IsActive).Skip(1000).Take(100).Count();
     }
 
     [Benchmark]
-    [BenchmarkCategory("Max")]
-    public decimal DuckDB_Max()
+    [BenchmarkCategory("SkipTake")]
+    public int DuckDB_SkipTake()
     {
         using var cmd = _duckDbConnection.CreateCommand();
-        cmd.CommandText = "SELECT MAX(Salary) FROM items WHERE Age > 40";
-        return Convert.ToDecimal(cmd.ExecuteScalar());
+        cmd.CommandText = "SELECT COUNT(*) FROM (SELECT 1 FROM items WHERE IsActive = true LIMIT 100 OFFSET 1000)";
+        return Convert.ToInt32(cmd.ExecuteScalar());
     }
 
     #endregion

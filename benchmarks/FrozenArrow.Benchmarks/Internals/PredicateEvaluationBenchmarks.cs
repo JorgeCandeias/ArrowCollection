@@ -2,11 +2,11 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
 using FrozenArrow.Query;
 
-namespace FrozenArrow.Benchmarks;
+namespace FrozenArrow.Benchmarks.Internals;
 
 /// <summary>
-/// Benchmarks comparing SIMD-optimized predicate evaluation against baseline.
-/// Tests Int32 and Double column comparisons at various selectivities.
+/// Benchmarks for predicate evaluation on Arrow columns.
+/// These are internal component benchmarks for optimization work.
 /// </summary>
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
@@ -34,9 +34,9 @@ public class PredicateEvaluationBenchmarks
         _frozenArrow.Dispose();
     }
 
-    #region Int32 Predicate (Age column) - High Selectivity (~5%)
+    #region Int32 Predicate - High Selectivity (~5%)
 
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("Int32_HighSelectivity")]
     public int List_Int32_HighSelectivity()
     {
@@ -52,9 +52,9 @@ public class PredicateEvaluationBenchmarks
 
     #endregion
 
-    #region Int32 Predicate (Age column) - Medium Selectivity (~50%)
+    #region Int32 Predicate - Medium Selectivity (~50%)
 
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("Int32_MediumSelectivity")]
     public int List_Int32_MediumSelectivity()
     {
@@ -70,9 +70,9 @@ public class PredicateEvaluationBenchmarks
 
     #endregion
 
-    #region Int32 Predicate (Age column) - Low Selectivity (~95%)
+    #region Int32 Predicate - Low Selectivity (~95%)
 
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("Int32_LowSelectivity")]
     public int List_Int32_LowSelectivity()
     {
@@ -88,9 +88,9 @@ public class PredicateEvaluationBenchmarks
 
     #endregion
 
-    #region Double Predicate (PerformanceScore column) - High Selectivity (~5%)
+    #region Double Predicate - High Selectivity (~5%)
 
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("Double_HighSelectivity")]
     public int List_Double_HighSelectivity()
     {
@@ -106,9 +106,9 @@ public class PredicateEvaluationBenchmarks
 
     #endregion
 
-    #region Double Predicate (PerformanceScore column) - Medium Selectivity (~50%)
+    #region Double Predicate - Medium Selectivity (~50%)
 
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("Double_MediumSelectivity")]
     public int List_Double_MediumSelectivity()
     {
@@ -124,45 +124,9 @@ public class PredicateEvaluationBenchmarks
 
     #endregion
 
-    #region Combined Int32 + String Predicate
-
-    [Benchmark(Baseline = true)]
-    [BenchmarkCategory("Combined_Int32_String")]
-    public int List_Combined_Int32_String()
-    {
-        return _list.Where(x => x.Age > 40 && x.Category == "Senior").Count();
-    }
-
-    [Benchmark]
-    [BenchmarkCategory("Combined_Int32_String")]
-    public int FrozenArrow_Combined_Int32_String()
-    {
-        return _frozenArrow.AsQueryable().Where(x => x.Age > 40 && x.Category == "Senior").Count();
-    }
-
-    #endregion
-
-    #region Sum with Filter (Tests SIMD Aggregation)
-
-    [Benchmark(Baseline = true)]
-    [BenchmarkCategory("SumWithFilter")]
-    public decimal List_SumWithFilter()
-    {
-        return _list.Where(x => x.Age > 30).Sum(x => x.Salary);
-    }
-
-    [Benchmark]
-    [BenchmarkCategory("SumWithFilter")]
-    public decimal FrozenArrow_SumWithFilter()
-    {
-        return _frozenArrow.AsQueryable().Where(x => x.Age > 30).Sum(x => x.Salary);
-    }
-
-    #endregion
-
     #region Multiple Predicates (Tests predicate combination efficiency)
 
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("MultiPredicate")]
     public int List_MultiPredicate()
     {

@@ -75,7 +75,7 @@ public class FrozenArrowBenchmarks
 
     #region Construction Benchmarks - 10K Items
 
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("Construction", "10K")]
     public List<BenchmarkItem> List_Construction_10K()
     {

@@ -43,7 +43,7 @@ public class WideRecordQueryBenchmarks
     /// Baseline: List with LINQ on wide records.
     /// Filter on String01 which has 100 distinct values, so ~1% match.
     /// </summary>
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("WideRecord_HighSelectivity")]
     public int List_WideRecord_HighSelectivity_ToList()
     {
@@ -79,7 +79,7 @@ public class WideRecordQueryBenchmarks
     /// <summary>
     /// Count with List on wide records.
     /// </summary>
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("WideRecord_Count")]
     public int List_WideRecord_Count()
     {
@@ -113,7 +113,7 @@ public class WideRecordQueryBenchmarks
     /// <summary>
     /// Multi-column filter with List on wide records.
     /// </summary>
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     [BenchmarkCategory("WideRecord_MultiColumn")]
     public int List_WideRecord_MultiColumn_ToList()
     {
