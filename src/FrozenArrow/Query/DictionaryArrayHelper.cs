@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 using Apache.Arrow;
 
 namespace FrozenArrow.Query;
@@ -6,9 +8,12 @@ namespace FrozenArrow.Query;
 /// Helper utilities for working with DictionaryArray types in queries.
 /// DictionaryArray stores values as indices into a dictionary of unique values,
 /// which is more memory-efficient for low-cardinality columns.
+/// Uses SIMD optimization for grouping operations on low-cardinality columns.
 /// </summary>
 internal static class DictionaryArrayHelper
 {
+    // Threshold for using array-based grouping vs dictionary-based
+    private const int ArrayGroupingMaxCardinality = 256;
     /// <summary>
     /// Extracts the underlying value at a given index from a DictionaryArray.
     /// </summary>
@@ -108,12 +113,121 @@ internal static class DictionaryArrayHelper
     /// <summary>
     /// Executes a GroupBy operation on a dictionary-encoded column.
     /// Groups by dictionary indices (fast integer comparison) then maps back to actual keys.
+    /// Uses optimized array-based grouping for low-cardinality columns.
     /// </summary>
     public static Dictionary<TKey, List<int>> GroupByDictionary<TKey>(
         DictionaryArray dictArray,
         ref SelectionBitmap selection) where TKey : notnull
     {
-        var groups = new Dictionary<int, List<int>>(); // Group by dictionary index
+        var dictionaryLength = dictArray.Dictionary.Length;
+        
+        // For low-cardinality columns, use array-based grouping (no hash lookup overhead)
+        if (dictionaryLength <= ArrayGroupingMaxCardinality)
+        {
+            return GroupByDictionaryArrayBased<TKey>(dictArray, ref selection, dictionaryLength);
+        }
+
+        // Fall back to dictionary-based grouping for high-cardinality columns
+        return GroupByDictionaryHashBased<TKey>(dictArray, ref selection);
+    }
+
+    /// <summary>
+    /// Array-based grouping for low-cardinality dictionary columns.
+    /// Uses a fixed-size array of lists indexed by dictionary index, avoiding hash lookups.
+    /// </summary>
+    private static Dictionary<TKey, List<int>> GroupByDictionaryArrayBased<TKey>(
+        DictionaryArray dictArray,
+        ref SelectionBitmap selection,
+        int dictionaryLength) where TKey : notnull
+    {
+        // Pre-allocate array of lists - one per unique dictionary value
+        var groups = new List<int>?[dictionaryLength];
+        
+        // Special fast path for Int32 indices (most common)
+        if (dictArray.Indices is Int32Array int32Indices)
+        {
+            var indicesSpan = int32Indices.Values;
+            
+            foreach (var rowIndex in selection.GetSelectedIndices())
+            {
+                if (dictArray.IsNull(rowIndex))
+                    continue;
+                    
+                var dictIndex = indicesSpan[rowIndex];
+                
+                var list = groups[dictIndex];
+                if (list is null)
+                {
+                    list = new List<int>(16); // Pre-allocate reasonable capacity
+                    groups[dictIndex] = list;
+                }
+                list.Add(rowIndex);
+            }
+        }
+        // Fast path for Int8 indices (second most common for low cardinality)
+        else if (dictArray.Indices is Int8Array int8Indices)
+        {
+            var indicesSpan = int8Indices.Values;
+            
+            foreach (var rowIndex in selection.GetSelectedIndices())
+            {
+                if (dictArray.IsNull(rowIndex))
+                    continue;
+                    
+                var dictIndex = (int)indicesSpan[rowIndex];
+                
+                var list = groups[dictIndex];
+                if (list is null)
+                {
+                    list = new List<int>(16);
+                    groups[dictIndex] = list;
+                }
+                list.Add(rowIndex);
+            }
+        }
+        else
+        {
+            // General path
+            foreach (var rowIndex in selection.GetSelectedIndices())
+            {
+                if (dictArray.IsNull(rowIndex))
+                    continue;
+                    
+                var dictIndex = GetDictionaryIndex(dictArray.Indices, rowIndex);
+                
+                var list = groups[dictIndex];
+                if (list is null)
+                {
+                    list = new List<int>(16);
+                    groups[dictIndex] = list;
+                }
+                list.Add(rowIndex);
+            }
+        }
+
+        // Map dictionary indices back to actual key values (only for non-null groups)
+        var result = new Dictionary<TKey, List<int>>();
+        for (int dictIndex = 0; dictIndex < dictionaryLength; dictIndex++)
+        {
+            var list = groups[dictIndex];
+            if (list is not null && list.Count > 0)
+            {
+                var key = (TKey)GetValueFromDictionary(dictArray.Dictionary, dictIndex)!;
+                result[key] = list;
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Hash-based grouping for high-cardinality dictionary columns.
+    /// </summary>
+    private static Dictionary<TKey, List<int>> GroupByDictionaryHashBased<TKey>(
+        DictionaryArray dictArray,
+        ref SelectionBitmap selection) where TKey : notnull
+    {
+        var groups = new Dictionary<int, List<int>>();
         
         foreach (var rowIndex in selection.GetSelectedIndices())
         {

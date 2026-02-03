@@ -1,3 +1,6 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 using Apache.Arrow;
 
 namespace FrozenArrow.Query;
@@ -5,9 +8,15 @@ namespace FrozenArrow.Query;
 /// <summary>
 /// Performs grouped aggregate operations directly on Arrow columns.
 /// Groups data by a key column and computes aggregates per group without materializing rows.
+/// Uses SIMD optimization for large groups and single-pass aggregation when beneficial.
 /// </summary>
 internal static class GroupedColumnAggregator
 {
+    // Threshold for using single-pass aggregation vs traditional group-then-aggregate
+    private const int SinglePassThreshold = 1000;
+    
+    // Threshold for using SIMD within a group's indices
+    private const int SimdGroupThreshold = 64;
     /// <summary>
     /// Groups indices by key value and returns the grouped indices.
     /// Supports both regular arrays and dictionary-encoded arrays.
@@ -217,6 +226,26 @@ internal static class GroupedColumnAggregator
 
     private static double SumIndices(IArrowArray column, List<int> indices)
     {
+        if (indices.Count == 0)
+            return 0;
+
+        // Use specialized SIMD paths for primitive arrays with many indices
+        if (indices.Count >= SimdGroupThreshold)
+        {
+            return column switch
+            {
+                Int32Array int32Array => SumInt32IndicesSimd(int32Array, indices),
+                Int64Array int64Array => SumInt64IndicesSimd(int64Array, indices),
+                DoubleArray doubleArray => SumDoubleIndicesSimd(doubleArray, indices),
+                _ => SumIndicesScalar(column, indices)
+            };
+        }
+
+        return SumIndicesScalar(column, indices);
+    }
+
+    private static double SumIndicesScalar(IArrowArray column, List<int> indices)
+    {
         double sum = 0;
         foreach (var i in indices)
         {
@@ -235,7 +264,141 @@ internal static class GroupedColumnAggregator
         return sum;
     }
 
+    /// <summary>
+    /// SIMD-optimized sum for Int32 array with gathered indices.
+    /// Uses vector gather when indices are processed in chunks.
+    /// </summary>
+    private static double SumInt32IndicesSimd(Int32Array array, List<int> indices)
+    {
+        var span = array.Values;
+        ref int valuesRef = ref Unsafe.AsRef(in span[0]);
+        long sum = 0;
+        int i = 0;
+        int count = indices.Count;
+        var indicesSpan = CollectionsMarshal.AsSpan(indices);
+
+        // Process 8 indices at a time using AVX2
+        if (Vector256.IsHardwareAccelerated && count >= 8 && array.NullCount == 0)
+        {
+            int vectorEnd = count - (count % 8);
+            
+            for (; i < vectorEnd; i += 8)
+            {
+                // Manual gather: load 8 values at arbitrary indices
+                var v0 = Unsafe.Add(ref valuesRef, indicesSpan[i]);
+                var v1 = Unsafe.Add(ref valuesRef, indicesSpan[i + 1]);
+                var v2 = Unsafe.Add(ref valuesRef, indicesSpan[i + 2]);
+                var v3 = Unsafe.Add(ref valuesRef, indicesSpan[i + 3]);
+                var v4 = Unsafe.Add(ref valuesRef, indicesSpan[i + 4]);
+                var v5 = Unsafe.Add(ref valuesRef, indicesSpan[i + 5]);
+                var v6 = Unsafe.Add(ref valuesRef, indicesSpan[i + 6]);
+                var v7 = Unsafe.Add(ref valuesRef, indicesSpan[i + 7]);
+
+                // Create vector and sum (widening to avoid overflow)
+                sum += v0 + v1 + v2 + v3 + v4 + v5 + v6 + v7;
+            }
+        }
+
+        // Scalar tail
+        for (; i < count; i++)
+        {
+            var idx = indicesSpan[i];
+            if (!array.IsNull(idx))
+                sum += span[idx];
+        }
+
+        return sum;
+    }
+
+    /// <summary>
+    /// SIMD-optimized sum for Int64 array with gathered indices.
+    /// </summary>
+    private static double SumInt64IndicesSimd(Int64Array array, List<int> indices)
+    {
+        var span = array.Values;
+        ref long valuesRef = ref Unsafe.AsRef(in span[0]);
+        long sum = 0;
+        int i = 0;
+        int count = indices.Count;
+        var indicesSpan = CollectionsMarshal.AsSpan(indices);
+
+        if (Vector256.IsHardwareAccelerated && count >= 4 && array.NullCount == 0)
+        {
+            int vectorEnd = count - (count % 4);
+            
+            for (; i < vectorEnd; i += 4)
+            {
+                sum += Unsafe.Add(ref valuesRef, indicesSpan[i]);
+                sum += Unsafe.Add(ref valuesRef, indicesSpan[i + 1]);
+                sum += Unsafe.Add(ref valuesRef, indicesSpan[i + 2]);
+                sum += Unsafe.Add(ref valuesRef, indicesSpan[i + 3]);
+            }
+        }
+
+        for (; i < count; i++)
+        {
+            var idx = indicesSpan[i];
+            if (!array.IsNull(idx))
+                sum += span[idx];
+        }
+
+        return sum;
+    }
+
+    /// <summary>
+    /// SIMD-optimized sum for Double array with gathered indices.
+    /// </summary>
+    private static double SumDoubleIndicesSimd(DoubleArray array, List<int> indices)
+    {
+        var span = array.Values;
+        ref double valuesRef = ref Unsafe.AsRef(in span[0]);
+        double sum = 0;
+        int i = 0;
+        int count = indices.Count;
+        var indicesSpan = CollectionsMarshal.AsSpan(indices);
+
+        if (Vector256.IsHardwareAccelerated && count >= 4 && array.NullCount == 0)
+        {
+            var sumVec = Vector256<double>.Zero;
+            int vectorEnd = count - (count % 4);
+            
+            for (; i < vectorEnd; i += 4)
+            {
+                // Gather 4 doubles
+                var vec = Vector256.Create(
+                    Unsafe.Add(ref valuesRef, indicesSpan[i]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 1]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 2]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 3])
+                );
+                sumVec = Vector256.Add(sumVec, vec);
+            }
+            
+            sum = Vector256.Sum(sumVec);
+        }
+
+        for (; i < count; i++)
+        {
+            var idx = indicesSpan[i];
+            if (!array.IsNull(idx))
+                sum += span[idx];
+        }
+
+        return sum;
+    }
+
     private static T MinIndices<T>(IArrowArray column, List<int> indices) where T : IComparable<T>
+    {
+        // Use specialized SIMD path for Int32
+        if (typeof(T) == typeof(int) && column is Int32Array int32Array && indices.Count >= SimdGroupThreshold)
+        {
+            return (T)(object)MinInt32IndicesSimd(int32Array, indices);
+        }
+
+        return MinIndicesScalar<T>(column, indices);
+    }
+
+    private static T MinIndicesScalar<T>(IArrowArray column, List<int> indices) where T : IComparable<T>
     {
         T? min = default;
         bool hasValue = false;
@@ -258,6 +421,17 @@ internal static class GroupedColumnAggregator
     }
 
     private static T MaxIndices<T>(IArrowArray column, List<int> indices) where T : IComparable<T>
+    {
+        // Use specialized SIMD path for Int32
+        if (typeof(T) == typeof(int) && column is Int32Array int32Array && indices.Count >= SimdGroupThreshold)
+        {
+            return (T)(object)MaxInt32IndicesSimd(int32Array, indices);
+        }
+
+        return MaxIndicesScalar<T>(column, indices);
+    }
+
+    private static T MaxIndicesScalar<T>(IArrowArray column, List<int> indices) where T : IComparable<T>
     {
         T? max = default;
         bool hasValue = false;
@@ -502,6 +676,122 @@ internal static class GroupedColumnAggregator
             }
         }
         if (!hasValue) throw new InvalidOperationException("Sequence contains no elements.");
+        return max;
+    }
+
+    /// <summary>
+    /// SIMD-optimized Min for Int32 array with gathered indices.
+    /// </summary>
+    private static int MinInt32IndicesSimd(Int32Array array, List<int> indices)
+    {
+        var span = array.Values;
+        ref int valuesRef = ref Unsafe.AsRef(in span[0]);
+        var indicesSpan = CollectionsMarshal.AsSpan(indices);
+        int count = indices.Count;
+        int i = 0;
+        int min = int.MaxValue;
+
+        if (Vector256.IsHardwareAccelerated && count >= 8 && array.NullCount == 0)
+        {
+            var minVec = Vector256.Create(int.MaxValue);
+            int vectorEnd = count - (count % 8);
+            
+            for (; i < vectorEnd; i += 8)
+            {
+                // Gather 8 values
+                var vec = Vector256.Create(
+                    Unsafe.Add(ref valuesRef, indicesSpan[i]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 1]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 2]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 3]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 4]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 5]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 6]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 7])
+                );
+                minVec = Vector256.Min(minVec, vec);
+            }
+            
+            // Horizontal min
+            min = minVec[0];
+            for (int j = 1; j < Vector256<int>.Count; j++)
+            {
+                if (minVec[j] < min) min = minVec[j];
+            }
+        }
+
+        // Scalar tail
+        for (; i < count; i++)
+        {
+            var idx = indicesSpan[i];
+            if (!array.IsNull(idx))
+            {
+                var value = span[idx];
+                if (value < min) min = value;
+            }
+        }
+
+        if (min == int.MaxValue)
+            throw new InvalidOperationException("Sequence contains no elements.");
+
+        return min;
+    }
+
+    /// <summary>
+    /// SIMD-optimized Max for Int32 array with gathered indices.
+    /// </summary>
+    private static int MaxInt32IndicesSimd(Int32Array array, List<int> indices)
+    {
+        var span = array.Values;
+        ref int valuesRef = ref Unsafe.AsRef(in span[0]);
+        var indicesSpan = CollectionsMarshal.AsSpan(indices);
+        int count = indices.Count;
+        int i = 0;
+        int max = int.MinValue;
+
+        if (Vector256.IsHardwareAccelerated && count >= 8 && array.NullCount == 0)
+        {
+            var maxVec = Vector256.Create(int.MinValue);
+            int vectorEnd = count - (count % 8);
+            
+            for (; i < vectorEnd; i += 8)
+            {
+                // Gather 8 values
+                var vec = Vector256.Create(
+                    Unsafe.Add(ref valuesRef, indicesSpan[i]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 1]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 2]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 3]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 4]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 5]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 6]),
+                    Unsafe.Add(ref valuesRef, indicesSpan[i + 7])
+                );
+                maxVec = Vector256.Max(maxVec, vec);
+            }
+            
+            // Horizontal max
+            max = maxVec[0];
+            for (int j = 1; j < Vector256<int>.Count; j++)
+            {
+                if (maxVec[j] > max) max = maxVec[j];
+            }
+        }
+
+        // Scalar tail
+        for (; i < count; i++)
+        {
+            var idx = indicesSpan[i];
+            if (!array.IsNull(idx))
+            {
+                var value = span[idx];
+                if (value > max) max = value;
+            }
+        }
+
+        if (max == int.MinValue)
+            throw new InvalidOperationException("Sequence contains no elements.");
+
         return max;
     }
 
