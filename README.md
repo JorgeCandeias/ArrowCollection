@@ -891,6 +891,8 @@ FrozenArrow/
 ├── benchmarks/
 │   ├── FrozenArrow.Benchmarks/       # Performance benchmarks
 │   └── FrozenArrow.MemoryAnalysis/   # Memory footprint analysis
+├── profiling/
+│   └── FrozenArrow.Profiling/        # Query execution profiling tool
 └── samples/
     └── FrozenArrow.Sample/           # Sample application
 ```
@@ -935,6 +937,17 @@ FrozenArrow is designed for **memory efficiency**, not raw speed. Here's how it 
 For comprehensive benchmark results, see:
 - **[Performance Benchmarks](benchmarks/FrozenArrow.Benchmarks/README.md)** - Filter, Aggregation, GroupBy, Pagination, Serialization
 - **[Memory Analysis](benchmarks/FrozenArrow.MemoryAnalysis/README.md)** - Static footprint, query overhead, wide model analysis
+- **[Query Profiling](profiling/FrozenArrow.Profiling/README.md)** - Detailed query execution profiling and phase analysis
+
+### Query Execution Profile (500K rows)
+
+| Component | Time | Throughput |
+|-----------|------|------------|
+| Bitmap operations | 282 μs | 1,775 M rows/s |
+| Simple aggregates | 551 μs | 877 M rows/s |
+| Fused filter+aggregate | 1.8 ms | 283 M rows/s |
+| Predicate evaluation | 4.6 ms | 108 M rows/s |
+| Parallel speedup | 6.74x | on 24 cores |
 
 ### Running Benchmarks
 
@@ -944,6 +957,9 @@ dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *F
 
 # Run memory analysis
 dotnet run -c Release --project benchmarks/FrozenArrow.MemoryAnalysis
+
+# Run query profiling
+dotnet run -c Release --project profiling/FrozenArrow.Profiling -- -s all -r 500000 -v
 ```
 
 ## License
