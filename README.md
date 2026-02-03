@@ -836,12 +836,30 @@ The source generator and analyzer produce helpful diagnostic messages:
 - **Column-Level Aggregates**: Sum, Average, Min, Max computed on columns directly
 - **Single-Pass Multi-Aggregates**: Compute multiple aggregates without multiple iterations
 - **Dictionary-Encoded Support**: Full support for dictionary-encoded columns in GroupBy and aggregates
+- **SIMD Acceleration**: AVX2/AVX-512 optimized bitmap operations, predicate evaluation, and aggregation
+
+### SIMD Optimizations
+
+FrozenArrow uses hardware-accelerated SIMD operations for maximum throughput:
+
+| Component | Operation | Vectorization |
+|-----------|-----------|---------------|
+| **SelectionBitmap** | AND, OR, NOT, AndNot | AVX-512/AVX2/SSE2 (256-512 bits/instruction) |
+| **SelectionBitmap** | CountSet | Hardware POPCNT (4 blocks/iteration) |
+| **SelectionBitmap** | Any, All | SIMD short-circuit check |
+| **Int32 Predicate** | Comparison (<, >, ==, etc.) | AVX2 (8 values/iteration) |
+| **Double Predicate** | Comparison | AVX2 (4 values/iteration) |
+| **Grouped Sum** | Index gathering + accumulation | Manual SIMD gather (64+ items/group) |
+| **Grouped Min/Max** | Horizontal reduction | Vector256.Min/Max |
+| **Single-Pass GroupBy** | Low-cardinality keys (≤256) | Array-based accumulators (no hash lookups) |
 
 ### Trade-offs
 - **Enumeration Cost**: Items are reconstructed on-the-fly, which is slower than iterating in-memory objects
 - **Not for Frequent Access**: Best suited for scenarios where data is enumerated infrequently but needs to be kept in memory
 - **Construction Cost**: Initial creation requires copying all data into Arrow format
 - **Query Limitations**: Complex predicates may require fallback to row-by-row evaluation
+
+
 
 ## Use Cases
 
@@ -895,11 +913,22 @@ The following benchmarks were run on:
 
 | Storage | Memory Usage | Savings |
 |---------|-------------|---------|
-| `List<T>` | 1,784 MB | — |
-| `FrozenArrow<T>` | 988 MB | **44.6%** |
+| `List<T>` | 1,782 MB | — |
+| `FrozenArrow<T>` | 993 MB | **44.3%** |
+
+#### DuckDB Comparison (10 columns, standard model)
+
+| Items | List | FrozenArrow | DuckDB | FA vs List | FA vs DuckDB |
+|-------|------|-------------|--------|------------|--------------|
+| 10,000 | 4.0 MB | 10.7 MB | 6.2 MB | 2.7x larger | 1.7x larger |
+| 100,000 | 14.4 MB | 19.1 MB | 34.0 MB | 1.3x larger | **56% smaller** |
+| 500,000 | 26.4 MB | 180.6 MB | 92.3 MB | 6.8x larger | 2.0x larger |
+| 1,000,000 | 18.6 MB | 272.4 MB | 115.8 MB | 14.6x larger | 2.4x larger |
+
+**Note**: The 10-column model shows different characteristics than the 200-column wide model. Memory footprint varies significantly based on data types, cardinality, and column count.
 
 **Key observations**:
-- FrozenArrow achieves ~45% memory reduction on wide, sparse datasets
+- FrozenArrow achieves ~44% memory reduction on wide, sparse datasets (200 columns)
 - Dictionary encoding automatically applied to 195 low-cardinality columns
 - Memory savings scale with data redundancy and column count
 
@@ -962,14 +991,17 @@ This benchmark demonstrates the power of column-level filtering on wide tables.
 | **Sum (filtered)** | 10 ms | 37 ms | 3.6x | Column-level aggregate |
 | **Average (filtered)** | 9 ms | 25 ms | 2.8x | Column-level aggregate |
 | **Min (filtered)** | 11 ms | 30 ms | 2.6x | Column-level aggregate |
-| **GroupBy + Count** | 16 ms | 9 ms | **0.55x** ✓ | ArrowQuery faster! |
-| **GroupBy + Sum** | 31 ms | 51 ms | 1.65x | Dictionary-encoded support |
-| **GroupBy + Multi-Agg** | 39 ms | 66 ms | 1.69x | Multiple aggregates |
-| **Multi-Aggregate** | 44 ms | 97 ms | 2.23x | Single-pass execution |
+| **GroupBy + Count** | 23 ms | 69 ms | 3.0x | Dictionary-encoded grouping |
+| **GroupBy + Sum** | 45 ms | 51 ms | 1.1x | Single-pass aggregation |
+| **GroupBy + Multi-Agg** | 55 ms | 66 ms | 1.2x | Multiple aggregates in one pass |
+| **GroupBy + Min/Max** | 35 ms | 43 ms | 1.2x | SIMD-optimized min/max |
+| **GroupBy + Filter + Sum** | 33 ms | 42 ms | 1.3x | Filter then grouped sum |
+| **Multi-Aggregate** | 44 ms | 97 ms | 2.2x | Single-pass execution |
 
 **Key insights**:
-- **GroupBy + Count** is **~2x faster** with ArrowQuery due to efficient integer key grouping
-- Dictionary-encoded columns are fully supported for all operations
+- **GroupBy operations** benefit from single-pass aggregation for low-cardinality keys
+- **SIMD optimizations** for Sum/Min/Max within groups (64+ items per group)
+- Dictionary-encoded columns are fully supported with array-based grouping (no hash lookups)
 - Single aggregates have 2-4x overhead vs List (trade-off for memory efficiency)
 - Complex multi-aggregate queries scale reasonably well
 
