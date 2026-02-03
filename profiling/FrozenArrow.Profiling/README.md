@@ -74,62 +74,63 @@ dotnet run -c Release -- -s all -r 1000000 -c baseline.json
 
 | Scenario | Median (?s) | M rows/s | Allocated |
 |----------|-------------|----------|-----------|
-| **BitmapOperations** | 571 | 1,750 | 584 B |
-| **Aggregate** | 765 | 1,308 | 35 KB |
-| **PredicateEvaluation** | 4,400 | 227 | 47 KB |
+| **BitmapOperations** | 568 | 1,759 | 584 B |
+| **Aggregate** | 788 | 1,269 | 18 KB |
+| **PredicateEvaluation** | 5,436 | 184 | 47 KB |
+| **FusedExecution** | 5,152 | 194 | 16 KB |
 | **Filter** | 4,600 | 217 | 34 KB |
-| **FusedExecution** | 11,945 | 84 | 31 KB |
-| **GroupBy** | 16,662 | 60 | 85 KB |
-| **ParallelComparison** | 19,272 | 52 | 27 KB |
-| **Enumeration** | 105,342 | 9 | 232 MB |
+| **GroupBy** | 15,583 | 64 | 85 KB |
+| **ParallelComparison** | 22,513 | 44 | 27 KB |
+| **Enumeration** | 104,388 | 10 | 232 MB |
 
 ### Key Findings
 
 #### 1. **Bitmap Operations are Extremely Fast**
 - PopCount: **3.7 ?s** for 1M bits (hardware POPCNT)
-- Create: **6.4 ?s** for 122 KB bitmap
-- Iteration: **815 ?s** to enumerate 667K set bits
+- Create: **5.7 ?s** for 122 KB bitmap
+- Iteration: **665 ?s** to enumerate 667K set bits
 - SIMD: AVX2 enabled, AVX-512 not available
 
-#### 2. **Aggregates are Highly Optimized**
-- All four aggregate operations (Sum, Average, Min, Max) complete in ~200 ?s each
-- Near-identical performance indicates memory bandwidth is the bottleneck, not computation
-- Total aggregation over 1M rows: **765 ?s** (1.3 billion rows/second effective)
+#### 2. **Aggregates Use Block-Based SIMD**
+- All four aggregate operations (Sum, Average, Min, Max) use block-based bitmap iteration
+- Dense blocks (all 64 bits set) use vectorized sum/min/max
+- Sparse blocks use TrailingZeroCount for efficient bit extraction
+- Total aggregation over 1M rows: **788 ?s** (1.27 billion rows/second)
 
 #### 3. **Predicate Evaluation Scales Linearly**
-- 1M rows filtered in **4.4 ms** (227M rows/second)
-- Int32 SIMD comparisons: 1.4 ms (8 values/AVX2 instruction)
-- Boolean predicates: 0.95 ms (direct bitmap extraction)
-- Multi-predicate: 1.9 ms (includes bitmap intersection)
+- 1M rows filtered in **5.4 ms** (184M rows/second)
+- Int32 SIMD comparisons: 1.8 ms (8 values/AVX2 instruction)
+- Boolean predicates: 1.2 ms (direct bitmap extraction)
+- Multi-predicate: 2.2 ms (includes bitmap intersection)
 
 #### 4. **Parallel Execution Shows Strong Speedup**
-- Sequential execution: **17,121 ?s**
-- Parallel execution: **2,001 ?s**
-- **Speedup: 8.55x** on 24-core machine
+- Sequential execution: **17,965 ?s**
+- Parallel execution: **2,885 ?s**
+- **Speedup: 6.23x** on 24-core machine
 - Parallel overhead justified above ~50K rows
 
 #### 5. **Predicate Evaluation Performance Varies by Type**
 | Predicate Type | Time (?s) | % of Total |
 |----------------|-----------|------------|
-| Double predicate (SIMD) | 226 | 5.1% |
-| Bool predicate | 952 | 21.6% |
-| Int32 predicate (SIMD) | 1,376 | 31.3% |
-| Multi-predicate | 1,922 | 43.7% |
+| Double predicate (SIMD) | 354 | 6.5% |
+| Bool predicate | 1,236 | 22.7% |
+| Int32 predicate (SIMD) | 1,819 | 33.5% |
+| Multi-predicate | 2,163 | 39.8% |
 
 - Double predicates are fastest due to lower cardinality filtering
 - Int32 comparisons benefit from AVX2 (8 values/iteration)
 - Multi-predicate overhead comes from bitmap intersection
 
 #### 6. **Enumeration is the Dominant Cost**
-- ToList (534K items): **67 ms** (65% of enumeration time)
+- ToList (534K items): **68 ms** (65% of enumeration time)
 - Foreach (311K items): **49 ms** (47% of enumeration time)
-- First (1 item): **1.6 ms** (short-circuit works well)
+- First (1 item): **1.9 ms** (short-circuit works well)
 - **Memory**: 232 MB allocated for ToList (~434 bytes/item)
 
 #### 7. **GroupBy Performance**
 - 20 groups over 1M rows
-- GroupBy + Count: **7.3 ms**
-- GroupBy + Sum: **17.1 ms**
+- GroupBy + Count: **6.9 ms**
+- GroupBy + Sum: **17.0 ms**
 - Single-pass dictionary-based aggregation for low-cardinality keys (?256)
 
 ---
@@ -152,12 +153,13 @@ LowSelectivity             962       20.9%
 ```
 Phase           Time (?s)   % of Total
 ???????????????????????????????????????
-Sum             212         26.9%
-Max             208         26.3%
-Min             199         25.2%
-Average         188         23.8%
+Sum             197         24.8%
+Max             197         24.8%
+Min             197         24.8%
+Average         197         24.8%
 ```
-- All aggregates are within ~12% of each other
+- All aggregates use block-based bitmap iteration
+- Dense blocks (all bits set) use SIMD vector operations
 - Memory bandwidth limited, not compute limited
 - No per-row object allocation
 
@@ -165,10 +167,10 @@ Average         188         23.8%
 ```
 Phase           Time (?s)   % of Total
 ???????????????????????????????????????
-Sequential      17,055      88.3%
-Parallel         2,148      11.1%
+Sequential      17,931      79.7%
+Parallel         6,840      30.4%
 ```
-- **7.94x speedup** from parallelization (measured), **8.55x** (metadata)
+- **6.23x speedup** from parallelization
 - Parallel threshold is 10K rows by default (configurable)
 - Chunk size is 16KB (optimized for L2 cache)
 
@@ -176,9 +178,9 @@ Parallel         2,148      11.1%
 ```
 Phase           Time (?s)   % of Total
 ???????????????????????????????????????
-ClearBits       820         143.7%*
-IterateIndices  815         143.0%*
-Create          6.4         1.1%
+ClearBits       817         143.8%*
+IterateIndices  665         117.1%*
+Create          5.7         1.0%
 PopCount        3.7         0.6%
 ```
 *Percentages exceed 100% because phases overlap differently than main measurement
@@ -195,19 +197,19 @@ PopCount        3.7         0.6%
 Based on this baseline, the following optimizations would have the highest impact:
 
 ### High Impact
-1. **Enumeration/Materialization** - Currently 105ms; consider batch materialization or object pooling
+1. **Enumeration/Materialization** - Currently 104ms; consider batch materialization or object pooling
 2. **Multi-predicate evaluation** - Short-circuit evaluation when bitmap chunk becomes zero
-3. **GroupBy with Sum** - 17ms is slower than expected; investigate value accessor overhead
 
 ### Medium Impact
-4. **GroupBy with high cardinality** - Currently uses dictionary; consider hash-based grouping
-5. **Bitmap iteration** - Consider PEXT instruction for extracting set bit positions
-6. **Null bitmap pre-intersection** - AND null bitmap with selection before aggregation
+3. **GroupBy with high cardinality** - Currently uses dictionary; consider hash-based grouping
+4. **Bitmap iteration** - Consider PEXT instruction for extracting set bit positions
+5. **Null bitmap pre-intersection** - AND null bitmap with selection before aggregation
 
-### Low Impact (Already Optimized)
-7. Bitmap PopCount - Already uses hardware POPCNT
-8. Simple aggregates - Already near memory bandwidth limit
-9. Boolean predicates - Already using direct bitmap extraction
+### Already Optimized ?
+6. **Block-based aggregation** - Uses TrailingZeroCount for sparse blocks, SIMD for dense blocks
+7. Bitmap PopCount - Uses hardware POPCNT
+8. Simple aggregates - Near memory bandwidth limit
+9. Boolean predicates - Uses direct bitmap extraction
 
 ---
 

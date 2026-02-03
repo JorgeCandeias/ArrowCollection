@@ -466,16 +466,18 @@ internal static class ColumnAggregator
 
     /// <summary>
     /// Executes a Sum operation using the compact SelectionBitmap.
+    /// Uses SIMD block-based aggregation for optimal performance.
     /// </summary>
     public static object ExecuteSum(IArrowArray column, ref SelectionBitmap selection, Type resultType)
     {
+        // Use the new SIMD block-based aggregator for supported types
         return column switch
         {
-            Int32Array int32Array => ConvertResult(SumInt32(int32Array, ref selection), resultType),
-            Int64Array int64Array => ConvertResult(SumInt64(int64Array, ref selection), resultType),
-            DoubleArray doubleArray => ConvertResult(SumDouble(doubleArray, ref selection), resultType),
+            Int32Array int32Array => SimdBlockAggregator.ExecuteSum(int32Array, ref selection, resultType),
+            Int64Array int64Array => SimdBlockAggregator.ExecuteSum(int64Array, ref selection, resultType),
+            DoubleArray doubleArray => SimdBlockAggregator.ExecuteSum(doubleArray, ref selection, resultType),
             FloatArray floatArray => ConvertResult(SumFloat(floatArray, ref selection), resultType),
-            Decimal128Array decimalArray => ConvertResult(SumDecimal(decimalArray, ref selection), resultType),
+            Decimal128Array decimalArray => SimdBlockAggregator.ExecuteSum(decimalArray, ref selection, resultType),
             DictionaryArray dictArray => ConvertResult(SumDictionary(dictArray, ref selection), resultType),
             _ => throw new NotSupportedException($"Sum is not supported for column type {column.GetType().Name}")
         };
@@ -483,16 +485,18 @@ internal static class ColumnAggregator
 
     /// <summary>
     /// Executes an Average operation using the compact SelectionBitmap.
+    /// Uses SIMD block-based aggregation for optimal performance.
     /// </summary>
     public static object ExecuteAverage(IArrowArray column, ref SelectionBitmap selection, Type resultType)
     {
+        // Use the new SIMD block-based aggregator for supported types
         return column switch
         {
-            Int32Array int32Array => ConvertResult(AverageInt32(int32Array, ref selection), resultType),
-            Int64Array int64Array => ConvertResult(AverageInt64(int64Array, ref selection), resultType),
-            DoubleArray doubleArray => ConvertResult(AverageDouble(doubleArray, ref selection), resultType),
+            Int32Array int32Array => SimdBlockAggregator.ExecuteAverage(int32Array, ref selection, resultType),
+            Int64Array int64Array => SimdBlockAggregator.ExecuteAverage(int64Array, ref selection, resultType),
+            DoubleArray doubleArray => SimdBlockAggregator.ExecuteAverage(doubleArray, ref selection, resultType),
             FloatArray floatArray => ConvertResult(AverageFloat(floatArray, ref selection), resultType),
-            Decimal128Array decimalArray => ConvertResult(AverageDecimal(decimalArray, ref selection), resultType),
+            Decimal128Array decimalArray => SimdBlockAggregator.ExecuteAverage(decimalArray, ref selection, resultType),
             DictionaryArray dictArray => ConvertResult(AverageDictionary(dictArray, ref selection), resultType),
             _ => throw new NotSupportedException($"Average is not supported for column type {column.GetType().Name}")
         };
@@ -500,15 +504,17 @@ internal static class ColumnAggregator
 
     /// <summary>
     /// Executes a Min operation using the compact SelectionBitmap.
+    /// Uses SIMD block-based aggregation for optimal performance.
     /// </summary>
     public static object ExecuteMin(IArrowArray column, ref SelectionBitmap selection, Type resultType)
     {
+        // Use the new SIMD block-based aggregator for supported types
         return column switch
         {
-            Int32Array int32Array => ConvertResult(MinInt32(int32Array, ref selection), resultType),
-            Int64Array int64Array => ConvertResult(MinInt64(int64Array, ref selection), resultType),
-            DoubleArray doubleArray => ConvertResult(MinDouble(doubleArray, ref selection), resultType),
-            Decimal128Array decimalArray => ConvertResult(MinDecimal(decimalArray, ref selection), resultType),
+            Int32Array int32Array => SimdBlockAggregator.ExecuteMin(int32Array, ref selection, resultType),
+            Int64Array int64Array => SimdBlockAggregator.ExecuteMin(int64Array, ref selection, resultType),
+            DoubleArray doubleArray => SimdBlockAggregator.ExecuteMin(doubleArray, ref selection, resultType),
+            Decimal128Array decimalArray => SimdBlockAggregator.ExecuteMin(decimalArray, ref selection, resultType),
             TimestampArray timestampArray => MinDateTime(timestampArray, ref selection),
             DictionaryArray dictArray => ConvertResult(MinDictionary(dictArray, ref selection), resultType),
             _ => throw new NotSupportedException($"Min is not supported for column type {column.GetType().Name}")
@@ -517,15 +523,17 @@ internal static class ColumnAggregator
 
     /// <summary>
     /// Executes a Max operation using the compact SelectionBitmap.
+    /// Uses SIMD block-based aggregation for optimal performance.
     /// </summary>
     public static object ExecuteMax(IArrowArray column, ref SelectionBitmap selection, Type resultType)
     {
+        // Use the new SIMD block-based aggregator for supported types
         return column switch
         {
-            Int32Array int32Array => ConvertResult(MaxInt32(int32Array, ref selection), resultType),
-            Int64Array int64Array => ConvertResult(MaxInt64(int64Array, ref selection), resultType),
-            DoubleArray doubleArray => ConvertResult(MaxDouble(doubleArray, ref selection), resultType),
-            Decimal128Array decimalArray => ConvertResult(MaxDecimal(decimalArray, ref selection), resultType),
+            Int32Array int32Array => SimdBlockAggregator.ExecuteMax(int32Array, ref selection, resultType),
+            Int64Array int64Array => SimdBlockAggregator.ExecuteMax(int64Array, ref selection, resultType),
+            DoubleArray doubleArray => SimdBlockAggregator.ExecuteMax(doubleArray, ref selection, resultType),
+            Decimal128Array decimalArray => SimdBlockAggregator.ExecuteMax(decimalArray, ref selection, resultType),
             TimestampArray timestampArray => MaxDateTime(timestampArray, ref selection),
             DictionaryArray dictArray => ConvertResult(MaxDictionary(dictArray, ref selection), resultType),
             _ => throw new NotSupportedException($"Max is not supported for column type {column.GetType().Name}")

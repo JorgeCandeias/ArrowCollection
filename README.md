@@ -943,11 +943,11 @@ For comprehensive benchmark results, see:
 
 | Component | Time | Throughput |
 |-----------|------|------------|
-| Bitmap operations | 571 μs | 1,750 M rows/s |
-| Simple aggregates | 765 μs | 1,308 M rows/s |
-| Predicate evaluation | 4.4 ms | 227 M rows/s |
+| Bitmap operations | 568 μs | 1,759 M rows/s |
+| Simple aggregates | 788 μs | 1,269 M rows/s |
+| Predicate evaluation | 5.4 ms | 184 M rows/s |
 | Filter (3 predicates) | 4.6 ms | 217 M rows/s |
-| Parallel speedup | 8.55x | on 24 cores |
+| Parallel speedup | 6.23x | on 24 cores |
 
 ### Running Benchmarks
 

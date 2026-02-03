@@ -1,0 +1,709 @@
+[
+  {
+    "ScenarioName": "Filter",
+    "Description": "Filter \u002B Count with varying selectivity",
+    "RowCount": 1000000,
+    "Iterations": 10,
+    "SamplesMicroseconds": [
+      121193.6,
+      7789.1,
+      7655.3,
+      7678.4,
+      7620.2,
+      7745.5,
+      7210.3,
+      7236.6,
+      7456.5,
+      7301.5
+    ],
+    "MinMicroseconds": 7210.3,
+    "MaxMicroseconds": 121193.6,
+    "MedianMicroseconds": 7637.75,
+    "AverageMicroseconds": 18888.7,
+    "StdDevMicroseconds": 35946.90319834396,
+    "RowsPerSecond": 130928611.17475697,
+    "MillionRowsPerSecond": 130.92861117475698,
+    "PhaseDetails": {
+      "HighSelectivity": {
+        "PhaseName": "HighSelectivity",
+        "SamplesMicroseconds": [
+          243279.3,
+          1726.9,
+          1655.6,
+          1605.3,
+          1657.3,
+          1726.5,
+          1609.3,
+          1786.1,
+          1743.9,
+          1502.7
+        ],
+        "AverageMicroseconds": 25829.289999999997,
+        "PercentageOfTotal": 136.74466744667444,
+        "InvocationCount": 1
+      },
+      "LowSelectivity": {
+        "PhaseName": "LowSelectivity",
+        "SamplesMicroseconds": [
+          117469.1,
+          2491.1,
+          2617.8,
+          2412.3,
+          2432.9,
+          2487.3,
+          2487.7,
+          2510.5,
+          2648.9,
+          2607
+        ],
+        "AverageMicroseconds": 14016.460000000001,
+        "PercentageOfTotal": 74.20553029059703,
+        "InvocationCount": 1
+      },
+      "MultiFilter": {
+        "PhaseName": "MultiFilter",
+        "SamplesMicroseconds": [
+          90607.4,
+          3357.5,
+          3270.3,
+          3191.8,
+          3322,
+          3340.9,
+          3167,
+          3326.1,
+          3450.7,
+          3188.2
+        ],
+        "AverageMicroseconds": 12022.189999999999,
+        "PercentageOfTotal": 63.64752471054121,
+        "InvocationCount": 1
+      }
+    },
+    "AllocatedBytes": 37488,
+    "Metadata": {
+      "HighSelectivity": "Age \u003E 55 -\u003E 199452 rows",
+      "LowSelectivity": "IsActive -\u003E 699215 rows",
+      "MultiFilter": "Age \u003E 30 \u0026\u0026 IsActive \u0026\u0026 Salary \u003E 50000 -\u003E 466007 rows"
+    },
+    "Timestamp": "2026-02-03T18:24:23.8054501Z"
+  },
+  {
+    "ScenarioName": "Aggregate",
+    "Description": "Sum, Average, Min, Max aggregations",
+    "RowCount": 1000000,
+    "Iterations": 10,
+    "SamplesMicroseconds": [
+      856.8,
+      727.1,
+      855.9,
+      903.4,
+      849.4,
+      741.5,
+      671,
+      685.4,
+      713.5,
+      661.5
+    ],
+    "MinMicroseconds": 661.5,
+    "MaxMicroseconds": 903.4,
+    "MedianMicroseconds": 734.3,
+    "AverageMicroseconds": 766.55,
+    "StdDevMicroseconds": 90.35071480993753,
+    "RowsPerSecond": 1361841209.314994,
+    "MillionRowsPerSecond": 1361.841209314994,
+    "PhaseDetails": {
+      "Sum": {
+        "PhaseName": "Sum",
+        "SamplesMicroseconds": [
+          201.4,
+          174.7,
+          139.2,
+          183.3,
+          181.1,
+          165.8,
+          163.5,
+          200.6,
+          219.3,
+          164.6
+        ],
+        "AverageMicroseconds": 179.34999999999997,
+        "PercentageOfTotal": 23.3970386797991,
+        "InvocationCount": 1
+      },
+      "Average": {
+        "PhaseName": "Average",
+        "SamplesMicroseconds": [
+          222.6,
+          174.2,
+          146.7,
+          198.6,
+          178.9,
+          147.6,
+          232.4,
+          183.8,
+          214.6,
+          161.8
+        ],
+        "AverageMicroseconds": 186.11999999999998,
+        "PercentageOfTotal": 24.280216554693105,
+        "InvocationCount": 1
+      },
+      "Min": {
+        "PhaseName": "Min",
+        "SamplesMicroseconds": [
+          177.9,
+          206.4,
+          245.7,
+          248.7,
+          158.2,
+          215,
+          196.3,
+          180,
+          176.9,
+          245.1
+        ],
+        "AverageMicroseconds": 205.02000000000004,
+        "PercentageOfTotal": 26.745809144869874,
+        "InvocationCount": 1
+      },
+      "Max": {
+        "PhaseName": "Max",
+        "SamplesMicroseconds": [
+          191.2,
+          191.2,
+          222.6,
+          167,
+          215.8,
+          150.1,
+          145.4,
+          183.8,
+          203.5,
+          166.3
+        ],
+        "AverageMicroseconds": 183.69,
+        "PercentageOfTotal": 23.963211793098953,
+        "InvocationCount": 1
+      }
+    },
+    "AllocatedBytes": 35915,
+    "Metadata": {
+      "Sum": "115,047,497,862.12",
+      "Average": "115,047.50",
+      "Min": "30,000.11",
+      "Max": "199,999.96"
+    },
+    "Timestamp": "2026-02-03T18:24:24.1845909Z"
+  },
+  {
+    "ScenarioName": "GroupBy",
+    "Description": "GroupBy \u002B aggregations",
+    "RowCount": 1000000,
+    "Iterations": 10,
+    "SamplesMicroseconds": [
+      43018.6,
+      42627.4,
+      26324.8,
+      16207.7,
+      16003.9,
+      16101.6,
+      16643.7,
+      16190.9,
+      16272.6,
+      16236.8
+    ],
+    "MinMicroseconds": 16003.9,
+    "MaxMicroseconds": 43018.6,
+    "MedianMicroseconds": 16254.7,
+    "AverageMicroseconds": 22562.8,
+    "StdDevMicroseconds": 11133.312813953147,
+    "RowsPerSecond": 61520667.86837038,
+    "MillionRowsPerSecond": 61.520667868370374,
+    "PhaseDetails": {
+      "GroupByCount": {
+        "PhaseName": "GroupByCount",
+        "SamplesMicroseconds": [
+          9714.9,
+          9729,
+          9783.6,
+          5995.8,
+          6017.4,
+          6033.5,
+          6025.8,
+          6040.3,
+          5960,
+          5966.1
+        ],
+        "AverageMicroseconds": 7126.640000000001,
+        "PercentageOfTotal": 31.58579608913788,
+        "InvocationCount": 1
+      },
+      "GroupBySum": {
+        "PhaseName": "GroupBySum",
+        "SamplesMicroseconds": [
+          33319.1,
+          33240.8,
+          33225.9,
+          10162,
+          10157.2,
+          10159.5,
+          10224.5,
+          10197.7,
+          10144.9,
+          10163.2
+        ],
+        "AverageMicroseconds": 17099.480000000003,
+        "PercentageOfTotal": 75.78616129203823,
+        "InvocationCount": 1
+      }
+    },
+    "AllocatedBytes": 86099,
+    "Metadata": {
+      "GroupCount": "20 groups",
+      "TotalSalary": "115,047,497,862.12"
+    },
+    "Timestamp": "2026-02-03T18:24:24.9890262Z"
+  },
+  {
+    "ScenarioName": "FusedExecution",
+    "Description": "Fused filter\u002Baggregate vs separate passes",
+    "RowCount": 1000000,
+    "Iterations": 10,
+    "SamplesMicroseconds": [
+      23792.5,
+      23517.3,
+      23906,
+      23837.3,
+      17478.6,
+      3432.6,
+      3431.1,
+      3221.8,
+      3287.4,
+      3473.4
+    ],
+    "MinMicroseconds": 3221.8,
+    "MaxMicroseconds": 23906,
+    "MedianMicroseconds": 10476,
+    "AverageMicroseconds": 12937.800000000001,
+    "StdDevMicroseconds": 10259.421815634207,
+    "RowsPerSecond": 95456281.02329133,
+    "MillionRowsPerSecond": 95.45628102329134,
+    "PhaseDetails": {
+      "FusedFilterSum": {
+        "PhaseName": "FusedFilterSum",
+        "SamplesMicroseconds": [
+          22181.5,
+          22076.4,
+          21644.7,
+          21847.1,
+          21442.3,
+          1681,
+          1635.1,
+          1565.5,
+          1504.6,
+          1516.3
+        ],
+        "AverageMicroseconds": 11709.450000000003,
+        "PercentageOfTotal": 90.50572740342254,
+        "InvocationCount": 1
+      },
+      "FilterCount": {
+        "PhaseName": "FilterCount",
+        "SamplesMicroseconds": [
+          1885.4,
+          2011.3,
+          1980.8,
+          1941.5,
+          1997.7,
+          1748.2,
+          1891.8,
+          1858,
+          1999.4,
+          1835.1
+        ],
+        "AverageMicroseconds": 1914.92,
+        "PercentageOfTotal": 14.80097079874476,
+        "InvocationCount": 1
+      }
+    },
+    "AllocatedBytes": 31820,
+    "Metadata": {
+      "FusedSum": "60,793,615,433.65",
+      "MatchCount": "528,216 rows matched"
+    },
+    "Timestamp": "2026-02-03T18:24:25.7439656Z"
+  },
+  {
+    "ScenarioName": "ParallelComparison",
+    "Description": "Sequential vs parallel execution",
+    "RowCount": 1000000,
+    "Iterations": 10,
+    "SamplesMicroseconds": [
+      19007.2,
+      21495.5,
+      18788.8,
+      18887.5,
+      20182,
+      18745,
+      20933.8,
+      20383.9,
+      20652.7,
+      20136.5
+    ],
+    "MinMicroseconds": 18745,
+    "MaxMicroseconds": 21495.5,
+    "MedianMicroseconds": 20159.25,
+    "AverageMicroseconds": 19921.29,
+    "StdDevMicroseconds": 996.4961575997729,
+    "RowsPerSecond": 49605020.028026834,
+    "MillionRowsPerSecond": 49.605020028026836,
+    "PhaseDetails": {
+      "Sequential": {
+        "PhaseName": "Sequential",
+        "SamplesMicroseconds": [
+          17744.4,
+          21455.3,
+          16293.8,
+          16374.3,
+          16296.1,
+          15932.9,
+          17888.3,
+          17331.5,
+          16862.9,
+          16572.8
+        ],
+        "AverageMicroseconds": 17275.23,
+        "PercentageOfTotal": 86.71742643172203,
+        "InvocationCount": 1
+      },
+      "Parallel": {
+        "PhaseName": "Parallel",
+        "SamplesMicroseconds": [
+          2542.8,
+          3246.8,
+          2292.2,
+          2755.9,
+          2821.6,
+          2542.9,
+          2841.6,
+          3080.3,
+          2840.8,
+          2857.5
+        ],
+        "AverageMicroseconds": 2782.24,
+        "PercentageOfTotal": 13.966163837783597,
+        "InvocationCount": 1
+      }
+    },
+    "AllocatedBytes": 27791,
+    "Metadata": {
+      "SequentialTime": "17186.5 ?s",
+      "ParallelTime": "2902.4 ?s",
+      "Speedup": "5.92x",
+      "ProcessorCount": "24 cores"
+    },
+    "Timestamp": "2026-02-03T18:24:26.4395435Z"
+  },
+  {
+    "ScenarioName": "BitmapOperations",
+    "Description": "SelectionBitmap create, popcount, iterate",
+    "RowCount": 1000000,
+    "Iterations": 10,
+    "SamplesMicroseconds": [
+      575,
+      857.3,
+      827,
+      823.2,
+      1132,
+      597.9,
+      573.9,
+      579.4,
+      611.2,
+      584.4
+    ],
+    "MinMicroseconds": 573.9,
+    "MaxMicroseconds": 1132,
+    "MedianMicroseconds": 604.55,
+    "AverageMicroseconds": 716.1299999999999,
+    "StdDevMicroseconds": 187.9173994072928,
+    "RowsPerSecond": 1654122901.3315692,
+    "MillionRowsPerSecond": 1654.1229013315692,
+    "PhaseDetails": {
+      "Create": {
+        "PhaseName": "Create",
+        "SamplesMicroseconds": [
+          12.9,
+          5.7,
+          11.3,
+          9.3,
+          6.9,
+          12.4,
+          10.4,
+          5.5,
+          5.5,
+          10.4
+        ],
+        "AverageMicroseconds": 9.030000000000001,
+        "PercentageOfTotal": 1.260944241967241,
+        "InvocationCount": 1
+      },
+      "ClearBits": {
+        "PhaseName": "ClearBits",
+        "SamplesMicroseconds": [
+          6871,
+          245.8,
+          299.6,
+          277.6,
+          277,
+          266.3,
+          260,
+          242,
+          244.2,
+          244.6
+        ],
+        "AverageMicroseconds": 922.8100000000002,
+        "PercentageOfTotal": 128.86068171979952,
+        "InvocationCount": 1
+      },
+      "PopCount": {
+        "PhaseName": "PopCount",
+        "SamplesMicroseconds": [
+          3.7,
+          3.6,
+          4,
+          4,
+          3.9,
+          3.7,
+          3.6,
+          3.7,
+          3.7,
+          3.6
+        ],
+        "AverageMicroseconds": 3.75,
+        "PercentageOfTotal": 0.5236479410162961,
+        "InvocationCount": 1
+      },
+      "IterateIndices": {
+        "PhaseName": "IterateIndices",
+        "SamplesMicroseconds": [
+          739.3,
+          816.8,
+          425.4,
+          564.5,
+          564.6,
+          812.7,
+          815.5,
+          813.6,
+          812.8,
+          811.7
+        ],
+        "AverageMicroseconds": 717.69,
+        "PercentageOfTotal": 100.2178375434628,
+        "InvocationCount": 1
+      }
+    },
+    "AllocatedBytes": 584,
+    "Metadata": {
+      "CountSet": "666,666",
+      "IteratedCount": "666,666",
+      "BitmapSize": "122.1 KB",
+      "HardwarePopCount": "true",
+      "SIMD": "AVX2=True, AVX512=False"
+    },
+    "Timestamp": "2026-02-03T18:24:26.7679957Z"
+  },
+  {
+    "ScenarioName": "PredicateEvaluation",
+    "Description": "Predicate evaluation with SIMD optimization",
+    "RowCount": 1000000,
+    "Iterations": 10,
+    "SamplesMicroseconds": [
+      9582.6,
+      9227.3,
+      10182.5,
+      9335.9,
+      9544.1,
+      9975.2,
+      9206.7,
+      9678.1,
+      9626.8,
+      10150
+    ],
+    "MinMicroseconds": 9206.7,
+    "MaxMicroseconds": 10182.5,
+    "MedianMicroseconds": 9604.7,
+    "AverageMicroseconds": 9650.920000000002,
+    "StdDevMicroseconds": 354.37538728177947,
+    "RowsPerSecond": 104115693.35845992,
+    "MillionRowsPerSecond": 104.11569335845992,
+    "PhaseDetails": {
+      "Int32Predicate": {
+        "PhaseName": "Int32Predicate",
+        "SamplesMicroseconds": [
+          2110.3,
+          2050.8,
+          1820.3,
+          2139.6,
+          1930.2,
+          1810.9,
+          2036.1,
+          2792.4,
+          1744.5,
+          1691.6
+        ],
+        "AverageMicroseconds": 2012.67,
+        "PercentageOfTotal": 20.854695718128426,
+        "InvocationCount": 1
+      },
+      "DoublePredicate": {
+        "PhaseName": "DoublePredicate",
+        "SamplesMicroseconds": [
+          2641.8,
+          2597.8,
+          2394.5,
+          2507.8,
+          2449.2,
+          2379.5,
+          2901.3,
+          2745.6,
+          2666.3,
+          2733.7
+        ],
+        "AverageMicroseconds": 2601.75,
+        "PercentageOfTotal": 26.958569752935468,
+        "InvocationCount": 1
+      },
+      "BoolPredicate": {
+        "PhaseName": "BoolPredicate",
+        "SamplesMicroseconds": [
+          1247.8,
+          1541.5,
+          1591.2,
+          1996.4,
+          1366.2,
+          1764.7,
+          1214.1,
+          1330.4,
+          1278.8,
+          1490.5
+        ],
+        "AverageMicroseconds": 1482.1599999999999,
+        "PercentageOfTotal": 15.357706830022419,
+        "InvocationCount": 1
+      },
+      "MultiPredicate": {
+        "PhaseName": "MultiPredicate",
+        "SamplesMicroseconds": [
+          3060.1,
+          3532.2,
+          3460.3,
+          3429.3,
+          3520.8,
+          3311.1,
+          3384.3,
+          3770.3,
+          3487.2,
+          3466.2
+        ],
+        "AverageMicroseconds": 3442.1799999999994,
+        "PercentageOfTotal": 35.66685870362617,
+        "InvocationCount": 1
+      }
+    },
+    "AllocatedBytes": 48122,
+    "Metadata": {
+      "Int32Match": "533,691 (53.4%)",
+      "DoubleMatch": "706,633 (70.7%)",
+      "BoolMatch": "699,215 (69.9%)",
+      "MultiMatch": "434,907 (43.5%)"
+    },
+    "Timestamp": "2026-02-03T18:24:27.2645145Z"
+  },
+  {
+    "ScenarioName": "Enumeration",
+    "Description": "Result materialization (ToList, foreach)",
+    "RowCount": 1000000,
+    "Iterations": 10,
+    "SamplesMicroseconds": [
+      80132.1,
+      111215.9,
+      108571.9,
+      108286.2,
+      122298.4,
+      109642.6,
+      106321.2,
+      111729.9,
+      106446.8,
+      112634.1
+    ],
+    "MinMicroseconds": 80132.1,
+    "MaxMicroseconds": 122298.4,
+    "MedianMicroseconds": 109107.25,
+    "AverageMicroseconds": 107727.91,
+    "StdDevMicroseconds": 10720.648443328622,
+    "RowsPerSecond": 9165293.782035565,
+    "MillionRowsPerSecond": 9.165293782035565,
+    "PhaseDetails": {
+      "ToList": {
+        "PhaseName": "ToList",
+        "SamplesMicroseconds": [
+          46230.3,
+          146204.5,
+          47178.9,
+          65572,
+          64038.9,
+          62757.3,
+          66779.6,
+          63130.8,
+          65083.2,
+          67022.9
+        ],
+        "AverageMicroseconds": 69399.84,
+        "PercentageOfTotal": 64.42141131300143,
+        "InvocationCount": 1
+      },
+      "Foreach": {
+        "PhaseName": "Foreach",
+        "SamplesMicroseconds": [
+          84396,
+          26123.7,
+          61330.9,
+          48440.5,
+          45978,
+          45977.5,
+          46088.5,
+          46516.9,
+          45816.6,
+          46446.8
+        ],
+        "AverageMicroseconds": 49711.53999999999,
+        "PercentageOfTotal": 46.14546035470287,
+        "InvocationCount": 1
+      },
+      "First": {
+        "PhaseName": "First",
+        "SamplesMicroseconds": [
+          2054.5,
+          1997.1,
+          1745.7,
+          2163.3,
+          1713,
+          1711.2,
+          1745.1,
+          1773.7,
+          1818.6,
+          1615.6
+        ],
+        "AverageMicroseconds": 1833.78,
+        "PercentageOfTotal": 1.7022329682252257,
+        "InvocationCount": 1
+      }
+    },
+    "AllocatedBytes": 243062344,
+    "Metadata": {
+      "ToListCount": "533,691 items",
+      "ForeachCount": "310,936 items",
+      "FirstId": "0"
+    },
+    "Timestamp": "2026-02-03T18:24:30.2992503Z"
+  }
+]
