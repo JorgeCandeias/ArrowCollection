@@ -12,10 +12,12 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	<PackageReference Include="DuckDB.NET.Data.Full" Version="1.4.3" />
+	</ItemGroup>
+
+	<ItemGroup>
 	<ProjectReference Include="..\..\src\FrozenArrow\FrozenArrow.csproj" />
-	<ProjectReference Include="..\..\src\FrozenArrow.Generators\FrozenArrow.Generators.csproj"
-		OutputItemType="Analyzer"
-		ReferenceOutputAssembly="false" />
+	<ProjectReference Include="..\..\src\FrozenArrow.Generators\FrozenArrow.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 </Project>

@@ -29,6 +29,7 @@ if (args.Length == 0)
     Console.WriteLine("  dotnet run -c Release                                    # Interactive selection");
     Console.WriteLine("  dotnet run -c Release -- --filter *Query*                # Run all query benchmarks");
     Console.WriteLine("  dotnet run -c Release -- --filter *LargeScale*           # Run 1M-scale benchmarks");
+    Console.WriteLine("  dotnet run -c Release -- --filter *DuckDb*               # Run DuckDB comparison benchmarks");
     Console.WriteLine("  dotnet run -c Release -- --filter *GroupBy*              # Run GroupBy benchmarks");
     Console.WriteLine("  dotnet run -c Release -- --filter *MultiAggregate*       # Run multi-aggregate benchmarks");
     Console.WriteLine("  dotnet run -c Release -- --filter ArrowQueryBenchmarks*  # Run specific class");

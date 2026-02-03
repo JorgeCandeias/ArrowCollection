@@ -12,6 +12,7 @@
 
 	<ItemGroup>
 	<PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
+	<PackageReference Include="DuckDB.NET.Data.Full" Version="1.4.3" />
 	<PackageReference Include="protobuf-net" Version="3.2.52" />
 	</ItemGroup>
 

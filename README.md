@@ -995,6 +995,53 @@ FrozenArrow supports Arrow IPC serialization with optional LZ4 and Zstd compress
 | Cross-language interop | Arrow (any) | Native Arrow support in Python, Rust, Java |
 | Legacy .NET interop | Protobuf | Widely supported, but less efficient |
 
+### DuckDB Comparison Benchmarks
+
+FrozenArrow was benchmarked against in-process DuckDB to understand where each approach excels.
+
+**Scenario**: 100,000 items with 10 columns
+
+| Operation | List | FrozenArrow | DuckDB | FA vs List | DuckDB vs List |
+|-----------|------|-------------|--------|------------|----------------|
+| **High Selectivity Count** (~5%) | 131 μs | 1,295 μs | 316 μs | 9.9x slower | 2.4x slower |
+| **Medium Selectivity Count** (~30%) | 489 μs | 1,300 μs | 302 μs | 2.7x slower | **1.6x faster** ✓ |
+| **Low Selectivity Count** (~70%) | 487 μs | 1,237 μs | 328 μs | 2.5x slower | **1.5x faster** ✓ |
+| **Sum** (filtered) | 625 μs | 3,609 μs | 385 μs | 5.8x slower | **1.6x faster** ✓ |
+| **Average** (filtered) | 379 μs | 2,408 μs | 382 μs | 6.4x slower | ~same |
+| **Min** (filtered) | 1,655 μs | 3,240 μs | 375 μs | 2.0x slower | **4.4x faster** ✓ |
+| **Max** (filtered) | 1,644 μs | 3,270 μs | 384 μs | 2.0x slower | **4.3x faster** ✓ |
+| **String Filter** | 448 μs | 3,091 μs | 1,277 μs | 6.9x slower | 2.9x slower |
+| **Compound Filter** | 268 μs | 1,328 μs | 468 μs | 5.0x slower | 1.7x slower |
+| **GroupBy + Sum** | 3,084 μs | 5,313 μs | 1,212 μs | 1.7x slower | **2.5x faster** ✓ |
+
+**Memory Footprint Comparison (Static Data at Rest)**:
+
+| Items | List<T> | FrozenArrow | DuckDB |
+|-------|---------|-------------|--------|
+| 100K | 14.4 MB | 19.3 MB | 37.1 MB |
+| 500K | 25.9 MB | 181.1 MB | 94.6 MB |
+| 1M | 18.6 MB | 251.4 MB | 110.8 MB |
+
+**Key insights**:
+- **DuckDB excels at aggregations**: Sum, Min, Max, Average are 1.5-4.4x faster than List
+- **DuckDB has mature query optimization**: GroupBy operations are 2.5x faster than List
+- **FrozenArrow has lower memory overhead** for small-medium datasets
+- **FrozenArrow has zero-copy queries**: No intermediate buffers for simple operations
+- **List<T> is fastest for simple iteration** when data is already in memory
+
+**When to use each**:
+
+| Scenario | Best Choice | Why |
+|----------|-------------|-----|
+| Simple filters + count | DuckDB | Optimized OLAP engine |
+| Aggregations (Sum/Avg/Min/Max) | DuckDB | Column-level optimizations |
+| GroupBy operations | DuckDB | Mature query optimizer |
+| Memory-constrained (small data) | FrozenArrow | Lower baseline overhead |
+| .NET-native API preferred | FrozenArrow | No SQL, pure LINQ |
+| Cross-language interop | Either | Both support Arrow IPC |
+| Complex JOINs | DuckDB | Not supported in FrozenArrow |
+| Frequent iteration | List<T> | Lowest per-access overhead |
+
 ### When to Use ArrowQuery
 
 | Scenario | Best Approach | Why |
@@ -1018,10 +1065,13 @@ dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *A
 # Run large-scale (1M items) benchmarks
 dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *LargeScale*
 
+# Run DuckDB comparison benchmarks
+dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *DuckDb*
+
 # Run serialization benchmarks
 dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *SerializationSize*
 
-# Run memory analysis
+# Run memory analysis (includes DuckDB comparison)
 dotnet run -c Release --project benchmarks/FrozenArrow.MemoryAnalysis
 ```
 
