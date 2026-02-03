@@ -900,266 +900,49 @@ FrozenArrow/
 - .NET 10.0 or later
 - Apache.Arrow NuGet package (automatically included)
 
-## Benchmarks
+## Performance Overview
 
-The following benchmarks were run on:
-- **OS**: Windows 11
-- **Runtime**: .NET 10.0.2
-- **Benchmark.NET**: v0.14.0
+FrozenArrow is designed for **memory efficiency**, not raw speed. Here's how it compares:
 
-### Memory Footprint Analysis
+### Memory Footprint
 
-**Scenario**: 1 million records with 200 columns (sparse wide dataset)
+| Scenario | List<T> | FrozenArrow | Savings |
+|----------|---------|-------------|---------|
+| Standard model (1M items) | 117 MB | 27 MB | **77%** |
+| Wide model (200 cols, 1M items) | 1,783 MB | 986 MB | **45%** |
 
-| Storage | Memory Usage | Savings |
-|---------|-------------|---------|
-| `List<T>` | 1,782 MB | — |
-| `FrozenArrow<T>` | 993 MB | **44.3%** |
+### Query Performance (1M items)
 
-#### DuckDB Comparison (10 columns, standard model)
+| Operation | List | FrozenArrow | DuckDB |
+|-----------|------|-------------|--------|
+| Filter + Count | 4.6 ms | 9.4 ms | **422 μs** |
+| Sum (filtered) | 10.2 ms | 35.7 ms | **597 μs** |
+| GroupBy + Count | 23.3 ms | **9.9 ms** | 4.5 ms |
+| Any (short-circuit) | **13 ns** | 6.8 μs | 328 μs |
 
-| Items | List | FrozenArrow | DuckDB | FA vs List | FA vs DuckDB |
-|-------|------|-------------|--------|------------|--------------|
-| 10,000 | 4.0 MB | 10.7 MB | 6.2 MB | 2.7x larger | 1.7x larger |
-| 100,000 | 14.4 MB | 19.1 MB | 34.0 MB | 1.3x larger | **56% smaller** |
-| 500,000 | 26.4 MB | 180.6 MB | 92.3 MB | 6.8x larger | 2.0x larger |
-| 1,000,000 | 18.6 MB | 272.4 MB | 115.8 MB | 14.6x larger | 2.4x larger |
+### When to Use Each Technology
 
-**Note**: The 10-column model shows different characteristics than the 200-column wide model. Memory footprint varies significantly based on data types, cardinality, and column count.
+| Use Case | Best Choice |
+|----------|-------------|
+| Aggregations at scale | **DuckDB** (10-50x faster) |
+| Memory-constrained environments | **FrozenArrow** (45-77% smaller) |
+| Short-circuit operations (Any/First) | **List<T>** (nanoseconds) |
+| .NET-native LINQ API | **FrozenArrow** (no SQL) |
+| Complex JOINs | **DuckDB** (not supported in FA) |
 
-**Key observations**:
-- FrozenArrow achieves ~44% memory reduction on wide, sparse datasets (200 columns)
-- Dictionary encoding automatically applied to 195 low-cardinality columns
-- Memory savings scale with data redundancy and column count
+### Detailed Benchmarks
 
-### Core Performance (Construction & Enumeration)
-
-
-| Operation | 10K Items | 100K Items | 1M Items |
-|-----------|-----------|------------|----------|
-| **List<T> Construction** | 3.8 μs | 328 μs | 3.5 ms |
-| **FrozenArrow Construction** | 3.2 ms | 37.8 ms | 381 ms |
-| **List<T> Enumeration** | 4.8 μs | 173 μs | 4.4 ms |
-| **FrozenArrow Enumeration** | 1.5 ms | 15.2 ms | 163 ms |
-
-**Key observations**:
-- Construction is ~100x slower due to columnar conversion and compression
-- Enumeration is ~37x slower due to on-the-fly object reconstruction
-- This trade-off is intentional: FrozenArrow is optimized for memory, not speed
-
-### ArrowQuery Performance (Wide Records - 200 Columns)
-
-This benchmark demonstrates the power of column-level filtering on wide tables.
-
-**Scenario**: Filter 10,000 records with 200 columns, ~1% selectivity (highly selective filter)
-
-| Method | Time | Allocated | vs List |
-|--------|------|-----------|---------|
-| `List<T>.Where().ToList()` | 18 μs | 928 B | 1.0x (baseline) |
-| `ArrowQuery.Where().ToList()` | 813 μs | 847 KB | 44x slower |
-| `FrozenArrow.Where().ToList()` | 47,737 μs | 24 MB | **2,593x slower** |
-
-**Key insight**: ArrowQuery is **57x faster** than naive FrozenArrow enumeration because:
-- ArrowQuery scans only 1 column (the filter column)
-- Only matching rows (~1%) are reconstructed
-- FrozenArrow (Enumerable) reconstructs ALL 10,000 rows with ALL 200 columns
-
-### ArrowQuery Performance (Count Operation)
-
-**Scenario**: Count filtered records without materializing objects
-
-| Method | 10K Items | Allocated |
-|--------|-----------|-----------|
-| `List<T>.Where().Count()` | 22 μs | 0 B |
-| `ArrowQuery.Where().Count()` | 98 μs | 36 KB |
-| `FrozenArrow.Where().Count()` | 47,282 μs | 24 MB |
-
-
-**Key insight**: ArrowQuery Count is **482x faster** than naive enumeration because:
-- Selection bitmap is built from column scan
-- Count is computed from bitmap
-- **Zero object reconstruction!**
-
-### Large-Scale Query Benchmarks (1M Items)
-
-**Scenario**: Various query operations on 1 million records with 10 columns
-
-| Operation | List Time | ArrowQuery Time | Ratio | Notes |
-|-----------|-----------|-----------------|-------|-------|
-| **Filter + Count** | 9 ms | 13 ms | 1.4x | ArrowQuery uses bitmap popcount |
-| **Filter + ToList** | 5 ms | 55 ms | 10.7x | Materialization overhead |
-| **Sum (filtered)** | 10 ms | 37 ms | 3.6x | Column-level aggregate |
-| **Average (filtered)** | 9 ms | 25 ms | 2.8x | Column-level aggregate |
-| **Min (filtered)** | 11 ms | 30 ms | 2.6x | Column-level aggregate |
-| **GroupBy + Count** | 23 ms | 69 ms | 3.0x | Dictionary-encoded grouping |
-| **GroupBy + Sum** | 45 ms | 51 ms | 1.1x | Single-pass aggregation |
-| **GroupBy + Multi-Agg** | 55 ms | 66 ms | 1.2x | Multiple aggregates in one pass |
-| **GroupBy + Min/Max** | 35 ms | 43 ms | 1.2x | SIMD-optimized min/max |
-| **GroupBy + Filter + Sum** | 33 ms | 42 ms | 1.3x | Filter then grouped sum |
-| **Multi-Aggregate** | 44 ms | 97 ms | 2.2x | Single-pass execution |
-
-**Key insights**:
-- **GroupBy operations** benefit from single-pass aggregation for low-cardinality keys
-- **SIMD optimizations** for Sum/Min/Max within groups (64+ items per group)
-- Dictionary-encoded columns are fully supported with array-based grouping (no hash lookups)
-- Single aggregates have 2-4x overhead vs List (trade-off for memory efficiency)
-- Complex multi-aggregate queries scale reasonably well
-
-### Serialization & Compression Benchmarks
-
-FrozenArrow supports Arrow IPC serialization with optional LZ4 and Zstd compression.
-
-#### Standard Data Model (10 columns)
-
-**Scenario**: Serialize collections of varying sizes with 10 properties per record
-
-| Method | 1K Items | 10K Items | 100K Items |
-|--------|----------|-----------|------------|
-| **Arrow (No Compression)** | 70 μs / 202 KB | 527 μs / 1.2 MB | 7.0 ms / 12.7 MB |
-| **Arrow + LZ4** | 99 μs / 105 KB | 891 μs / 945 KB | 10.2 ms / 6.9 MB |
-| **Arrow + Zstd** | 337 μs / 85 KB | 2.1 ms / 465 KB | 19.3 ms / 3.8 MB |
-| **Protobuf** | 360 μs / 535 KB | 3.7 ms / 4.2 MB | 46.2 ms / 66.9 MB |
-
-**Key insights**:
-- **Arrow without compression** is the fastest option (5-7x faster than Protobuf)
-- **Arrow + Zstd** achieves the best compression ratio (~70% smaller than uncompressed)
-- **Arrow is dramatically smaller than Protobuf** even without compression (3-5x smaller)
-- **Protobuf uses 5x more memory** than Arrow for the same data
-
-#### Wide Data Model (200 columns, 100K-1M items)
-
-**Scenario**: Sparse wide dataset with 200 columns (10 strings, 5 DateTimes, 62 ints, 62 doubles, 61 decimals)
-
-| Method | 100K Items | 1M Items |
-|--------|------------|----------|
-| **Arrow (No Compression)** | 56 ms / 238 MB | 352 ms / 2,657 MB |
-| **Arrow + LZ4** | 166 ms / 90 MB | 1,817 ms / 663 MB |
-| **Arrow + Zstd** | 382 ms / 64 MB | 3,767 ms / 460 MB |
-| **Protobuf** | 185 ms / 151 MB | 1,752 ms / 1,206 MB |
-
-**Memory allocation comparison (1M items):**
-
-| Method | Serialized Size | Ratio vs Protobuf |
-|--------|-----------------|-------------------|
-| Arrow (No Compression) | 2,657 MB | 2.2x larger |
-| Arrow + LZ4 | 663 MB | **45% smaller** |
-| Arrow + Zstd | 460 MB | **62% smaller** |
-| Protobuf | 1,206 MB | baseline |
-
-**Key insights**:
-- For wide data, **uncompressed Arrow is larger than Protobuf** due to columnar overhead
-- **Arrow + LZ4 compresses ~4x** (2,657 MB → 663 MB), beating Protobuf by 45%
-- **Arrow + Zstd compresses ~6x** (2,657 MB → 460 MB), beating Protobuf by 62%
-- Compression time trade-off: LZ4 is ~5x slower, Zstd is ~10x slower than uncompressed
-- For storage/network scenarios, **always use compression** with wide data
-
-#### When to Use Each Option
-
-| Scenario | Recommendation | Why |
-|----------|----------------|-----|
-| Speed-critical, low latency | Arrow (No Compression) | Fastest serialization |
-| Balanced speed & size | Arrow + LZ4 | Good compression, fast decompression |
-| Storage/archival | Arrow + Zstd | Best compression ratio |
-| Cross-language interop | Arrow (any) | Native Arrow support in Python, Rust, Java |
-| Legacy .NET interop | Protobuf | Widely supported, but less efficient |
-
-### DuckDB Comparison Benchmarks
-
-FrozenArrow was benchmarked against in-process DuckDB to understand where each approach excels. All ArrowQuery supported operations were tested.
-
-#### 100K Items (10 columns)
-
-| Operation | List | FrozenArrow | DuckDB | FA vs List | DuckDB vs List |
-|-----------|------|-------------|--------|------------|----------------|
-| **Count** (high selectivity ~5%) | 274 μs | 928 μs | 311 μs | 3.4x slower | 1.1x slower |
-| **Count** (low selectivity ~70%) | 388 μs | 640 μs | 296 μs | 1.7x slower | **1.3x faster** ✓ |
-| **Any** (short-circuit) | 13 ns | 1,917 ns | 309 μs | 150x slower | 24,000x slower |
-| **First** (stop at first) | 3 ns | 1,917 ns | 170 μs | 570x slower | 50,000x slower |
-| **Sum** (filtered) | 628 μs | 3,603 μs | 370 μs | 5.7x slower | **1.7x faster** ✓ |
-| **Average** (filtered) | 478 μs | 1,585 μs | 373 μs | 3.3x slower | **1.3x faster** ✓ |
-| **Min** (filtered) | 1,661 μs | 3,343 μs | 350 μs | 2.0x slower | **4.7x faster** ✓ |
-| **Max** (filtered) | 1,708 μs | 3,235 μs | 350 μs | 1.9x slower | **4.9x faster** ✓ |
-| **String Equality** | 455 μs | 3,079 μs | 1,267 μs | 6.8x slower | 2.8x slower |
-| **Compound Filter** (3 conditions) | 724 μs | 3,801 μs | 1,355 μs | 5.3x slower | 1.9x slower |
-| **Take** (100 items) | 213 ns | 621 μs | 232 μs | 2,914x slower | 1,088x slower |
-| **Skip+Take** (pagination) | 2.5 μs | 636 μs | 233 μs | 253x slower | 93x slower |
-| **GroupBy + Count** | 2,220 μs | 879 μs | 2,777 μs | **2.5x faster** ✓ | 1.3x slower |
-| **GroupBy + Sum** | 2,782 μs | 4,837 μs | 3,872 μs | 1.7x slower | 1.4x slower |
-| **GroupBy + Average** | 3,109 μs | 4,200 μs | 2,539 μs | 1.4x slower | **1.2x faster** ✓ |
-| **ToList** (~5% selectivity) | 336 μs | 5,194 μs | 7,463 μs | 15.5x slower | 22x slower |
-
-#### 1M Items (10 columns)
-
-| Operation | List | FrozenArrow | DuckDB | FA vs List | DuckDB vs List |
-|-----------|------|-------------|--------|------------|----------------|
-| **Count** (high selectivity ~5%) | 4.7 ms | 9.3 ms | 522 μs | 2.0x slower | **8.9x faster** ✓ |
-| **Count** (low selectivity ~70%) | 6.0 ms | 7.7 ms | 455 μs | 1.3x slower | **13x faster** ✓ |
-| **Any** (short-circuit) | 12 ns | 8,740 ns | 328 μs | 700x slower | 26,000x slower |
-| **First** (stop at first) | 3 ns | 8,621 ns | 167 μs | 2,505x slower | 48,000x slower |
-| **Sum** (filtered) | 10.3 ms | 35.7 ms | 504 μs | 3.5x slower | **20x faster** ✓ |
-| **Average** (filtered) | 8.2 ms | 16.1 ms | 598 μs | 2.0x slower | **14x faster** ✓ |
-| **Min** (filtered) | 11.1 ms | 29.4 ms | 515 μs | 2.7x slower | **22x faster** ✓ |
-| **Max** (filtered) | 11.2 ms | 29.6 ms | 514 μs | 2.6x slower | **22x faster** ✓ |
-| **String Equality** | 6.8 ms | 29.2 ms | 1.9 ms | 4.3x slower | **3.6x faster** ✓ |
-| **Compound Filter** (3 conditions) | 9.7 ms | 35.7 ms | 2.2 ms | 3.7x slower | **4.5x faster** ✓ |
-| **Take** (100 items) | 214 ns | 7.7 ms | 257 μs | 36,000x slower | 1,202x slower |
-| **Skip+Take** (pagination) | 2.5 μs | 7.6 ms | 253 μs | 3,033x slower | 102x slower |
-| **GroupBy + Count** | 24.8 ms | 9.8 ms | 4.6 ms | **2.5x faster** ✓ | **5.3x faster** ✓ |
-| **GroupBy + Sum** | 42.5 ms | 53.1 ms | 5.3 ms | 1.2x slower | **8x faster** ✓ |
-| **GroupBy + Average** | 31.3 ms | 35.0 ms | 3.2 ms | 1.1x slower | **9.8x faster** ✓ |
-| **ToList** (~5% selectivity) | 5.2 ms | 53.5 ms | 42.8 ms | 10.3x slower | 8.3x slower |
-
-**Key insights**:
-- **DuckDB dominates at scale**: At 1M items, DuckDB is 8-22x faster than List for aggregations
-- **FrozenArrow wins GroupBy+Count**: 2.5x faster than List due to columnar counting
-- **DuckDB excels at GroupBy+Sum/Avg**: Native OLAP optimizations
-- **List wins for short-circuit operations**: Any/First are nearly instant when data matches early
-- **FrozenArrow is between List and DuckDB**: Generally 1-6x slower than List for queries
-- **FrozenArrow ToList is competitive**: Only 10x slower than List at 1M scale
-
-**When to use each**:
-
-| Scenario | Best Choice | Why |
-|----------|-------------|-----|
-| Aggregations at scale | **DuckDB** | 10-22x faster than alternatives |
-| GroupBy operations | **DuckDB** | 6-10x faster, mature optimizer |
-| Short-circuit (Any/First) | **List<T>** | O(1) when data matches early |
-| Simple iteration | **List<T>** | Lowest per-access overhead |
-| Memory-constrained | **FrozenArrow** | 45% memory savings on wide data |
-| .NET-native LINQ API | **FrozenArrow** | No SQL, pure LINQ |
-| Cross-language interop | **Either** | Both support Arrow IPC |
-| Complex JOINs | **DuckDB** | Not supported in FrozenArrow |
-
-### When to Use ArrowQuery
-
-| Scenario | Best Approach | Why |
-|----------|--------------|-----|
-| Highly selective filter (<10% match) | ✅ ArrowQuery | Avoids reconstructing 90%+ of rows |
-| Counting/Any/All | ✅ ArrowQuery | No reconstruction needed |
-| Wide tables (many columns) | ✅ ArrowQuery | Reconstruction cost is high |
-| GroupBy with integer keys | ✅ ArrowQuery | Often faster than List |
-| Low selectivity (>90% match) | ⚠️ List<T> | Reconstruction overhead exceeds benefit |
-| Frequent iteration | ⚠️ List<T> | FrozenArrow optimizes for memory, not speed |
+For comprehensive benchmark results, see:
+- **[Performance Benchmarks](benchmarks/FrozenArrow.Benchmarks/README.md)** - Filter, Aggregation, GroupBy, Pagination, Serialization
+- **[Memory Analysis](benchmarks/FrozenArrow.MemoryAnalysis/README.md)** - Static footprint, query overhead, wide model analysis
 
 ### Running Benchmarks
 
 ```bash
-# List all available benchmarks
-dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --list flat
+# Run performance benchmarks
+dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *Filter*
 
-# Run ArrowQuery benchmarks
-dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *ArrowQuery*
-
-# Run large-scale (1M items) benchmarks
-dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *LargeScale*
-
-# Run DuckDB comparison benchmarks
-dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *DuckDb*
-
-# Run serialization benchmarks
-dotnet run -c Release --project benchmarks/FrozenArrow.Benchmarks -- --filter *SerializationSize*
-
-# Run memory analysis (includes DuckDB comparison)
+# Run memory analysis
 dotnet run -c Release --project benchmarks/FrozenArrow.MemoryAnalysis
 ```
 

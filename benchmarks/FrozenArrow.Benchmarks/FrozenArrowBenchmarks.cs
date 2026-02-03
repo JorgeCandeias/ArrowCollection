@@ -5,6 +5,7 @@ namespace FrozenArrow.Benchmarks;
 
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
+[ShortRunJob]
 public class FrozenArrowBenchmarks
 {
     private List<BenchmarkItem> _items10K = null!;
@@ -223,6 +224,7 @@ public class FrozenArrowBenchmarks
 /// </summary>
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
+[ShortRunJob]
 public class StructVsClassBenchmarks
 {
     private List<BenchmarkItem> _classItems = null!;

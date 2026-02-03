@@ -14,6 +14,7 @@ namespace FrozenArrow.Benchmarks;
 /// </summary>
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
+[ShortRunJob]
 public class HeavyRecordBenchmarks
 {
     private List<HeavyBenchmarkItem> _sourceItems = null!;

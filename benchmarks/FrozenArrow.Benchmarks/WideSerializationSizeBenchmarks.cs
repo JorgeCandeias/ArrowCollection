@@ -11,6 +11,7 @@ namespace FrozenArrow.Benchmarks;
 /// </summary>
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
+[ShortRunJob]
 public class WideSerializationSizeBenchmarks
 {
     private List<HeavyBenchmarkItem> _items = null!;

@@ -13,6 +13,7 @@ namespace FrozenArrow.Benchmarks;
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [GroupBenchmarksBy(BenchmarkDotNet.Configs.BenchmarkLogicalGroupRule.ByCategory)]
 [CategoriesColumn]
+[ShortRunJob]
 public class WideRecordQueryBenchmarks
 {
     private List<HeavyBenchmarkItem> _list = null!;

@@ -1,116 +1,45 @@
 # FrozenArrow Benchmarks
 
-This directory contains performance benchmarks comparing FrozenArrow against alternative technologies for various operations.
+This directory contains performance benchmarks comparing FrozenArrow against alternative technologies.
 
 ## Organization Principles
 
-Benchmarks are organized **by operation type**, not by technology. All competing technologies (List, FrozenArrow, DuckDB, etc.) appear side-by-side in each benchmark file.
+Benchmarks are organized **by operation type**, not by technology. All competing technologies (List, FrozenArrow, DuckDB) appear side-by-side in each benchmark file.
 
 ### Key Rules
 
 1. **No `Baseline = true` markers** - Let results rank naturally by speed
 2. **All technologies compete in the same file** - Easy comparison
-3. **Consistent naming**: `{Technology}_{Operation}` (e.g., `List_Filter_Count`, `FrozenArrow_Filter_Count`, `DuckDB_Filter_Count`)
+3. **Consistent naming**: `{Technology}_{Operation}` (e.g., `List_Filter_Count`, `FrozenArrow_Filter_Count`)
 4. **Consistent scale params** - Use `[Params(100_000, 1_000_000)]` for standard benchmarks
-5. **Categories for grouping** - Use `[BenchmarkCategory]` to group related operations
+5. **ShortRunJob for all** - Fast iteration during development
 
 ## Benchmark Files
 
 ### User-Facing Benchmarks
 
-These benchmarks measure operations that users directly interact with:
-
 | File | Purpose | Technologies |
 |------|---------|--------------|
 | `FilterBenchmarks.cs` | Where clauses at various selectivities | List, FrozenArrow, DuckDB |
-| `AggregationBenchmarks.cs` | Sum, Average, Min, Max (single aggregates) | List, FrozenArrow, DuckDB |
-| `GroupByBenchmarks.cs` | Grouped aggregations (Count, Sum, Avg per group) | List, FrozenArrow, DuckDB |
-| `PaginationBenchmarks.cs` | Take, Skip, First, Any operations | List, FrozenArrow, DuckDB |
-| `SerializationSizeBenchmarks.cs` | Arrow IPC (±compression) vs Protobuf | Arrow, Protobuf |
-| `WideSerializationSizeBenchmarks.cs` | Serialization for 200-column records | Arrow, Protobuf |
-| `WideRecordQueryBenchmarks.cs` | Query operations on 200-column records | List, FrozenArrow |
+| `AggregationBenchmarks.cs` | Sum, Average, Min, Max | List, FrozenArrow, DuckDB |
+| `GroupByBenchmarks.cs` | Grouped aggregations | List, FrozenArrow, DuckDB |
+| `PaginationBenchmarks.cs` | Take, Skip, First, Any | List, FrozenArrow, DuckDB |
+| `SerializationSizeBenchmarks.cs` | Arrow IPC vs Protobuf (wide model) | Arrow, Protobuf |
+| `WideRecordQueryBenchmarks.cs` | 200-column record queries | List, FrozenArrow |
 | `FrozenArrowBenchmarks.cs` | Core construction/enumeration | List, FrozenArrow |
-| `HeavyRecordBenchmarks.cs` | Construction/enumeration for 200-column records | List, FrozenArrow |
 
-### Internal Component Benchmarks
-
-These benchmarks measure internal components for optimization work:
+### Internal Benchmarks
 
 | File | Purpose |
 |------|---------|
-| `Internals/SelectionBitmapBenchmarks.cs` | SIMD bitmap operations (AND, OR, NOT, CountSet) |
-| `Internals/PredicateEvaluationBenchmarks.cs` | Column scan and predicate evaluation |
-
-### Model Classes
-
-| File | Purpose |
-|------|---------|
-| `Models/QueryBenchmarkItem.cs` | Standard 10-column model + factory |
-| `HeavyBenchmarkItem.cs` | Wide 200-column model + factory |
-
-## Data Models
-
-### Standard Model (10 columns)
-`QueryBenchmarkItem` - Used for most benchmarks:
-- `Id` (int), `Name` (string), `Age` (int), `Salary` (decimal)
-- `IsActive` (bool), `Category` (string), `Department` (string)
-- `HireDate` (DateTime), `PerformanceScore` (double), `Region` (string)
-
-### Wide Model (200 columns)
-`HeavyBenchmarkItem` - Used for wide record benchmarks:
-- 10 string properties (low cardinality)
-- 5 DateTime properties (high cardinality)
-- 62 int, 62 double, 61 decimal properties (sparse)
-
-### Serialization Model (10 columns)
-`SerializationBenchmarkItem` - Used for serialization benchmarks:
-- Annotated with both `[ArrowRecord]` and `[ProtoContract]`
-
-## Adding a New Technology
-
-When adding a new technology to compare (e.g., SQLite, Parquet):
-
-1. **Add setup/cleanup** to each relevant benchmark file
-2. **Add benchmark methods** with naming: `{NewTech}_{Operation}`
-3. **Add to the same categories** as existing methods
-4. **Update this README** with the new technology in the tables
-
-Example:
-```csharp
-// In FilterBenchmarks.cs
-[GlobalSetup]
-public void Setup()
-{
-    // ... existing setup ...
-    _sqliteConnection = SetupSqlite(_list);
-}
-
-[Benchmark]
-[BenchmarkCategory("Filter_Count_HighSelectivity")]
-public int SQLite_Filter_Count_HighSelectivity()
-{
-    // Implementation
-}
-```
-
-## Adding a New Operation
-
-When adding a new operation type:
-
-1. **Create a new file** if it doesn't fit existing categories
-2. **Include all technologies** that support the operation
-3. **Use consistent params** (`[Params(100_000, 1_000_000)]` for standard)
-4. **Add categories** for sub-operations
-5. **Update this README**
+| `Internals/SelectionBitmapBenchmarks.cs` | SIMD bitmap operations |
+| `Internals/PredicateEvaluationBenchmarks.cs` | Column scan performance |
 
 ## Running Benchmarks
 
 ```bash
-# List all available benchmarks
+# List all benchmarks
 dotnet run -c Release -- --list flat
-
-# Run all benchmarks (takes a long time!)
-dotnet run -c Release
 
 # Run by operation type
 dotnet run -c Release -- --filter *Filter*
@@ -118,82 +47,135 @@ dotnet run -c Release -- --filter *Aggregation*
 dotnet run -c Release -- --filter *GroupBy*
 dotnet run -c Release -- --filter *Pagination*
 dotnet run -c Release -- --filter *Serialization*
-dotnet run -c Release -- --filter *WideRecord*
 
 # Run by technology
 dotnet run -c Release -- --filter *DuckDB*
 dotnet run -c Release -- --filter *List_*
 dotnet run -c Release -- --filter *FrozenArrow_*
-
-# Run internal benchmarks
-dotnet run -c Release -- --filter *Internals*
-
-# Run with specific scale
-dotnet run -c Release -- --filter *Filter* --anyCategories "1M"
-
-# Short run for quick validation
-dotnet run -c Release -- --filter *Filter* --job short
-```
-
-## Memory Analysis
-
-For detailed memory footprint analysis, use the separate project:
-
-```bash
-dotnet run -c Release --project ../FrozenArrow.MemoryAnalysis
 ```
 
 ## Latest Results
 
-> **Note**: Results are from Windows 11, .NET 10.0.2, BenchmarkDotNet v0.14.0
+> **Environment**: Windows 11, .NET 10.0.2, BenchmarkDotNet v0.14.0
 
-### Filter + Count (100K items)
+### Filter Operations
 
-| Method | High Selectivity (~5%) | Low Selectivity (~70%) |
-|--------|------------------------|------------------------|
-| List | 274 ?s | 388 ?s |
-| FrozenArrow | 928 ?s | 640 ?s |
-| DuckDB | 311 ?s | 296 ?s |
+#### Filter + Count (High Selectivity ~5%)
 
-### Filter + Count (1M items)
+| Method | 100K items | 1M items |
+|--------|-----------|----------|
+| **DuckDB** | 284 ?s | 422 ?s |
+| List | 385 ?s | 4.6 ms |
+| FrozenArrow | 989 ?s | 9.4 ms |
 
-| Method | High Selectivity (~5%) | Low Selectivity (~70%) |
-|--------|------------------------|------------------------|
-| List | 4.7 ms | 6.0 ms |
-| FrozenArrow | 9.3 ms | 7.7 ms |
-| DuckDB | 522 ?s | 455 ?s |
+#### Filter + Count (Low Selectivity ~70%)
 
-### Aggregations (1M items, filtered)
+| Method | 100K items | 1M items |
+|--------|-----------|----------|
+| **DuckDB** | 294 ?s | 424 ?s |
+| List | 430 ?s | 6.0 ms |
+| FrozenArrow | 654 ?s | 7.7 ms |
+
+#### Filter + ToList (High Selectivity ~5%)
+
+| Method | 100K items | 1M items |
+|--------|-----------|----------|
+| **List** | 365 ?s | 5.1 ms |
+| FrozenArrow | 5.3 ms | 53.5 ms |
+| DuckDB | 7.3 ms | 43.0 ms |
+
+### Aggregation Operations (Filtered)
+
+#### 1M Items
 
 | Method | Sum | Average | Min | Max |
 |--------|-----|---------|-----|-----|
-| List | 10.3 ms | 8.2 ms | 11.1 ms | 11.2 ms |
-| FrozenArrow | 35.7 ms | 16.1 ms | 29.4 ms | 29.6 ms |
-| DuckDB | 504 ?s | 598 ?s | 515 ?s | 514 ?s |
+| **DuckDB** | 597 ?s | 603 ?s | 611 ?s | 626 ?s |
+| List | 10.2 ms | 8.2 ms | 10.9 ms | 11.2 ms |
+| FrozenArrow | 35.7 ms | 19.2 ms | 30.4 ms | 30.1 ms |
 
-### GroupBy + Aggregates (1M items)
+### GroupBy Operations
 
-| Method | Count | Sum | Average |
-|--------|-------|-----|---------|
-| List | 24.8 ms | 42.5 ms | 31.3 ms |
-| FrozenArrow | 9.8 ms | 53.1 ms | 35.0 ms |
-| DuckDB | 4.6 ms | 5.3 ms | 3.2 ms |
+#### 1M Items
 
-### Serialization (100K items, standard model)
+| Method | Count | Sum | Average | Multi-Agg |
+|--------|-------|-----|---------|-----------|
+| **DuckDB** | 4.5 ms | 5.2 ms | 4.7 ms | 5.2 ms |
+| FrozenArrow | 9.9 ms | 49.0 ms | 47.3 ms | 61.8 ms |
+| List | 23.3 ms | 41.2 ms | 47.7 ms | 49.1 ms |
 
-| Method | Time | Size |
-|--------|------|------|
-| Arrow (No Compression) | 7.0 ms | 12.7 MB |
-| Arrow + LZ4 | 10.2 ms | 6.9 MB |
-| Arrow + Zstd | 19.3 ms | 3.8 MB |
-| Protobuf | 46.2 ms | 66.9 MB |
+### Pagination Operations
 
-### Key Insights
+#### 1M Items
 
-- **DuckDB dominates aggregations at scale** (8-22x faster than alternatives)
-- **FrozenArrow wins GroupBy+Count** (2.5x faster than List due to columnar counting)
-- **List wins for short-circuit operations** (Any/First nearly instant)
-- **Arrow serialization is 5-7x faster than Protobuf** and produces smaller output
-- **FrozenArrow shines on wide records** where reconstruction cost is avoided
+| Method | Any | First | Take(100) | Skip+Take |
+|--------|-----|-------|-----------|-----------|
+| **List** | 13 ns | 3 ns | 212 ns | 2.5 ?s |
+| FrozenArrow | 6.8 ?s | 6.9 ?s | 7.6 ms | 7.5 ms |
+| DuckDB | 328 ?s | 168 ?s | 247 ?s | 246 ?s |
 
-See the main [README.md](../../README.md) for detailed analysis and guidance on when to use each technology.
+### Serialization (Wide Model - 200 columns)
+
+#### 100K Items
+
+| Method | Time | Allocated |
+|--------|------|-----------|
+| **Arrow (No Compression)** | 38 ms | 238 MB |
+| Protobuf | 104 ms | 151 MB |
+| Arrow + LZ4 | 105 ms | 90 MB |
+| Arrow + Zstd | 227 ms | 64 MB |
+
+#### 1M Items
+
+| Method | Time | Allocated |
+|--------|------|-----------|
+| **Arrow (No Compression)** | 264 ms | 2,657 MB |
+| Protobuf | 922 ms | 1,206 MB |
+| Arrow + LZ4 | 1,250 ms | 663 MB |
+| Arrow + Zstd | 2,340 ms | 460 MB |
+
+## Key Insights
+
+### DuckDB Dominates
+
+- **Aggregations**: 10-50x faster than alternatives at 1M scale
+- **Filtered counts**: Consistently fastest across all selectivities
+- **GroupBy**: 5-10x faster than List or FrozenArrow
+
+### List Wins Short-Circuit
+
+- **Any/First**: Nearly instant (nanoseconds) when data matches early
+- **Simple materialization**: Lowest overhead for returning objects
+
+### FrozenArrow Sweet Spots
+
+- **GroupBy + Count**: 2.4x faster than List (columnar counting)
+- **Memory-constrained scenarios**: See Memory Analysis for savings
+- **.NET-native API**: No SQL strings, pure LINQ
+
+### Arrow Serialization
+
+- **2.5x faster than Protobuf** for uncompressed writes
+- **Zstd compression**: 62% smaller than Protobuf at 1M items
+- Best for storage/archival where size matters
+
+## When to Use Each
+
+| Scenario | Best Choice | Why |
+|----------|-------------|-----|
+| Aggregations at scale | **DuckDB** | 10-50x faster |
+| Short-circuit ops (Any/First) | **List<T>** | O(1) when data matches |
+| Memory-constrained | **FrozenArrow** | 70-77% memory savings |
+| .NET-native LINQ API | **FrozenArrow** | No SQL, pure C# |
+| Complex JOINs | **DuckDB** | Not supported in FrozenArrow |
+| Serialization speed | **Arrow** | 2.5x faster than Protobuf |
+| Serialization size | **Arrow + Zstd** | 62% smaller than Protobuf |
+
+## Adding a New Technology
+
+1. Add setup/cleanup to each relevant benchmark file
+2. Add benchmark methods with naming: `{NewTech}_{Operation}`
+3. Add to same categories as existing methods
+4. Update this README with results
+
+See the main [README.md](../../README.md) for complete guidance.
