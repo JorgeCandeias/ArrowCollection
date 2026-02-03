@@ -267,4 +267,164 @@ public class SelectionBitmapTests
         Assert.Equal(15625, expectedBlocks);  // 1M / 64 rounded up
         Assert.Equal(125000, expectedBytes);  // ~125KB vs 1MB for bool[]
     }
+
+    #region ClearRange Tests
+
+    [Fact]
+    public void ClearRange_SingleBlock_ClearsCorrectBits()
+    {
+        // Arrange - All bits set
+        using var bitmap = SelectionBitmap.Create(100, initialValue: true);
+
+        // Act - Clear bits 10-19 (within single block)
+        bitmap.ClearRange(10, 20);
+
+        // Assert
+        for (int i = 0; i < 10; i++)
+            Assert.True(bitmap[i], $"Bit {i} should still be set");
+        for (int i = 10; i < 20; i++)
+            Assert.False(bitmap[i], $"Bit {i} should be cleared");
+        for (int i = 20; i < 100; i++)
+            Assert.True(bitmap[i], $"Bit {i} should still be set");
+        
+        Assert.Equal(90, bitmap.CountSet());
+    }
+
+    [Fact]
+    public void ClearRange_MultipleBlocks_ClearsCorrectBits()
+    {
+        // Arrange - All bits set
+        using var bitmap = SelectionBitmap.Create(256, initialValue: true);
+
+        // Act - Clear bits 30-200 (spans multiple ulong blocks)
+        bitmap.ClearRange(30, 200);
+
+        // Assert
+        for (int i = 0; i < 30; i++)
+            Assert.True(bitmap[i], $"Bit {i} should still be set");
+        for (int i = 30; i < 200; i++)
+            Assert.False(bitmap[i], $"Bit {i} should be cleared");
+        for (int i = 200; i < 256; i++)
+            Assert.True(bitmap[i], $"Bit {i} should still be set");
+        
+        Assert.Equal(256 - 170, bitmap.CountSet());
+    }
+
+    [Fact]
+    public void ClearRange_FullChunk_ClearsEntireRange()
+    {
+        // Arrange - Simulate zone map clearing a 16K chunk
+        const int chunkSize = 16_384;
+        using var bitmap = SelectionBitmap.Create(chunkSize * 4, initialValue: true);
+
+        // Act - Clear second chunk (indices 16384-32767)
+        bitmap.ClearRange(chunkSize, chunkSize * 2);
+
+        // Assert
+        Assert.Equal(chunkSize * 3, bitmap.CountSet()); // 3 of 4 chunks should remain set
+        
+        // Verify boundaries
+        Assert.True(bitmap[chunkSize - 1], "Last bit of first chunk should be set");
+        Assert.False(bitmap[chunkSize], "First bit of second chunk should be cleared");
+        Assert.False(bitmap[chunkSize * 2 - 1], "Last bit of second chunk should be cleared");
+        Assert.True(bitmap[chunkSize * 2], "First bit of third chunk should be set");
+    }
+
+    [Fact]
+    public void ClearRange_BlockAligned_ClearsEfficiently()
+    {
+        // Arrange - Test block-aligned range (should use fast SIMD path)
+        using var bitmap = SelectionBitmap.Create(512, initialValue: true);
+
+        // Act - Clear bits 64-447 (exactly 6 full 64-bit blocks)
+        bitmap.ClearRange(64, 448);
+
+        // Assert
+        Assert.Equal(128, bitmap.CountSet()); // 64 before + 64 after
+        
+        // Check block boundaries
+        Assert.True(bitmap[63]);   // Last bit before range
+        Assert.False(bitmap[64]);  // First cleared bit
+        Assert.False(bitmap[447]); // Last cleared bit
+        Assert.True(bitmap[448]);  // First bit after range
+    }
+
+    [Fact]
+    public void ClearRange_UnalignedStart_ClearsCorrectly()
+    {
+        // Arrange
+        using var bitmap = SelectionBitmap.Create(200, initialValue: true);
+
+        // Act - Clear from unaligned position
+        bitmap.ClearRange(7, 150);
+
+        // Assert
+        for (int i = 0; i < 7; i++)
+            Assert.True(bitmap[i], $"Bit {i} should be set");
+        for (int i = 7; i < 150; i++)
+            Assert.False(bitmap[i], $"Bit {i} should be cleared");
+        for (int i = 150; i < 200; i++)
+            Assert.True(bitmap[i], $"Bit {i} should be set");
+    }
+
+    [Fact]
+    public void ClearRange_UnalignedEnd_ClearsCorrectly()
+    {
+        // Arrange
+        using var bitmap = SelectionBitmap.Create(200, initialValue: true);
+
+        // Act - Clear to unaligned position
+        bitmap.ClearRange(64, 173);
+
+        // Assert
+        for (int i = 0; i < 64; i++)
+            Assert.True(bitmap[i], $"Bit {i} should be set");
+        for (int i = 64; i < 173; i++)
+            Assert.False(bitmap[i], $"Bit {i} should be cleared");
+        for (int i = 173; i < 200; i++)
+            Assert.True(bitmap[i], $"Bit {i} should be set");
+    }
+
+    [Fact]
+    public void ClearRange_EmptyRange_DoesNothing()
+    {
+        // Arrange
+        using var bitmap = SelectionBitmap.Create(100, initialValue: true);
+
+        // Act - Empty range (start >= end)
+        bitmap.ClearRange(50, 50);
+        bitmap.ClearRange(60, 50);
+
+        // Assert - All bits should still be set
+        Assert.Equal(100, bitmap.CountSet());
+    }
+
+    [Fact]
+    public void ClearRange_EntireBitmap_ClearsAll()
+    {
+        // Arrange
+        using var bitmap = SelectionBitmap.Create(1000, initialValue: true);
+
+        // Act
+        bitmap.ClearRange(0, 1000);
+
+        // Assert
+        Assert.Equal(0, bitmap.CountSet());
+    }
+
+    [Fact]
+    public void ClearRange_LargeBitmap_PerformsWell()
+    {
+        // Arrange - 1M bits
+        const int size = 1_000_000;
+        using var bitmap = SelectionBitmap.Create(size, initialValue: true);
+
+        // Act - Clear a large range (should use SIMD)
+        bitmap.ClearRange(100_000, 900_000);
+
+        // Assert
+        Assert.Equal(200_000, bitmap.CountSet());
+    }
+
+    #endregion
 }

@@ -579,6 +579,110 @@ public struct SelectionBitmap : IDisposable
     }
 
     /// <summary>
+    /// Clears all bits in the specified range [startIndex, endIndex).
+    /// Uses bulk block operations for efficiency - O(range/64) instead of O(range).
+    /// </summary>
+    /// <param name="startIndex">The first bit index to clear (inclusive).</param>
+    /// <param name="endIndex">The last bit index (exclusive).</param>
+    /// <remarks>
+    /// This is optimized for clearing large ranges such as entire chunks when zone maps
+    /// indicate no possible matches. For a 16K chunk, this performs ~256 ulong operations
+    /// instead of 16K individual bit operations.
+    /// </remarks>
+    public void ClearRange(int startIndex, int endIndex)
+    {
+        if (startIndex >= endIndex || _blockCount == 0)
+            return;
+
+        // Clamp to valid range
+        startIndex = Math.Max(0, startIndex);
+        endIndex = Math.Min(_length, endIndex);
+
+        var startBlock = startIndex >> 6;      // First block containing bits to clear
+        var endBlock = (endIndex - 1) >> 6;    // Last block containing bits to clear
+        var startBit = startIndex & 63;        // Bit offset within start block
+        var endBit = (endIndex - 1) & 63;      // Bit offset within end block
+
+        ref var bufferRef = ref _buffer![0];
+
+        if (startBlock == endBlock)
+        {
+            // All bits are in a single block - create a mask for just those bits
+            // Mask has 1s for bits to KEEP (outside the range)
+            var bitsToKeep = ~(((1UL << (endBit - startBit + 1)) - 1) << startBit);
+            Unsafe.Add(ref bufferRef, startBlock) &= bitsToKeep;
+            return;
+        }
+
+        // Handle partial first block (if startBit > 0)
+        if (startBit > 0)
+        {
+            // Clear bits [startBit, 63] in startBlock
+            // Keep bits [0, startBit - 1]
+            var keepMask = (1UL << startBit) - 1;
+            Unsafe.Add(ref bufferRef, startBlock) &= keepMask;
+            startBlock++;
+        }
+
+        // Handle partial last block (if endBit < 63)
+        if (endBit < 63)
+        {
+            // Clear bits [0, endBit] in endBlock
+            // Keep bits [endBit + 1, 63]
+            var keepMask = ~((1UL << (endBit + 1)) - 1);
+            Unsafe.Add(ref bufferRef, endBlock) &= keepMask;
+            endBlock--;
+        }
+
+        // Clear full blocks in the middle using SIMD when possible
+        var fullBlockCount = endBlock - startBlock + 1;
+        if (fullBlockCount <= 0)
+            return;
+
+        int i = startBlock;
+
+        // AVX-512: Clear 8 blocks (512 bits) per iteration
+        if (Vector512.IsHardwareAccelerated && fullBlockCount >= Vector512ULongCount)
+        {
+            var zero = Vector512<ulong>.Zero;
+            var vectorEnd = startBlock + fullBlockCount - (fullBlockCount % Vector512ULongCount);
+            
+            for (; i < vectorEnd; i += Vector512ULongCount)
+            {
+                Vector512.StoreUnsafe(zero, ref Unsafe.Add(ref bufferRef, i));
+            }
+        }
+        // AVX2: Clear 4 blocks (256 bits) per iteration
+        else if (Vector256.IsHardwareAccelerated && fullBlockCount >= Vector256ULongCount)
+        {
+            var zero = Vector256<ulong>.Zero;
+            var vectorEnd = startBlock + fullBlockCount - (fullBlockCount % Vector256ULongCount);
+            
+            for (; i < vectorEnd; i += Vector256ULongCount)
+            {
+                Vector256.StoreUnsafe(zero, ref Unsafe.Add(ref bufferRef, i));
+            }
+        }
+        // SSE: Clear 2 blocks (128 bits) per iteration
+        else if (Vector128.IsHardwareAccelerated && fullBlockCount >= 2)
+        {
+            var zero = Vector128<ulong>.Zero;
+            var vectorEnd = startBlock + fullBlockCount - (fullBlockCount % 2);
+            
+            for (; i < vectorEnd; i += 2)
+            {
+                Vector128.StoreUnsafe(zero, ref Unsafe.Add(ref bufferRef, i));
+            }
+        }
+
+        // Scalar tail
+        for (; i <= endBlock; i++)
+        {
+            Unsafe.Add(ref bufferRef, i) = 0;
+        }
+    }
+
+    /// <summary>
     /// Disposes the bitmap and returns the buffer to the pool.
     /// </summary>
     public void Dispose()

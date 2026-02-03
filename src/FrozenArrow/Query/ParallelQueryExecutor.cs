@@ -120,15 +120,13 @@ internal static class ParallelQueryExecutor
             var startRow = chunkIndex * chunkSize;
             var endRow = Math.Min(startRow + chunkSize, rowCount);
 
-            // Zone map skip test: Check if ALL predicates agree that this chunk can be skipped
+            // Zone map skip test: Check if ANY predicate says this chunk can be skipped
             if (CanSkipChunkViaZoneMap(predicates, zoneMapData, chunkIndex))
             {
-                // Clear the entire chunk - no matches possible
+                // Clear the entire chunk using bulk operation - O(chunkSize/64) instead of O(chunkSize)
+                // For 16K chunk: ~256 ulong operations instead of 16,384 bit operations
                 ref var sel = ref Unsafe.AsRef<SelectionBitmap>(selectionPtr);
-                for (int i = startRow; i < endRow; i++)
-                {
-                    sel.Clear(i);
-                }
+                sel.ClearRange(startRow, endRow);
                 return; // Skip chunk evaluation
             }
 
