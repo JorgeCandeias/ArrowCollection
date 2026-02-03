@@ -1,12 +1,19 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 using Apache.Arrow;
 
 namespace FrozenArrow.Query;
 
 /// <summary>
 /// Performs aggregate operations directly on Arrow columns without materializing rows.
+/// Uses SIMD vectorization for dense selections when beneficial.
 /// </summary>
 internal static class ColumnAggregator
 {
+    // Threshold for using SIMD dense path vs sparse iteration
+    // If more than 50% of rows are selected, use dense SIMD path
+    private const double DenseThreshold = 0.5;
+
     #region Sum Operations
 
     public static long SumInt32(Int32Array array, bool[] selection)
@@ -526,8 +533,20 @@ internal static class ColumnAggregator
     }
 
     // SelectionBitmap-based aggregate implementations
+    // Choose between dense SIMD path or sparse iteration based on selectivity
+    
     private static long SumInt32(Int32Array array, ref SelectionBitmap selection)
     {
+        var length = array.Length;
+        var selectedCount = selection.CountSet();
+        
+        // For dense selections, use SIMD
+        if (selectedCount > length * DenseThreshold && array.NullCount == 0)
+        {
+            return SumInt32Simd(array, ref selection);
+        }
+        
+        // Sparse path: iterate through selected indices
         long sum = 0;
         var span = array.Values;
         foreach (var i in selection.GetSelectedIndices())
@@ -538,8 +557,76 @@ internal static class ColumnAggregator
         return sum;
     }
 
+    private static long SumInt32Simd(Int32Array array, ref SelectionBitmap selection)
+    {
+        var span = array.Values;
+        var length = array.Length;
+        long sum = 0;
+        int i = 0;
+
+        // AVX2 path: process 8 int32s at a time
+        if (Vector256.IsHardwareAccelerated && length >= 8)
+        {
+            ref int valuesRef = ref Unsafe.AsRef(in span[0]);
+            var sumVecLo = Vector256<long>.Zero;
+            var sumVecHi = Vector256<long>.Zero;
+            int vectorEnd = length - (length % 8);
+
+            for (; i < vectorEnd; i += 8)
+            {
+                // Check if all 8 values are selected by checking the bitmap block
+                // This is a simplification - for full correctness we'd need to check each bit
+                var data = Vector256.LoadUnsafe(ref Unsafe.Add(ref valuesRef, i));
+                
+                // Create a mask from the selection bitmap
+                var maskLo = CreateSelectionMask4(ref selection, i);
+                var maskHi = CreateSelectionMask4(ref selection, i + 4);
+                
+                // Widen to long for accumulation to avoid overflow
+                var (lo, hi) = Vector256.Widen(data);
+                
+                // Apply selection mask and accumulate
+                sumVecLo = Vector256.Add(sumVecLo, Vector256.BitwiseAnd(lo, maskLo));
+                sumVecHi = Vector256.Add(sumVecHi, Vector256.BitwiseAnd(hi, maskHi));
+            }
+            
+            sum = Vector256.Sum(sumVecLo) + Vector256.Sum(sumVecHi);
+        }
+
+        // Scalar tail
+        for (; i < length; i++)
+        {
+            if (selection[i])
+                sum += span[i];
+        }
+        
+        return sum;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector256<long> CreateSelectionMask4(ref SelectionBitmap selection, int startIndex)
+    {
+        // Create a 4-element long mask from 4 bitmap bits
+        // Returns 0xFFFFFFFFFFFFFFFF for selected, 0 for not selected
+        return Vector256.Create(
+            selection[startIndex] ? -1L : 0L,
+            selection[startIndex + 1] ? -1L : 0L,
+            selection[startIndex + 2] ? -1L : 0L,
+            selection[startIndex + 3] ? -1L : 0L
+        );
+    }
+
     private static long SumInt64(Int64Array array, ref SelectionBitmap selection)
     {
+        var length = array.Length;
+        var selectedCount = selection.CountSet();
+        
+        // For dense selections, use SIMD
+        if (selectedCount > length * DenseThreshold && array.NullCount == 0)
+        {
+            return SumInt64Simd(array, ref selection);
+        }
+        
         long sum = 0;
         var span = array.Values;
         foreach (var i in selection.GetSelectedIndices())
@@ -547,11 +634,52 @@ internal static class ColumnAggregator
             if (!array.IsNull(i))
                 sum += span[i];
         }
+        return sum;
+    }
+
+    private static long SumInt64Simd(Int64Array array, ref SelectionBitmap selection)
+    {
+        var span = array.Values;
+        var length = array.Length;
+        long sum = 0;
+        int i = 0;
+
+        if (Vector256.IsHardwareAccelerated && length >= 4)
+        {
+            ref long valuesRef = ref Unsafe.AsRef(in span[0]);
+            var sumVec = Vector256<long>.Zero;
+            int vectorEnd = length - (length % 4);
+
+            for (; i < vectorEnd; i += 4)
+            {
+                var data = Vector256.LoadUnsafe(ref Unsafe.Add(ref valuesRef, i));
+                var mask = CreateSelectionMask4(ref selection, i);
+                sumVec = Vector256.Add(sumVec, Vector256.BitwiseAnd(data, mask));
+            }
+            
+            sum = Vector256.Sum(sumVec);
+        }
+
+        for (; i < length; i++)
+        {
+            if (selection[i])
+                sum += span[i];
+        }
+        
         return sum;
     }
 
     private static double SumDouble(DoubleArray array, ref SelectionBitmap selection)
     {
+        var length = array.Length;
+        var selectedCount = selection.CountSet();
+        
+        // For dense selections, use SIMD
+        if (selectedCount > length * DenseThreshold && array.NullCount == 0)
+        {
+            return SumDoubleSimd(array, ref selection);
+        }
+        
         double sum = 0;
         var span = array.Values;
         foreach (var i in selection.GetSelectedIndices())
@@ -560,6 +688,49 @@ internal static class ColumnAggregator
                 sum += span[i];
         }
         return sum;
+    }
+
+    private static double SumDoubleSimd(DoubleArray array, ref SelectionBitmap selection)
+    {
+        var span = array.Values;
+        var length = array.Length;
+        double sum = 0;
+        int i = 0;
+
+        if (Vector256.IsHardwareAccelerated && length >= 4)
+        {
+            ref double valuesRef = ref Unsafe.AsRef(in span[0]);
+            var sumVec = Vector256<double>.Zero;
+            int vectorEnd = length - (length % 4);
+
+            for (; i < vectorEnd; i += 4)
+            {
+                var data = Vector256.LoadUnsafe(ref Unsafe.Add(ref valuesRef, i));
+                var mask = CreateDoubleMask4(ref selection, i);
+                sumVec = Vector256.Add(sumVec, Vector256.BitwiseAnd(data, mask));
+            }
+            
+            sum = Vector256.Sum(sumVec);
+        }
+
+        for (; i < length; i++)
+        {
+            if (selection[i])
+                sum += span[i];
+        }
+        
+        return sum;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector256<double> CreateDoubleMask4(ref SelectionBitmap selection, int startIndex)
+    {
+        return Vector256.Create(
+            BitConverter.Int64BitsToDouble(selection[startIndex] ? -1L : 0L),
+            BitConverter.Int64BitsToDouble(selection[startIndex + 1] ? -1L : 0L),
+            BitConverter.Int64BitsToDouble(selection[startIndex + 2] ? -1L : 0L),
+            BitConverter.Int64BitsToDouble(selection[startIndex + 3] ? -1L : 0L)
+        );
     }
 
     private static double SumFloat(FloatArray array, ref SelectionBitmap selection)

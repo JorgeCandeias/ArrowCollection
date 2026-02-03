@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 using Apache.Arrow;
 
 namespace FrozenArrow.Query;
@@ -85,6 +87,7 @@ public enum ComparisonOperator
 
 /// <summary>
 /// Predicate for comparing an Int32 column against a constant value.
+/// Uses SIMD vectorization for bulk comparison when processing primitive Int32Arrays.
 /// </summary>
 public sealed class Int32ComparisonPredicate : ColumnPredicate
 {
@@ -128,10 +131,131 @@ public sealed class Int32ComparisonPredicate : ColumnPredicate
         }
     }
 
-    protected override bool EvaluateSingle(IArrowArray column, int index)
+    /// <summary>
+    /// SIMD-optimized evaluation for SelectionBitmap.
+    /// Processes 8 Int32 values per iteration using AVX2 when available.
+    /// </summary>
+    public override void Evaluate(RecordBatch batch, ref SelectionBitmap selection)
     {
-        if (column.IsNull(index)) return false;
-        var columnValue = RunLengthEncodedArrayBuilder.GetInt32Value(column, index);
+        var column = batch.Column(ColumnIndex);
+        
+        // For primitive Int32Array, use optimized SIMD path
+        if (column is Int32Array int32Array)
+        {
+            EvaluateInt32ArraySimd(int32Array, ref selection);
+            return;
+        }
+
+        // Fallback to scalar path for dictionary-encoded or other array types
+        base.Evaluate(batch, ref selection);
+    }
+
+    private void EvaluateInt32ArraySimd(Int32Array array, ref SelectionBitmap selection)
+    {
+        var values = array.Values;
+        var length = array.Length;
+        var nullBitmap = array.NullBitmapBuffer.Span;
+        var hasNulls = array.NullCount > 0;
+
+        // SIMD path: process 8 elements at a time with AVX2
+        if (Vector256.IsHardwareAccelerated && length >= 8)
+        {
+            var compareValue = Vector256.Create(Value);
+            ref int valuesRef = ref Unsafe.AsRef(in values[0]);
+            int i = 0;
+            int vectorEnd = length - (length % 8);
+
+            for (; i < vectorEnd; i += 8)
+            {
+                // Load 8 values
+                var data = Vector256.LoadUnsafe(ref Unsafe.Add(ref valuesRef, i));
+                
+                // Perform comparison based on operator
+                Vector256<int> mask = Operator switch
+                {
+                    ComparisonOperator.Equal => Vector256.Equals(data, compareValue),
+                    ComparisonOperator.NotEqual => ~Vector256.Equals(data, compareValue),
+                    ComparisonOperator.LessThan => Vector256.LessThan(data, compareValue),
+                    ComparisonOperator.LessThanOrEqual => Vector256.LessThanOrEqual(data, compareValue),
+                    ComparisonOperator.GreaterThan => Vector256.GreaterThan(data, compareValue),
+                    ComparisonOperator.GreaterThanOrEqual => Vector256.GreaterThanOrEqual(data, compareValue),
+                    _ => Vector256<int>.Zero
+                };
+
+                // Extract comparison results and apply to bitmap
+                // Each comparison produces 0xFFFFFFFF for true, 0x00000000 for false
+                // We need to convert this to individual bits for the bitmap
+                ApplyMaskToBitmap(mask, ref selection, i, hasNulls, nullBitmap);
+            }
+
+            // Scalar tail
+            for (; i < length; i++)
+            {
+                if (!selection[i]) continue;
+                if (hasNulls && IsNull(nullBitmap, i))
+                {
+                    selection.Clear(i);
+                    continue;
+                }
+                if (!EvaluateScalar(values[i]))
+                {
+                    selection.Clear(i);
+                }
+            }
+        }
+        else
+        {
+            // Scalar fallback for non-AVX2 systems
+            for (int i = 0; i < length; i++)
+            {
+                if (!selection[i]) continue;
+                if (hasNulls && IsNull(nullBitmap, i))
+                {
+                    selection.Clear(i);
+                    continue;
+                }
+                if (!EvaluateScalar(values[i]))
+                {
+                    selection.Clear(i);
+                }
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ApplyMaskToBitmap(Vector256<int> mask, ref SelectionBitmap selection, int startIndex, bool hasNulls, ReadOnlySpan<byte> nullBitmap)
+    {
+        // Extract each element and apply to bitmap
+        // This is the "scatter" operation - unfortunately no single instruction for this
+        for (int j = 0; j < 8; j++)
+        {
+            var idx = startIndex + j;
+            if (!selection[idx]) continue;
+            
+            if (hasNulls && IsNull(nullBitmap, idx))
+            {
+                selection.Clear(idx);
+                continue;
+            }
+            
+            // mask[j] is 0xFFFFFFFF if true, 0x00000000 if false
+            if (mask.GetElement(j) == 0)
+            {
+                selection.Clear(idx);
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsNull(ReadOnlySpan<byte> nullBitmap, int index)
+    {
+        if (nullBitmap.IsEmpty) return false;
+        return (nullBitmap[index >> 3] & (1 << (index & 7))) == 0;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool EvaluateScalar(int columnValue)
+    {
         return Operator switch
         {
             ComparisonOperator.Equal => columnValue == Value,
@@ -143,10 +267,18 @@ public sealed class Int32ComparisonPredicate : ColumnPredicate
             _ => false
         };
     }
+
+    protected override bool EvaluateSingle(IArrowArray column, int index)
+    {
+        if (column.IsNull(index)) return false;
+        var columnValue = RunLengthEncodedArrayBuilder.GetInt32Value(column, index);
+        return EvaluateScalar(columnValue);
+    }
 }
 
 /// <summary>
 /// Predicate for comparing a Double column against a constant value.
+/// Uses SIMD vectorization for bulk comparison when processing primitive DoubleArrays.
 /// </summary>
 public sealed class DoubleComparisonPredicate : ColumnPredicate
 {
@@ -190,10 +322,128 @@ public sealed class DoubleComparisonPredicate : ColumnPredicate
         }
     }
 
-    protected override bool EvaluateSingle(IArrowArray column, int index)
+    /// <summary>
+    /// SIMD-optimized evaluation for SelectionBitmap.
+    /// Processes 4 double values per iteration using AVX2 when available.
+    /// </summary>
+    public override void Evaluate(RecordBatch batch, ref SelectionBitmap selection)
     {
-        if (column.IsNull(index)) return false;
-        var columnValue = RunLengthEncodedArrayBuilder.GetDoubleValue(column, index);
+        var column = batch.Column(ColumnIndex);
+        
+        // For primitive DoubleArray, use optimized SIMD path
+        if (column is DoubleArray doubleArray)
+        {
+            EvaluateDoubleArraySimd(doubleArray, ref selection);
+            return;
+        }
+
+        // Fallback to scalar path for dictionary-encoded or other array types
+        base.Evaluate(batch, ref selection);
+    }
+
+    private void EvaluateDoubleArraySimd(DoubleArray array, ref SelectionBitmap selection)
+    {
+        var values = array.Values;
+        var length = array.Length;
+        var nullBitmap = array.NullBitmapBuffer.Span;
+        var hasNulls = array.NullCount > 0;
+
+        // SIMD path: process 4 elements at a time with AVX2 (256-bit = 4 doubles)
+        if (Vector256.IsHardwareAccelerated && length >= 4)
+        {
+            var compareValue = Vector256.Create(Value);
+            ref double valuesRef = ref Unsafe.AsRef(in values[0]);
+            int i = 0;
+            int vectorEnd = length - (length % 4);
+
+            for (; i < vectorEnd; i += 4)
+            {
+                // Load 4 values
+                var data = Vector256.LoadUnsafe(ref Unsafe.Add(ref valuesRef, i));
+                
+                // Perform comparison based on operator
+                Vector256<double> mask = Operator switch
+                {
+                    ComparisonOperator.Equal => Vector256.Equals(data, compareValue),
+                    ComparisonOperator.NotEqual => ~Vector256.Equals(data, compareValue),
+                    ComparisonOperator.LessThan => Vector256.LessThan(data, compareValue),
+                    ComparisonOperator.LessThanOrEqual => Vector256.LessThanOrEqual(data, compareValue),
+                    ComparisonOperator.GreaterThan => Vector256.GreaterThan(data, compareValue),
+                    ComparisonOperator.GreaterThanOrEqual => Vector256.GreaterThanOrEqual(data, compareValue),
+                    _ => Vector256<double>.Zero
+                };
+
+                // Extract comparison results and apply to bitmap
+                ApplyDoubleMaskToBitmap(mask, ref selection, i, hasNulls, nullBitmap);
+            }
+
+            // Scalar tail
+            for (; i < length; i++)
+            {
+                if (!selection[i]) continue;
+                if (hasNulls && IsNull(nullBitmap, i))
+                {
+                    selection.Clear(i);
+                    continue;
+                }
+                if (!EvaluateScalar(values[i]))
+                {
+                    selection.Clear(i);
+                }
+            }
+        }
+        else
+        {
+            // Scalar fallback for non-AVX2 systems
+            for (int i = 0; i < length; i++)
+            {
+                if (!selection[i]) continue;
+                if (hasNulls && IsNull(nullBitmap, i))
+                {
+                    selection.Clear(i);
+                    continue;
+                }
+                if (!EvaluateScalar(values[i]))
+                {
+                    selection.Clear(i);
+                }
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ApplyDoubleMaskToBitmap(Vector256<double> mask, ref SelectionBitmap selection, int startIndex, bool hasNulls, ReadOnlySpan<byte> nullBitmap)
+    {
+        // Extract each element and apply to bitmap (4 doubles)
+        for (int j = 0; j < 4; j++)
+        {
+            var idx = startIndex + j;
+            if (!selection[idx]) continue;
+            
+            if (hasNulls && IsNull(nullBitmap, idx))
+            {
+                selection.Clear(idx);
+                continue;
+            }
+            
+            // mask[j] is all 1s if true, all 0s if false (as a double bit pattern)
+            if (BitConverter.DoubleToInt64Bits(mask.GetElement(j)) == 0)
+            {
+                selection.Clear(idx);
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsNull(ReadOnlySpan<byte> nullBitmap, int index)
+    {
+        if (nullBitmap.IsEmpty) return false;
+        return (nullBitmap[index >> 3] & (1 << (index & 7))) == 0;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool EvaluateScalar(double columnValue)
+    {
         return Operator switch
         {
             ComparisonOperator.Equal => columnValue == Value,
@@ -204,6 +454,13 @@ public sealed class DoubleComparisonPredicate : ColumnPredicate
             ComparisonOperator.GreaterThanOrEqual => columnValue >= Value,
             _ => false
         };
+    }
+
+    protected override bool EvaluateSingle(IArrowArray column, int index)
+    {
+        if (column.IsNull(index)) return false;
+        var columnValue = RunLengthEncodedArrayBuilder.GetDoubleValue(column, index);
+        return EvaluateScalar(columnValue);
     }
 }
 
