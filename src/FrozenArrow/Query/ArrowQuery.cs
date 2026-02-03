@@ -213,8 +213,27 @@ public sealed class ArrowQueryProvider : IQueryProvider
     }
 
 
+
     private TResult ExecutePlan<TResult>(QueryPlan plan, Expression expression)
     {
+        // Detect short-circuit operations that can benefit from streaming evaluation
+        var resultType = typeof(TResult);
+        var isShortCircuit = false;
+        string? shortCircuitOp = null;
+
+        if (expression is MethodCallExpression methodCall)
+        {
+            shortCircuitOp = methodCall.Method.Name;
+            isShortCircuit = shortCircuitOp is "Any" or "First" or "FirstOrDefault" or "Single" or "SingleOrDefault";
+        }
+
+        // STREAMING PATH: For short-circuit operations, avoid building full bitmap
+        // This can be orders of magnitude faster when matches are found early
+        if (isShortCircuit && plan.ColumnPredicates.Count > 0)
+        {
+            return ExecuteShortCircuit<TResult>(plan, shortCircuitOp!);
+        }
+
         // Try fused execution for filtered aggregates (single-pass optimization)
         if (FusedAggregator.CanUseFusedExecution(plan, _count, _recordBatch, _columnIndexMap))
         {
@@ -250,9 +269,6 @@ public sealed class ArrowQueryProvider : IQueryProvider
             return ExecuteSimpleAggregate<TResult>(plan.SimpleAggregate, ref System.Runtime.CompilerServices.Unsafe.AsRef(in selection));
         }
 
-        // Handle different result types
-        var resultType = typeof(TResult);
-
         // IEnumerable<T> - return lazy enumeration
         if (resultType.IsGenericType && 
             (resultType.GetGenericTypeDefinition() == typeof(IEnumerable<>) ||
@@ -268,7 +284,7 @@ public sealed class ArrowQueryProvider : IQueryProvider
             return (TResult)enumerable;
         }
 
-        // Single element results (First, Single, etc.)
+        // Single element results (First, Single, etc.) - without predicates
         if (resultType == _elementType)
         {
             foreach (var i in selection.GetSelectedIndices())
@@ -290,17 +306,16 @@ public sealed class ArrowQueryProvider : IQueryProvider
             return (TResult)(object)(long)selectedCount;
         }
 
-        // Boolean results (Any, All)
+        // Boolean results (Any, All) - without predicates or handled above
         if (resultType == typeof(bool))
         {
-            // Check the expression to determine which operation
-            if (expression is MethodCallExpression methodCall)
+            if (expression is MethodCallExpression boolCall)
             {
-                if (methodCall.Method.Name == "Any")
+                if (boolCall.Method.Name == "Any")
                 {
                     return (TResult)(object)(selectedCount > 0);
                 }
-                if (methodCall.Method.Name == "All")
+                if (boolCall.Method.Name == "All")
                 {
                     return (TResult)(object)(selectedCount == _count);
                 }
@@ -308,6 +323,49 @@ public sealed class ArrowQueryProvider : IQueryProvider
         }
 
         throw new NotSupportedException($"Result type '{resultType}' is not supported.");
+    }
+
+    /// <summary>
+    /// Executes short-circuit operations using streaming predicate evaluation.
+    /// Stops as soon as the result can be determined without processing all rows.
+    /// </summary>
+    private TResult ExecuteShortCircuit<TResult>(QueryPlan plan, string operation)
+    {
+        var chunkSize = ParallelOptions?.ChunkSize ?? 16_384;
+
+        switch (operation)
+        {
+            case "Any":
+                // Any(): return true as soon as we find one match
+                var anyResult = StreamingPredicateEvaluator.Any(
+                    _recordBatch, plan.ColumnPredicates, _zoneMap, chunkSize);
+                return (TResult)(object)anyResult;
+
+            case "First":
+            case "Single":
+                // First()/Single(): find first matching row
+                var firstIdx = StreamingPredicateEvaluator.FindFirst(
+                    _recordBatch, plan.ColumnPredicates, _zoneMap, chunkSize);
+                if (firstIdx < 0)
+                {
+                    throw new InvalidOperationException("Sequence contains no matching elements.");
+                }
+                return (TResult)_createItem(_recordBatch, firstIdx);
+
+            case "FirstOrDefault":
+            case "SingleOrDefault":
+                // FirstOrDefault(): find first matching row, or return default
+                var firstOrDefaultIdx = StreamingPredicateEvaluator.FindFirst(
+                    _recordBatch, plan.ColumnPredicates, _zoneMap, chunkSize);
+                if (firstOrDefaultIdx < 0)
+                {
+                    return default!;
+                }
+                return (TResult)_createItem(_recordBatch, firstOrDefaultIdx);
+
+            default:
+                throw new NotSupportedException($"Short-circuit operation '{operation}' is not supported.");
+        }
     }
 
     private TResult ExecuteFusedAggregate<TResult>(QueryPlan plan)

@@ -144,6 +144,7 @@ public static class Program
               bitmap            SelectionBitmap operations
               predicate         Predicate evaluation (SIMD vs scalar)
               enumeration       Result materialization
+              shortcircuit      Any/First with early-exit optimization
               all               Run all scenarios
             
             Example: dotnet run -- -s filter -r 1000000 -i 10 -o json --save
@@ -173,6 +174,7 @@ public static class Program
             "bitmap" => [new BitmapOperationsScenario()],
             "predicate" => [new PredicateEvaluationScenario()],
             "enumeration" => [new EnumerationScenario()],
+            "shortcircuit" => [new ShortCircuitScenario()],
             _ => throw new ArgumentException($"Unknown scenario: {scenario}")
         };
 
@@ -216,7 +218,8 @@ public static class Program
         new ParallelComparisonScenario(),
         new BitmapOperationsScenario(),
         new PredicateEvaluationScenario(),
-        new EnumerationScenario()
+        new EnumerationScenario(),
+        new ShortCircuitScenario()
     ];
 
     private static async Task<string> CompareWithBaselineAsync(List<ProfilingResult> current, string baselinePath)
