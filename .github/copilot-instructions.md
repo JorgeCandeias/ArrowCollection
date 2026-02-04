@@ -176,13 +176,13 @@ Even these guidelines can and should be improved:
 
 ```bash
 cd profiling/FrozenArrow.Profiling
-dotnet run -c Release -- -s all -r 1000000 --save baseline-YYYY-MM-DD-{optimization-name}.json
+dotnet run -c Release -- -s all -r 1000000 --save baseline-{optimization-name}.json
 ```
 
 **Example naming:**
-- `baseline-2024-01-15-zone-maps.json`
-- `baseline-2024-01-20-null-bitmap-batch.json`
-- `baseline-2024-01-25-predicate-reorder.json`
+- `baseline-zone-maps.json`
+- `baseline-null-bitmap-batch.json`
+- `baseline-predicate-reorder.json`
 
 **Store baselines in**: `profiling/FrozenArrow.Profiling/baselines/`
 
@@ -197,7 +197,7 @@ dotnet run -c Release -- -s all -r 1000000 --save baseline-YYYY-MM-DD-{optimizat
 
 ```bash
 cd profiling/FrozenArrow.Profiling
-dotnet run -c Release -- -s all -r 1000000 -c baseline-YYYY-MM-DD-{optimization-name}.json
+dotnet run -c Release -- -s all -r 1000000 -c baseline-{optimization-name}.json
 ```
 
 **This will show:**
