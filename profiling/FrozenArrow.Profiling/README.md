@@ -100,6 +100,7 @@ The profiler automatically elevates process and thread priority during measureme
 | `predicate` | Predicate evaluation (SIMD vs scalar) |
 | `enumeration` | Result materialization (ToList, foreach) |
 | `shortcircuit` | Any/First with early-exit streaming evaluation |
+| `querycache` | Query plan caching performance (cold vs warm queries) |
 | `all` | Run all scenarios |
 
 ---
