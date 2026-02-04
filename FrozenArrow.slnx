@@ -10,6 +10,7 @@
     <Project Path="samples/FrozenArrow.Sample/FrozenArrow.Sample.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
+    <File Path=".github/copilot-instructions.md" />
     <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
