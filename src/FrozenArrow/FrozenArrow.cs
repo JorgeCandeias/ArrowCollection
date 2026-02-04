@@ -60,6 +60,16 @@ public abstract class FrozenArrow<T>(
     protected abstract T CreateItem(RecordBatch recordBatch, int index);
 
     /// <summary>
+    /// Internal accessor for the record batch. Used by the query engine to avoid reflection overhead.
+    /// </summary>
+    internal RecordBatch RecordBatch => _recordBatch;
+
+    /// <summary>
+    /// Internal accessor for creating items. Used by the query engine to avoid reflection overhead.
+    /// </summary>
+    internal T CreateItemInternal(RecordBatch recordBatch, int index) => CreateItem(recordBatch, index);
+
+    /// <summary>
     /// Returns an enumerator that iterates through the collection.
     /// </summary>
     public IEnumerator<T> GetEnumerator()
