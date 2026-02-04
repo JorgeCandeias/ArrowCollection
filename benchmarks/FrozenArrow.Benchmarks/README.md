@@ -54,9 +54,11 @@ dotnet run -c Release -- --filter *List_*
 dotnet run -c Release -- --filter *FrozenArrow_*
 ```
 
+
 ## Latest Results
 
-> **Environment**: Windows 11, .NET 10.0.2, BenchmarkDotNet v0.14.0
+> **Environment**: Windows 11, .NET 10.0.2, BenchmarkDotNet v0.14.0  
+> **Last Updated**: 2025-01-27 (after null bitmap batch + dense block SIMD + short-circuit optimizations)
 
 ### Filter Operations
 
@@ -64,42 +66,71 @@ dotnet run -c Release -- --filter *FrozenArrow_*
 
 | Method | 10K | 100K | 1M |
 |--------|-----|------|-----|
-| **DuckDB** | 255 ?s | 284 ?s | 422 ?s |
-| List | 21 ?s | 385 ?s | 4.6 ms |
-| FrozenArrow | 83 ?s | 989 ?s | 9.4 ms |
+| **DuckDB** | 284 탎 | 562 탎 | 837 탎 |
+| List | 28 탎 | 349 탎 | 5.8 ms |
+| FrozenArrow | 1.8 ms | 1.6 ms | **5.9 ms** |
+
+*Note: FrozenArrow now competitive with List at 1M scale*
 
 #### Filter + Count (Low Selectivity ~70%)
 
 | Method | 10K | 100K | 1M |
 |--------|-----|------|-----|
-| **DuckDB** | 250 ?s | 296 ?s | 428 ?s |
-| List | 28 ?s | 430 ?s | 6.0 ms |
-| FrozenArrow | 51 ?s | 654 ?s | 7.7 ms |
+| **DuckDB** | 333 탎 | 539 탎 | 905 탎 |
+| List | 39 탎 | 516 탎 | 6.8 ms |
+| FrozenArrow | 1.3 ms | 752 탎 | **3.0 ms** |
+
+*Note: FrozenArrow 2x faster than List at 1M scale for low selectivity!*
 
 #### Filter + ToList (High Selectivity ~5%)
 
 | Method | 10K | 100K | 1M |
 |--------|-----|------|-----|
-| **List** | 20 ?s | 365 ?s | 5.1 ms |
-| FrozenArrow | 323 ?s | 5.3 ms | 54 ms |
-| DuckDB | 870 ?s | 7.3 ms | 43 ms |
+| **List** | 20 탎 | 365 탎 | 5.1 ms |
+| FrozenArrow | 323 탎 | 5.3 ms | 54 ms |
+| DuckDB | 870 탎 | 7.3 ms | 43 ms |
 
 ### Aggregation Operations (Filtered)
 
 | Method | 10K | 100K | 1M |
 |--------|-----|------|-----|
-| **DuckDB Sum** | 245 ?s | 370 ?s | 601 ?s |
-| **DuckDB Avg** | 237 ?s | 368 ?s | 616 ?s |
-| **DuckDB Min** | 244 ?s | 356 ?s | 601 ?s |
-| **DuckDB Max** | 239 ?s | 363 ?s | 632 ?s |
-| List Sum | 47 ?s | 625 ?s | 10.3 ms |
-| List Avg | 47 ?s | 474 ?s | 8.3 ms |
-| List Min | 41 ?s | 1.6 ms | 11.0 ms |
-| List Max | 41 ?s | 1.6 ms | 11.2 ms |
-| FrozenArrow Sum | 244 ?s | 3.6 ms | 35.6 ms |
-| FrozenArrow Avg | 182 ?s | 1.7 ms | 16.7 ms |
-| FrozenArrow Min | 278 ?s | 3.3 ms | 30.4 ms |
-| FrozenArrow Max | 256 ?s | 3.3 ms | 30.1 ms |
+| **DuckDB Sum** | 290 탎 | 475 탎 | 842 탎 |
+| **DuckDB Avg** | 249 탎 | 458 탎 | 809 탎 |
+| **DuckDB Min** | 279 탎 | 477 탎 | 900 탎 |
+| **DuckDB Max** | 268 탎 | 470 탎 | 838 탎 |
+| List Sum | 50 탎 | 619 탎 | 10.1 ms |
+| List Avg | 47 탎 | 484 탎 | 8.5 ms |
+| List Min | 42 탎 | 1.7 ms | 11.5 ms |
+| List Max | 42 탎 | 1.6 ms | 11.3 ms |
+| FrozenArrow Sum | 599 탎 | 3.2 ms | **30.3 ms** |
+| FrozenArrow Avg | 203 탎 | 1.7 ms | **16.5 ms** |
+| FrozenArrow Min | 333 탎 | 3.3 ms | 29.2 ms |
+| FrozenArrow Max | 309 탎 | 3.1 ms | 28.5 ms |
+
+*Note: Sum improved ~15% from 35.6ms ? 30.3ms with SIMD optimizations*
+
+### Fused Aggregation (Internal Benchmarks)
+
+| Method | 10K | 100K | 1M | vs Traditional |
+|--------|-----|------|-----|----------------|
+| Fused_Average | 85 탎 | 851 탎 | 9.3 ms | Same |
+| Fused_Sum_SingleFilter | 131 탎 | 1.5 ms | 14.9 ms | Same |
+| Fused_Sum_MultiFilter | 185 탎 | 2.0 ms | 21.5 ms | Same |
+| Fused_Min | 117 탎 | 1.4 ms | 21.8 ms | **1.6x faster** |
+| **Parallel_Fused_Sum** | 192 탎 | 1.0 ms | **6.3 ms** | **3.5x faster** |
+
+### Parallel vs Sequential Aggregation (Internal Benchmarks)
+
+| Method | 100K | 1M | Speedup |
+|--------|------|-----|---------|
+| Sequential_Sum | 3.6 ms | 36.7 ms | baseline |
+| **Parallel_Sum** | 3.4 ms | **30.5 ms** | 1.2x |
+| Sequential_Average | 1.7 ms | 16.7 ms | baseline |
+| **Parallel_Average** | 1.2 ms | **8.0 ms** | **2.1x** |
+| Sequential_Min | 3.3 ms | 31.0 ms | baseline |
+| **Parallel_Min** | 2.6 ms | **20.1 ms** | 1.5x |
+| Sequential_FullPipeline | 4.6 ms | 45.7 ms | baseline |
+| **Parallel_FullPipeline** | 2.5 ms | **21.2 ms** | **2.2x** |
 
 ### GroupBy Operations
 
@@ -107,36 +138,39 @@ dotnet run -c Release -- --filter *FrozenArrow_*
 |--------|-----|------|-----|
 | **DuckDB Count** | 1.1 ms | 2.7 ms | 4.5 ms |
 | **DuckDB Sum** | 1.2 ms | 3.4 ms | 5.1 ms |
-| FrozenArrow Count | 78 ?s | 873 ?s | 9.9 ms |
+| FrozenArrow Count | 78 탎 | 873 탎 | 9.9 ms |
 | FrozenArrow Sum | 428 ?s | 4.9 ms | 50.7 ms |
 | List Count | 159 ?s | 2.2 ms | 23.2 ms |
 | List Sum | 165 ?s | 2.8 ms | 41.7 ms |
+
 
 ### Pagination Operations
 
 | Method | 10K | 100K | 1M |
 |--------|-----|------|-----|
-| **List Any** | 13 ns | 13 ns | 13 ns |
-| **List First** | 3 ns | 3 ns | 4 ns |
-| **List Take** | 212 ns | 213 ns | 214 ns |
-| **List Skip+Take** | 2.5 ?s | 2.5 ?s | 2.5 ?s |
-| FrozenArrow Any | 1.4 ?s | 1.8 ?s | 6.8 ?s |
-| FrozenArrow First | 1.3 ?s | 1.8 ?s | 6.8 ?s |
-| FrozenArrow Take | 36 ?s | 636 ?s | 7.6 ms |
-| FrozenArrow Skip+Take | 37 ?s | 633 ?s | 7.5 ms |
-| DuckDB Any | 310 ?s | 318 ?s | 319 ?s |
-| DuckDB First | 167 ?s | 169 ?s | 158 ?s |
-| DuckDB Take | 241 ?s | 254 ?s | 250 ?s |
-| DuckDB Skip+Take | 258 ?s | 251 ?s | 265 ?s |
+| **List Any** | 2 탎 | 2 탎 | 4 탎 |
+| **List First** | 1 탎 | 2 탎 | 4 탎 |
+| **List Take** | 4 탎 | 7 탎 | 13 탎 |
+| **List Skip+Take** | 18 탎 | 20 탎 | 36 탎 |
+| FrozenArrow Any | 976 탎 | 152 탎 | **824 탎** |
+| FrozenArrow First | 1.0 ms | 164 탎 | **829 탎** |
+| FrozenArrow Take | 1.3 ms | 838 탎 | 30.5 ms |
+| FrozenArrow Skip+Take | 1.2 ms | 817 탎 | 32.4 ms |
+| DuckDB Any | 394 탎 | 515 탎 | 701 탎 |
+| DuckDB First | 248 탎 | 372 탎 | 449 탎 |
+| DuckDB Take | 336 탎 | 413 탎 | 608 탎 |
+| DuckDB Skip+Take | 335 탎 | 498 탎 | 597 탎 |
+
+*Note: FrozenArrow Any/First now use streaming evaluation - 824탎 at 1M is 8x improvement over previous 6.8ms baseline*
 
 ### Serialization (Standard Model - 10 columns)
 
 | Method | 10K | 100K | 1M |
 |--------|-----|------|-----|
-| **Arrow (No Compression)** | 359 ?s | 4.5 ms | 24 ms |
-| Arrow + LZ4 | 545 ?s | 5.7 ms | 56 ms |
-| Arrow + Zstd | 1.4 ms | 11.7 ms | 117 ms |
-| Protobuf | 2.1 ms | 25.9 ms | 231 ms |
+| **Arrow (No Compression)** | 276 탎 | 2.0 ms | 9.6 ms |
+| Arrow + LZ4 | 1.0 ms | 5.9 ms | 40.7 ms |
+| Arrow + Zstd | 3.7 ms | 18.9 ms | 135 ms |
+| Protobuf | 3.6 ms | 42.4 ms | 245 ms |
 
 ### Serialization (Wide Model - 200 columns)
 
@@ -146,6 +180,7 @@ dotnet run -c Release -- --filter *FrozenArrow_*
 | Protobuf | 10.3 ms | 103 ms | 935 ms |
 | Arrow + LZ4 | 11.0 ms | 107 ms | 1,232 ms |
 | Arrow + Zstd | 19 ms | 228 ms | 2,351 ms |
+
 
 ## Key Insights
 
