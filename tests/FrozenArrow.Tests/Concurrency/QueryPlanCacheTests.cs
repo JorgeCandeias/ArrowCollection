@@ -69,7 +69,7 @@ public class QueryPlanCacheTests
         Assert.All(results, count => Assert.Equal(firstResult, count));
     }
 
-    [Theory(Skip = "Flaky test - concurrent queries sometimes return incorrect results. The cache race condition has been fixed (single dictionary design), but there appears to be a separate concurrency issue in query execution where constant values in predicates get mixed up between threads. Needs investigation of predicate evaluation or constant extraction.")]
+    [Theory(Skip = "Intermittent concurrency bug - simplified test with same parameters passes, but this test fails intermittently. The bug appears to be related to multi-column records or column indexing. Needs further investigation.")]
     [InlineData(50_000, 20)]
     public async Task DifferentQueries_ConcurrentExecution_ShouldCacheSeparately(int rowCount, int queryVariations)
     {
