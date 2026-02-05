@@ -1,4 +1,4 @@
-# AI Assistant Guidelines for FrozenArrow
+﻿# AI Assistant Guidelines for FrozenArrow
 
 ## Project Context
 
@@ -13,6 +13,92 @@ The project focuses on:
 ---
 
 ## Core Development Principles
+
+### Immutability First: Thread-Safety by Design ⚡
+
+**CRITICAL PRINCIPLE**: FrozenArrow is a **frozen/immutable collection**. After creation, data structures must not be altered in any way.
+
+**Design Philosophy:**
+- ✅ **Immutable = Correct** - Immutable objects are inherently thread-safe
+- ✅ **No Mutable Shared State** - Eliminate entire classes of concurrency bugs
+- ✅ **Correctness > Performance** - For shared caches or coordination structures, choose thread-safety over speed
+- ✅ **Fail-Fast Construction** - Objects should be fully initialized in their constructors
+
+**Practical Guidelines:**
+
+1. **Properties Should Be Immutable**
+   ```csharp
+   // ✅ GOOD - Immutable property
+   public int ColumnIndex { get; }
+   
+   // ❌ BAD - Mutable property invites race conditions
+   public int ColumnIndex { get; set; }
+   ```
+
+2. **Initialize in Constructor**
+   ```csharp
+   // ✅ GOOD - Fully initialized at construction
+   public Int32ComparisonPredicate(string columnName, int columnIndex, ComparisonOperator op, int value)
+   {
+       ColumnName = columnName;
+       ColumnIndex = columnIndex;  // Set once, never changed
+       Operator = op;
+       Value = value;
+   }
+   
+   // ❌ BAD - Post-construction mutation
+   public Int32ComparisonPredicate(string columnName, ComparisonOperator op, int value)
+   {
+       ColumnName = columnName;
+       // ColumnIndex set later ← RACE CONDITION RISK!
+   }
+   ```
+
+3. **Collections Should Be Read-Only After Construction**
+   ```csharp
+   // ✅ GOOD - Expose as IReadOnlyList
+   public IReadOnlyList<ColumnPredicate> Predicates { get; }
+   
+   // ❌ BAD - Mutable list can be modified
+   public List<ColumnPredicate> Predicates { get; }
+   ```
+
+4. **Shared Caches Must Be Thread-Safe**
+   ```csharp
+   // ✅ GOOD - ConcurrentDictionary is thread-safe
+   private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
+   
+   // ❌ BAD - Dictionary is not thread-safe
+   private readonly Dictionary<string, CacheEntry> _cache = new();
+   ```
+
+5. **Avoid Lazy Initialization of Shared State**
+   ```csharp
+   // ✅ GOOD - Initialize in constructor
+   public QueryPlanCache()
+   {
+       _cache = new ConcurrentDictionary<string, CacheEntry>();
+   }
+   
+   // ❌ BAD - Lazy init can have race conditions
+   private ConcurrentDictionary<string, CacheEntry>? _cache;
+   public ConcurrentDictionary<string, CacheEntry> Cache => _cache ??= new();
+   ```
+
+**When Mutation Is Unavoidable:**
+- Use `Interlocked` operations for counters/timestamps (e.g., LRU tracking)
+- Document why mutation is necessary and thread-safety guarantees
+- Consider if the mutable state can be moved to a separate coordination class
+
+**Verification:**
+- Ask: "Could two threads access this simultaneously?"
+- Ask: "Is this object fully constructed before being shared?"
+- Ask: "Can this design eliminate the need for locks?"
+
+**Historical Context:**
+In 2026, we eliminated mutable `ColumnIndex` properties that caused intermittent concurrency bugs. All predicates are now fully immutable, initialized at construction. This principle should be maintained for all future data structures.
+
+---
 
 ### Performance First
 - Every change should consider: CPU cycles, memory bandwidth, cache locality
