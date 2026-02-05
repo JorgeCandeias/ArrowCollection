@@ -230,7 +230,7 @@ public class EdgeCaseTests
         Assert.Equal(10000, evenCount + oddCount);
     }
 
-    [Theory(Skip = "Fallback materialization for complex expressions (modulo operator) is not yet fully implemented. AllowFallback() prevents the exception but doesn't actually fall back to LINQ-to-Objects.")]
+    [Theory]
     [InlineData(1)]      // Every record matches
     [InlineData(2)]      // Every other
     [InlineData(10)]     // Every 10th

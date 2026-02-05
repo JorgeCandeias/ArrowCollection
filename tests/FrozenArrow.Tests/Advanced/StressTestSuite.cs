@@ -129,7 +129,7 @@ public class StressTestSuite
         Assert.True(true);
     }
 
-    [Theory(Skip = "Fallback materialization for OR expressions is not yet fully implemented. AllowFallback() prevents the exception but doesn't actually fall back to LINQ-to-Objects.")]
+    [Theory]
     [InlineData(100_000)]
     public void Stress_DeepFilterChains_HandledCorrectly(int rowCount)
     {

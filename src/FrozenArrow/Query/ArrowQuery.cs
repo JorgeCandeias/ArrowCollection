@@ -206,6 +206,13 @@ public sealed class ArrowQueryProvider : IQueryProvider
                 $"or modify the query to use supported operations.");
         }
 
+        // FALLBACK PATH: If query is not fully optimized and strict mode is disabled,
+        // fall back to LINQ-to-Objects by materializing the entire collection
+        if (!plan.IsFullyOptimized && !StrictMode)
+        {
+            return ExecuteWithFallback<TResult>(expression);
+        }
+
         return ExecutePlan<TResult>(plan, expression);
     }
 
@@ -227,6 +234,115 @@ public sealed class ArrowQueryProvider : IQueryProvider
 
         return plan;
     }
+
+    /// <summary>
+    /// Executes a query by falling back to LINQ-to-Objects.
+    /// This is used when the query contains operations that cannot be optimized
+    /// and StrictMode is disabled.
+    /// </summary>
+    /// <remarks>
+    /// WARNING: This materializes the entire collection into memory, which can be
+    /// expensive for large datasets. This is only used as a fallback for unsupported
+    /// operations like modulo, OR expressions, external method calls, etc.
+    /// </remarks>
+    private TResult ExecuteWithFallback<TResult>(Expression expression)
+    {
+        // Materialize all records from the RecordBatch into a List
+        var list = MaterializeAllRecords();
+
+        // Create a queryable from the materialized list
+        var queryable = list.AsQueryable();
+
+        // Rewrite the expression tree to replace references to the ArrowQuery
+        // with references to the materialized queryable
+        var rewriter = new FallbackExpressionRewriter(queryable);
+        var rewrittenExpression = rewriter.Visit(expression);
+
+        // Execute the query using standard LINQ-to-Objects
+        return queryable.Provider.Execute<TResult>(rewrittenExpression);
+    }
+
+    /// <summary>
+    /// Finds the source constant expression in the expression tree.
+    /// </summary>
+    private static ConstantExpression? FindSourceConstant(Expression expression)
+    {
+        if (expression is ConstantExpression constant)
+        {
+            return constant;
+        }
+
+        if (expression is MethodCallExpression methodCall)
+        {
+            // The source is typically the first argument to LINQ methods
+            if (methodCall.Arguments.Count > 0)
+            {
+                return FindSourceConstant(methodCall.Arguments[0]);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Materializes all records from the RecordBatch into a List.
+    /// </summary>
+    private IList MaterializeAllRecords()
+    {
+        // Use reflection to create a List<T> of the correct element type
+        var listType = typeof(List<>).MakeGenericType(_elementType);
+        var list = (IList)Activator.CreateInstance(listType, _count)!;
+
+        // Enumerate all records and add them to the list
+        for (int i = 0; i < _count; i++)
+        {
+            var item = _createItem(_recordBatch, i);
+            list.Add(item);
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// Expression visitor that rewrites expressions to work with a fallback queryable.
+    /// This replaces references to ArrowQuery with the materialized queryable.
+    /// </summary>
+    private sealed class FallbackExpressionRewriter : ExpressionVisitor
+    {
+        private readonly IQueryable _fallbackQueryable;
+        private ConstantExpression? _sourceConstant;
+
+        public FallbackExpressionRewriter(IQueryable fallbackQueryable)
+        {
+            _fallbackQueryable = fallbackQueryable;
+        }
+
+        protected override Expression VisitConstant(ConstantExpression node)
+        {
+            // If this is the first constant we find and it's a queryable,
+            // assume it's the source and replace it
+            if (_sourceConstant == null && node.Type.IsGenericType)
+            {
+                var genericType = node.Type.GetGenericTypeDefinition();
+                if (genericType == typeof(ArrowQuery<>))
+                {
+                    _sourceConstant = node;
+                    return Expression.Constant(_fallbackQueryable, _fallbackQueryable.GetType());
+                }
+            }
+
+            // If we've already found the source, replace any references to it
+            if (_sourceConstant != null && node == _sourceConstant)
+            {
+                return Expression.Constant(_fallbackQueryable, _fallbackQueryable.GetType());
+            }
+
+            return base.VisitConstant(node);
+        }
+    }
+
+
+
 
 
 
