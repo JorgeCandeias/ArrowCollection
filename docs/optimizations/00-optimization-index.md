@@ -26,6 +26,7 @@
 | [12](12-virtual-call-elimination.md) | **Virtual Call Elimination** | ? Complete | **10-20% predicate-heavy** | CPU |
 | [13](13-bulk-null-filtering.md) | **Bulk Null Filtering** | ? Complete | **15-25% nullable columns** | Memory |
 | [14](14-simd-bitmap-operations.md) | **SIMD Bitmap Operations** | ? Complete | **3-7× bulk clears** | SIMD |
+| [15](15-delegate-cache-reflection-opt.md) | **Delegate Cache for Type Dispatch** | ? Complete | **22-58% filter-heavy** | CPU/Memory |
 
 ---
 
@@ -96,6 +97,6 @@ See: `docs/optimizations/TEMPLATE.md`
 ---
 
 **Last Updated**: January 2025  
-**Total Optimizations**: 14  
+**Total Optimizations**: 15  
 **Documentation Coverage**: 100%  
 **Status**: Production-Ready ?

@@ -153,14 +153,11 @@ public sealed class ArrowQueryProvider : IQueryProvider
 
         _elementType = arrowCollectionType.GetGenericArguments()[0];
 
-        // Use generic helper to extract values using internal accessors (no reflection)
-        // This avoids reflection overhead (~6 calls eliminated per query instantiation)
-        var extractMethod = typeof(ArrowQueryProvider)
-            .GetMethod(nameof(ExtractSourceData), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
-            .MakeGenericMethod(_elementType);
-        
+        // Use cached delegate to extract values - eliminates MakeGenericMethod + Invoke overhead
+        // First call for a type pays one-time reflection cost to create delegate,
+        // subsequent calls for same type use cached delegate (fast path)
         var (recordBatch, count, columnIndexMap, createItem, zoneMap, queryPlanCache) = 
-            ((RecordBatch, int, Dictionary<string, int>, Func<RecordBatch, int, object>, ZoneMap?, QueryPlanCache))extractMethod.Invoke(null, [source])!;
+            TypedQueryProviderCache.ExtractSourceData(_elementType, source);
         
         _recordBatch = recordBatch;
         _count = count;
@@ -168,39 +165,6 @@ public sealed class ArrowQueryProvider : IQueryProvider
         _createItem = createItem;
         _zoneMap = zoneMap;
         _queryPlanCache = queryPlanCache;
-    }
-
-    /// <summary>
-    /// Generic helper to extract data from FrozenArrow&lt;T&gt; using internal accessors.
-    /// This method uses direct property/method access instead of reflection for better performance.
-    /// </summary>
-    private static (RecordBatch, int, Dictionary<string, int>, Func<RecordBatch, int, object>, ZoneMap?, QueryPlanCache) ExtractSourceData<T>(object source)
-    {
-        var typedSource = (FrozenArrow<T>)source;
-        
-        // Direct access to internal members - no reflection overhead
-        var recordBatch = typedSource.RecordBatch;
-        var count = typedSource.Count;
-        
-        // Build column index map from schema
-        var columnIndexMap = new Dictionary<string, int>();
-        var schema = recordBatch.Schema;
-        for (int i = 0; i < schema.FieldsList.Count; i++)
-        {
-            columnIndexMap[schema.FieldsList[i].Name] = i;
-        }
-        
-        // Direct method delegate - no reflection invoke
-        Func<RecordBatch, int, object> createItem = (batch, index) => typedSource.CreateItemInternal(batch, index)!;
-        
-        // Build zone maps for the RecordBatch
-        var zoneMap = ZoneMap.BuildFromRecordBatch(recordBatch, chunkSize: ParallelQueryOptions.Default.ChunkSize);
-        
-        // Get the shared query plan cache from the source
-        // This ensures all queries against the same FrozenArrow instance share the cache
-        var queryPlanCache = typedSource.QueryPlanCache;
-        
-        return (recordBatch, count, columnIndexMap, createItem, zoneMap, queryPlanCache);
     }
 
     internal FrozenArrow<TElement> GetSource<TElement>()
@@ -212,10 +176,9 @@ public sealed class ArrowQueryProvider : IQueryProvider
     {
         var elementType = GetElementType(expression.Type)
             ?? throw new ArgumentException($"Cannot determine element type from expression type '{expression.Type}'.", nameof(expression));
-        var method = typeof(ArrowQueryProvider)
-            .GetMethod(nameof(CreateQuery), 1, [typeof(Expression)])!
-            .MakeGenericMethod(elementType);
-        return (IQueryable)method.Invoke(this, [expression])!;
+        
+        // Use cached delegate to eliminate MakeGenericMethod + Invoke overhead
+        return TypedQueryProviderCache.CreateQuery(this, elementType, expression);
     }
 
     public IQueryable<TElement> CreateQuery<TElement>(Expression expression)
@@ -226,10 +189,9 @@ public sealed class ArrowQueryProvider : IQueryProvider
     public object? Execute(Expression expression)
     {
         var elementType = GetElementType(expression.Type) ?? _elementType;
-        var method = typeof(ArrowQueryProvider)
-            .GetMethod(nameof(Execute), 1, [typeof(Expression)])!
-            .MakeGenericMethod(elementType);
-        return method.Invoke(this, [expression]);
+        
+        // Use cached delegate to eliminate MakeGenericMethod + Invoke overhead
+        return TypedQueryProviderCache.Execute(this, elementType, expression);
     }
 
     public TResult Execute<TResult>(Expression expression)
