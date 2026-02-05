@@ -214,8 +214,9 @@ public class QueryPlanCacheTests
             .ToArray();
 
         // Should complete within reasonable time (no deadlock)
+        var allTasksCompleted = Task.WhenAll(warmupTasks);
         var timeout = Task.Delay(TimeSpan.FromSeconds(10));
-        var completedTask = await Task.WhenAny(Task.WhenAll(warmupTasks), timeout);
+        var completedTask = await Task.WhenAny(allTasksCompleted, timeout);
 
         // Check if any tasks faulted
         var faultedTasks = warmupTasks.Where(t => t.IsFaulted).ToList();
@@ -225,8 +226,8 @@ public class QueryPlanCacheTests
             Assert.Fail($"Tasks faulted: {string.Join(", ", exceptions)}");
         }
 
-        // Assert
-        Assert.True(completedTask == Task.WhenAll(warmupTasks), "Cache warmup should not deadlock");
+        // Assert - the completed task should be the allTasksCompleted, not the timeout
+        Assert.True(completedTask == allTasksCompleted, "Cache warmup should not deadlock");
     }
 
     [Theory]
