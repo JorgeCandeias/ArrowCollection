@@ -238,9 +238,23 @@ public sealed class Int32ComparisonPredicate : ColumnPredicate
             ref int valuesRef = ref Unsafe.AsRef(in values[0]);
             int i = 0;
             int vectorEnd = length - (length % 8);
+            
+            // Prefetch distance: 16 iterations ahead (128 Int32 = 512 bytes = 8 cache lines)
+            // This keeps data in L1 cache by the time we process it
+            const int prefetchDistance = 128;
 
             for (; i < vectorEnd; i += 8)
             {
+                // Hardware prefetch hint: load data into cache before we need it
+                // Prefetch 512 bytes ahead (8 cache lines) to hide memory latency
+                if (Sse.IsSupported && i + prefetchDistance < length)
+                {
+                    unsafe
+                    {
+                        Sse.Prefetch0((byte*)Unsafe.AsPointer(ref Unsafe.Add(ref valuesRef, i + prefetchDistance)));
+                    }
+                }
+                
                 // Load 8 values
                 var data = Vector256.LoadUnsafe(ref Unsafe.Add(ref valuesRef, i));
                 
@@ -619,9 +633,21 @@ public sealed class DoubleComparisonPredicate : ColumnPredicate
             ref double valuesRef = ref Unsafe.AsRef(in values[0]);
             int i = 0;
             int vectorEnd = length - (length % 4);
+            
+            // Prefetch distance: 16 iterations ahead (64 Double = 512 bytes = 8 cache lines)
+            const int prefetchDistance = 64;
 
             for (; i < vectorEnd; i += 4)
             {
+                // Hardware prefetch hint: load data into cache before we need it
+                if (Sse.IsSupported && i + prefetchDistance < length)
+                {
+                    unsafe
+                    {
+                        Sse.Prefetch0((byte*)Unsafe.AsPointer(ref Unsafe.Add(ref valuesRef, i + prefetchDistance)));
+                    }
+                }
+                
                 // Load 4 values
                 var data = Vector256.LoadUnsafe(ref Unsafe.Add(ref valuesRef, i));
                 

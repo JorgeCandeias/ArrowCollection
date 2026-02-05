@@ -27,6 +27,7 @@
 | [13](13-bulk-null-filtering.md) | **Bulk Null Filtering** | ? Complete | **15-25% nullable columns** | Memory |
 | [14](14-simd-bitmap-operations.md) | **SIMD Bitmap Operations** | ? Complete | **3-7× bulk clears** | SIMD |
 | [15](15-delegate-cache-reflection-opt.md) | **Delegate Cache for Type Dispatch** | ? Complete | **22-58% filter-heavy** | CPU/Memory |
+| [16](16-hardware-prefetch-hints.md) | **Hardware Prefetch Hints** | ? Complete | **0-10% large datasets** | CPU/Cache |
 
 ---
 

@@ -249,12 +249,24 @@ internal static class ParallelQueryExecutor
             
             int vectorEnd = ((endIndex - startIndex) >> 3) << 3; // Round down to multiple of 8
             vectorEnd += startIndex;
+            
+            // Prefetch distance: 16 iterations ahead (128 Int32 = 512 bytes = 8 cache lines)
+            const int prefetchDistance = 128;
 
             for (; i < vectorEnd; i += 8)
             {
                 // Check selection first - skip if all already filtered
                 if (!AnySelected(selectionBuffer, i, 8))
                     continue;
+
+                // Hardware prefetch hint: load data into cache before we need it
+                if (Sse.IsSupported && i + prefetchDistance < endIndex)
+                {
+                    unsafe
+                    {
+                        Sse.Prefetch0((byte*)Unsafe.AsPointer(ref Unsafe.Add(ref valuesRef, i + prefetchDistance)));
+                    }
+                }
 
                 var data = Vector256.LoadUnsafe(ref Unsafe.Add(ref valuesRef, i));
                 
@@ -421,11 +433,23 @@ internal static class ParallelQueryExecutor
             
             int vectorEnd = ((endIndex - startIndex) >> 2) << 2;
             vectorEnd += startIndex;
+            
+            // Prefetch distance: 16 iterations ahead (64 Double = 512 bytes = 8 cache lines)
+            const int prefetchDistance = 64;
 
             for (; i < vectorEnd; i += 4)
             {
                 if (!AnySelected(selectionBuffer, i, 4))
                     continue;
+
+                // Hardware prefetch hint: load data into cache before we need it
+                if (Sse.IsSupported && i + prefetchDistance < endIndex)
+                {
+                    unsafe
+                    {
+                        Sse.Prefetch0((byte*)Unsafe.AsPointer(ref Unsafe.Add(ref valuesRef, i + prefetchDistance)));
+                    }
+                }
 
                 var data = Vector256.LoadUnsafe(ref Unsafe.Add(ref valuesRef, i));
                 
