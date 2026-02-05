@@ -401,7 +401,7 @@ internal static class SimdBlockAggregator
             blockIndex++;
         }
 
-        return count > 0 ? (double)sum / count : 0;
+        return count > 0 ? (double)sum / count : throw new InvalidOperationException("Sequence contains no elements");
     }
 
     /// <summary>
@@ -471,7 +471,7 @@ internal static class SimdBlockAggregator
             blockIndex++;
         }
 
-        return count > 0 ? (double)sum / count : 0;
+        return count > 0 ? (double)sum / count : throw new InvalidOperationException("Sequence contains no elements");
     }
 
     /// <summary>
@@ -541,7 +541,7 @@ internal static class SimdBlockAggregator
             blockIndex++;
         }
 
-        return count > 0 ? sum / count : 0;
+        return count > 0 ? sum / count : throw new InvalidOperationException("Sequence contains no elements");
     }
 
     /// <summary>
@@ -573,6 +573,7 @@ internal static class SimdBlockAggregator
                 var bitIndex = BitOperations.TrailingZeroCount(remaining);
                 var idx = baseIndex + bitIndex;
                 
+                
                 if (idx < length && !array.IsNull(idx))
                 {
                     sum += array.GetValue(idx)!.Value;
@@ -584,7 +585,7 @@ internal static class SimdBlockAggregator
             blockIndex++;
         }
 
-        return count > 0 ? sum / count : 0;
+        return count > 0 ? sum / count : throw new InvalidOperationException("Sequence contains no elements");
     }
 
     #endregion
