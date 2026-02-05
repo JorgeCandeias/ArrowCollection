@@ -1328,6 +1328,22 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
                     AnalyzeWherePredicate(lambda);
                 }
             }
+            
+            // Process Count/LongCount with predicate argument
+            // .Count(predicate) is syntactic sugar for .Where(predicate).Count()
+            if ((methodName == "Count" || methodName == "LongCount") && node.Arguments.Count >= 2)
+            {
+                _seenPredicate = true; // Mark that we've encountered a predicate
+                var predicateArg = node.Arguments[1];
+                if (predicateArg is UnaryExpression unary && unary.Operand is LambdaExpression lambda)
+                {
+                    AnalyzeWherePredicate(lambda);
+                }
+                else if (predicateArg is LambdaExpression directLambda)
+                {
+                    AnalyzeWherePredicate(directLambda);
+                }
+            }
 
             // Check if this Select follows a GroupBy (for grouped aggregation)
             if (methodName == "Select" && node.Arguments.Count >= 2)
