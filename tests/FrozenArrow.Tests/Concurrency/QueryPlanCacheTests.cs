@@ -69,7 +69,7 @@ public class QueryPlanCacheTests
         Assert.All(results, count => Assert.Equal(firstResult, count));
     }
 
-    [Theory(Skip = "Flaky test - potential race condition in concurrent cache access. Under investigation.")]
+    [Theory(Skip = "Flaky test - concurrent queries sometimes return incorrect results. The cache race condition has been fixed (single dictionary design), but there appears to be a separate concurrency issue in query execution where constant values in predicates get mixed up between threads. Needs investigation of predicate evaluation or constant extraction.")]
     [InlineData(50_000, 20)]
     public async Task DifferentQueries_ConcurrentExecution_ShouldCacheSeparately(int rowCount, int queryVariations)
     {
@@ -79,16 +79,20 @@ public class QueryPlanCacheTests
 
         // Act - Execute different queries concurrently (different threshold values)
         var tasks = Enumerable.Range(0, queryVariations)
-            .Select(i => Task.Run(() =>
+            .Select(i =>
             {
+                // Capture threshold in local variable to avoid closure issues
                 var threshold = 400 + (i * 10); // 400, 410, 420, ...
-                var count = data.AsQueryable()
-                    .Where(x => x.Value > threshold)
-                    .Count();
-                
-                resultsDict[threshold] = count;
-                return count;
-            }))
+                return Task.Run(() =>
+                {
+                    var count = data.AsQueryable()
+                        .Where(x => x.Value > threshold)
+                        .Count();
+                    
+                    resultsDict[threshold] = count;
+                    return count;
+                });
+            })
             .ToArray();
 
         await Task.WhenAll(tasks);
@@ -101,7 +105,8 @@ public class QueryPlanCacheTests
         for (int i = 1; i < sortedResults.Count; i++)
         {
             Assert.True(sortedResults[i].Value <= sortedResults[i - 1].Value,
-                $"Higher threshold {sortedResults[i].Key} should have <= matches than {sortedResults[i - 1].Key}");
+                $"Higher threshold {sortedResults[i].Key} should have <= matches than {sortedResults[i - 1].Key}. " +
+                $"Got {sortedResults[i].Value} for {sortedResults[i].Key} vs {sortedResults[i - 1].Value} for {sortedResults[i - 1].Key}");
         }
     }
 

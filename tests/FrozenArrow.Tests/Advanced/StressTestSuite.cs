@@ -129,7 +129,7 @@ public class StressTestSuite
         Assert.True(true);
     }
 
-    [Theory(Skip = "OR expressions (||) are not yet supported for column pushdown. This is a known limitation.")]
+    [Theory(Skip = "Fallback materialization for OR expressions is not yet fully implemented. AllowFallback() prevents the exception but doesn't actually fall back to LINQ-to-Objects.")]
     [InlineData(100_000)]
     public void Stress_DeepFilterChains_HandledCorrectly(int rowCount)
     {
@@ -141,6 +141,7 @@ public class StressTestSuite
         // Act - 10 chained predicates (using AND, not OR)
         // NOTE: Line with (x.IsActive || !x.IsActive) uses OR which requires fallback
         var count = data.AsQueryable()
+            .AllowFallback() // Enable fallback for OR expressions
             .Where(x => x.Value > 0)
             .Where(x => x.Value < 1000)
             .Where(x => x.Score > 0.0)

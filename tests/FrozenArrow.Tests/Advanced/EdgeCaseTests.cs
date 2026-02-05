@@ -230,7 +230,7 @@ public class EdgeCaseTests
         Assert.Equal(10000, evenCount + oddCount);
     }
 
-    [Theory(Skip = "Computed column expressions (e.g., x.Id % frequency) require fallback materialization. This is a known limitation - column operations must be simple member access.")]
+    [Theory(Skip = "Fallback materialization for complex expressions (modulo operator) is not yet fully implemented. AllowFallback() prevents the exception but doesn't actually fall back to LINQ-to-Objects.")]
     [InlineData(1)]      // Every record matches
     [InlineData(2)]      // Every other
     [InlineData(10)]     // Every 10th
@@ -248,10 +248,10 @@ public class EdgeCaseTests
             .ToFrozenArrow();
 
         // Note: This test uses modulo operator which requires fallback materialization
-        // TODO: Either implement expression compilation or enable fallback mode for this test
+        // Enable fallback mode to allow complex expressions
         
         // Act
-        var count = data.AsQueryable().Where(x => x.Id % frequency == 0).Count();
+        var count = data.AsQueryable().AllowFallback().Where(x => x.Id % frequency == 0).Count();
 
         var expectedCount = rowCount / frequency + (rowCount % frequency == 0 ? 0 : 1);
 

@@ -38,26 +38,20 @@ public sealed class QueryPlanCacheOptions
 /// - Particularly beneficial for short-circuit operations (Any, First)
 /// - Thread-safe for concurrent query execution
 /// 
-/// OPTIMIZATION: Uses two-tier cache key strategy:
-/// 1. Fast hash-based lookup (O(1), no string allocation)
-/// 2. Full structural key only on hash collision (rare)
-/// 
-/// This reduces cache lookup overhead by ~80% compared to string-only keys.
-/// 
+/// Cache uses structural expression keys to ensure correct plan retrieval.
 /// Cache entries include the full plan with constant values, so queries like
 /// "Age > 30" and "Age > 40" will have separate cache entries.
 /// </remarks>
 internal sealed class QueryPlanCache
 {
-    private readonly ConcurrentDictionary<int, CacheEntry> _cacheByHash = new();
-    private readonly ConcurrentDictionary<string, CacheEntry> _cacheByKey = new();
+    private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
     private readonly QueryPlanCacheOptions _options;
     private long _accessCounter;
 
     /// <summary>
     /// Gets the number of cached query plans.
     /// </summary>
-    public int Count => _cacheByHash.Count;
+    public int Count => _cache.Count;
 
     /// <summary>
     /// Gets cache hit statistics for diagnostics.
@@ -71,7 +65,6 @@ internal sealed class QueryPlanCache
 
     /// <summary>
     /// Tries to get a cached query plan for the given expression.
-    /// Uses fast hash-based lookup with fallback to structural key on collision.
     /// </summary>
     /// <param name="expression">The LINQ expression to look up.</param>
     /// <param name="plan">The cached plan if found.</param>
@@ -85,29 +78,11 @@ internal sealed class QueryPlanCache
             return false;
         }
 
-        // Fast path: hash-based lookup (no string allocation)
-        var hash = ComputeExpressionHash(expression);
+        var key = ComputeCacheKey(expression);
         
-        if (_cacheByHash.TryGetValue(hash, out var entry))
+        if (_cache.TryGetValue(key, out var entry))
         {
-            // Verify structural equality on hash collision (rare)
-            var key = ComputeCacheKey(expression);
-            if (entry.Key == key)
-            {
-                // Update access time for LRU eviction
-                entry.LastAccess = Interlocked.Increment(ref _accessCounter);
-                Statistics.RecordHit();
-                plan = entry.Plan;
-                return true;
-            }
-            
-            // Hash collision - fall through to string-based lookup
-        }
-
-        // Slow path: full structural key lookup (only on hash collision)
-        var fullKey = ComputeCacheKey(expression);
-        if (_cacheByKey.TryGetValue(fullKey, out entry))
-        {
+            // Update access time for LRU eviction
             entry.LastAccess = Interlocked.Increment(ref _accessCounter);
             Statistics.RecordHit();
             plan = entry.Plan;
@@ -129,15 +104,13 @@ internal sealed class QueryPlanCache
         if (!_options.EnableCaching)
             return;
 
-        var hash = ComputeExpressionHash(expression);
         var key = ComputeCacheKey(expression);
         var entry = new CacheEntry(plan, key, Interlocked.Increment(ref _accessCounter));
 
-        _cacheByHash.TryAdd(hash, entry);
-        _cacheByKey.TryAdd(key, entry);
+        _cache.TryAdd(key, entry);
 
         // Evict if over capacity (optimized LRU)
-        if (_cacheByHash.Count > _options.MaxCacheSize)
+        if (_cache.Count > _options.MaxCacheSize)
         {
             EvictOldestEntriesOptimized();
         }
@@ -148,22 +121,8 @@ internal sealed class QueryPlanCache
     /// </summary>
     public void Clear()
     {
-        _cacheByHash.Clear();
-        _cacheByKey.Clear();
+        _cache.Clear();
         Statistics.Reset();
-    }
-
-    /// <summary>
-    /// Computes a fast hash code for expression-based cache lookup.
-    /// This is much faster than building a full structural key.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int ComputeExpressionHash(Expression expression)
-    {
-        // Use a fast hash combiner to build hash from expression structure
-        var hasher = new ExpressionHasher();
-        hasher.Visit(expression);
-        return hasher.GetHashCode();
     }
 
     /// <summary>
@@ -206,21 +165,21 @@ internal sealed class QueryPlanCache
     {
         // Target: remove oldest 25% of entries
         var targetCount = _options.MaxCacheSize * 3 / 4;
-        var toRemove = _cacheByHash.Count - targetCount;
+        var toRemove = _cache.Count - targetCount;
         
         if (toRemove <= 0) return;
 
         // Collect entries to remove using simple iteration (still faster than LINQ OrderBy)
-        var entriesToRemove = new List<(int hash, string key, long access)>(toRemove);
+        var entriesToRemove = new List<(string key, long access)>(toRemove);
         long maxAccessInList = long.MinValue;
         
-        foreach (var kvp in _cacheByHash)
+        foreach (var kvp in _cache)
         {
             var accessTime = kvp.Value.LastAccess;
             
             if (entriesToRemove.Count < toRemove)
             {
-                entriesToRemove.Add((kvp.Key, kvp.Value.Key, accessTime));
+                entriesToRemove.Add((kvp.Key, accessTime));
                 if (accessTime > maxAccessInList)
                     maxAccessInList = accessTime;
             }
@@ -234,7 +193,7 @@ internal sealed class QueryPlanCache
                         maxIndex = i;
                 }
                 
-                entriesToRemove[maxIndex] = (kvp.Key, kvp.Value.Key, accessTime);
+                entriesToRemove[maxIndex] = (kvp.Key, accessTime);
                 
                 // Recompute max
                 maxAccessInList = entriesToRemove[0].access;
@@ -247,10 +206,9 @@ internal sealed class QueryPlanCache
         }
 
         // Remove the oldest entries
-        foreach (var (hash, key, _) in entriesToRemove)
+        foreach (var (key, _) in entriesToRemove)
         {
-            _cacheByHash.TryRemove(hash, out _);
-            _cacheByKey.TryRemove(key, out _);
+            _cache.TryRemove(key, out _);
         }
     }
 
