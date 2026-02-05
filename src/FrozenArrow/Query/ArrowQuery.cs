@@ -256,7 +256,24 @@ public sealed class ArrowQueryProvider : IQueryProvider
             return ExecuteFusedAggregate<TResult>(plan);
         }
 
-        // Build selection bitmap using pooled bitfield (8x more memory efficient)
+        // SPARSE PATH: For highly selective queries (<5%), collect indices directly
+        // This avoids materializing a 125KB bitmap when only 1-5% of rows match
+        // Memory savings: 1% selectivity ? 40KB list vs 125KB bitmap (3× savings)
+        // 
+        // Skip sparse path for Count/LongCount - bitmap PopCount is faster than collecting indices
+        var isCountQuery = resultType == typeof(int) || resultType == typeof(long);
+        if (plan.EstimatedSelectivity < 0.05 && plan.ColumnPredicates.Count > 0 && !isCountQuery)
+        {
+            var matchingIndices = SparseIndexCollector.CollectMatchingIndices(
+                _recordBatch,
+                plan.ColumnPredicates,
+                _zoneMap,
+                ParallelOptions);
+            
+            return ExecuteWithSparseIndices<TResult>(plan, matchingIndices, resultType);
+        }
+
+        // DENSE PATH: Build selection bitmap using pooled bitfield (8x more memory efficient than bool[])
         using var selection = SelectionBitmap.Create(_count, initialValue: true);
 
         // Apply column predicates using parallel execution when beneficial
@@ -339,6 +356,77 @@ public sealed class ArrowQueryProvider : IQueryProvider
         }
 
         throw new NotSupportedException($"Result type '{resultType}' is not supported.");
+    }
+
+    /// <summary>
+    /// Executes a query using sparse index collection (for <5% selectivity).
+    /// Avoids bitmap materialization overhead when very few rows match.
+    /// </summary>
+    private TResult ExecuteWithSparseIndices<TResult>(QueryPlan plan, List<int> matchingIndices, Type resultType)
+    {
+        var selectedCount = matchingIndices.Count;
+        
+        // Handle grouped queries (GroupBy + Select with aggregates)
+        if (plan.IsGroupedQuery)
+        {
+            // Convert indices to bitmap for grouped query execution
+            using var selection = SelectionBitmap.Create(_count, initialValue: false);
+            foreach (var idx in matchingIndices)
+            {
+                selection.Set(idx);
+            }
+            return ExecuteGroupedQuery<TResult>(plan, ref System.Runtime.CompilerServices.Unsafe.AsRef(in selection));
+        }
+
+        // Handle simple aggregates (Sum, Average, Min, Max) directly on columns
+        if (plan.SimpleAggregate is not null)
+        {
+            // For aggregates, convert to bitmap (aggregators expect bitmap interface)
+            using var selection = SelectionBitmap.Create(_count, initialValue: false);
+            foreach (var idx in matchingIndices)
+            {
+                selection.Set(idx);
+            }
+            return ExecuteSimpleAggregate<TResult>(plan.SimpleAggregate, ref System.Runtime.CompilerServices.Unsafe.AsRef(in selection));
+        }
+
+        // IEnumerable<T> - return lazy enumeration
+        if (resultType.IsGenericType && 
+            (resultType.GetGenericTypeDefinition() == typeof(IEnumerable<>) ||
+             resultType.GetGenericTypeDefinition() == typeof(IQueryable<>)))
+        {
+            var enumerable = CreateBatchedEnumerable(matchingIndices);
+            return (TResult)enumerable;
+        }
+
+        // Single element results (First, Single, etc.)
+        if (resultType == _elementType)
+        {
+            if (selectedCount == 0)
+                throw new InvalidOperationException("Sequence contains no elements.");
+            return (TResult)_createItem(_recordBatch, matchingIndices[0]);
+        }
+
+        // Count
+        if (resultType == typeof(int))
+        {
+            return (TResult)(object)selectedCount;
+        }
+
+        // LongCount
+        if (resultType == typeof(long))
+        {
+            return (TResult)(object)(long)selectedCount;
+        }
+
+        // Boolean results (Any, All)
+        if (resultType == typeof(bool))
+        {
+            // For sparse path, if we got here, we have matching indices
+            return (TResult)(object)(selectedCount > 0);
+        }
+
+        throw new NotSupportedException($"Result type '{resultType}' is not supported in sparse execution path.");
     }
 
     /// <summary>

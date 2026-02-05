@@ -28,6 +28,7 @@
 | [14](14-simd-bitmap-operations.md) | **SIMD Bitmap Operations** | ? Complete | **3-7× bulk clears** | SIMD |
 | [15](15-delegate-cache-reflection-opt.md) | **Delegate Cache for Type Dispatch** | ? Complete | **22-58% filter-heavy** | CPU/Memory |
 | [16](16-hardware-prefetch-hints.md) | **Hardware Prefetch Hints** | ? Complete | **0-10% large datasets** | CPU/Cache |
+| [17](17-lazy-bitmap-materialization.md) | **Lazy Bitmap Materialization** | ? Complete | **Theoretical 2-5× sparse** | Algorithm/Memory |
 
 ---
 
