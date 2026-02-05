@@ -658,6 +658,22 @@ public sealed class ArrowQueryProvider : IQueryProvider
 
     private TResult ExecuteSimpleAggregate<TResult>(SimpleAggregateOperation aggregate, ref SelectionBitmap selection)
     {
+        // For Average, Min, Max operations on empty selections, throw immediately
+        // (Sum should return 0 for empty, but Average/Min/Max should throw)
+        var selectedCount = selection.CountSet();
+        if (selectedCount == 0)
+        {
+            if (aggregate.Operation == AggregationOperation.Average)
+            {
+                throw new InvalidOperationException("Sequence contains no elements");
+            }
+            if (aggregate.Operation == AggregationOperation.Min || aggregate.Operation == AggregationOperation.Max)
+            {
+                throw new InvalidOperationException("Sequence contains no elements");
+            }
+            // Sum returns 0 for empty (default value)
+        }
+        
         // Find the column by name
         var columnIndex = _columnIndexMap.TryGetValue(aggregate.ColumnName!, out var idx) 
             ? idx 
