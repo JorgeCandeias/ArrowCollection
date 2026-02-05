@@ -83,10 +83,18 @@ public sealed class QueryPlan
     public int? Skip { get; init; }
 
     /// <summary>
-    /// Gets the maximum number of elements to take (for pagination).
-    /// Null means no Take operation (return all results).
+    /// Gets the maximum number of elements to take BEFORE predicates (for pagination).
+    /// This is the inner Take in queries like .Take(200).Where(...).Take(10)
+    /// Null means no Take operation before predicates.
     /// </summary>
     public int? Take { get; init; }
+    
+    /// <summary>
+    /// Gets the maximum number of elements to take AFTER predicates (for pagination).
+    /// This is the outer Take in queries like .Take(200).Where(...).Take(10)
+    /// Null means no Take operation after predicates.
+    /// </summary>
+    public int? TakeAfterPredicates { get; init; }
 
     /// <summary>
     /// Gets whether Take/Skip operations appear before predicates in the query.

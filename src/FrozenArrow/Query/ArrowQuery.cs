@@ -410,7 +410,8 @@ public sealed class ArrowQueryProvider : IQueryProvider
                                   plan.ColumnPredicates.Count > 0 && plan.PaginationBeforePredicates;
 
         // Count - needs to account for Skip and Take
-        // However, if we've already applied Take before predicates, don't apply it again
+        // If we've already applied inner Take before predicates, don't apply it again
+        // But DO apply outer Take after predicates
         if (resultType == typeof(int))
         {
             var count = selectedCount;
@@ -425,11 +426,19 @@ public sealed class ArrowQueryProvider : IQueryProvider
                     count = Math.Min(count, plan.Take.Value);
                 }
             }
+            
+            // Apply outer Take (after predicates) if present
+            if (plan.TakeAfterPredicates.HasValue)
+            {
+                count = Math.Min(count, plan.TakeAfterPredicates.Value);
+            }
+            
             return (TResult)(object)count;
         }
 
         // LongCount - needs to account for Skip and Take
-        // However, if we've already applied Take before predicates, don't apply it again
+        // If we've already applied inner Take before predicates, don't apply it again
+        // But DO apply outer Take after predicates
         if (resultType == typeof(long))
         {
             var count = (long)selectedCount;
@@ -444,6 +453,13 @@ public sealed class ArrowQueryProvider : IQueryProvider
                     count = Math.Min(count, plan.Take.Value);
                 }
             }
+            
+            // Apply outer Take (after predicates) if present
+            if (plan.TakeAfterPredicates.HasValue)
+            {
+                count = Math.Min(count, plan.TakeAfterPredicates.Value);
+            }
+            
             return (TResult)(object)count;
         }
 
@@ -532,6 +548,11 @@ public sealed class ArrowQueryProvider : IQueryProvider
             {
                 count = Math.Min(count, plan.Take.Value);
             }
+            // Apply outer Take (after predicates) if present
+            if (plan.TakeAfterPredicates.HasValue)
+            {
+                count = Math.Min(count, plan.TakeAfterPredicates.Value);
+            }
             return (TResult)(object)count;
         }
 
@@ -546,6 +567,11 @@ public sealed class ArrowQueryProvider : IQueryProvider
             if (plan.Take.HasValue)
             {
                 count = Math.Min(count, plan.Take.Value);
+            }
+            // Apply outer Take (after predicates) if present
+            if (plan.TakeAfterPredicates.HasValue)
+            {
+                count = Math.Min(count, plan.TakeAfterPredicates.Value);
             }
             return (TResult)(object)count;
         }
@@ -943,28 +969,42 @@ public sealed class ArrowQueryProvider : IQueryProvider
     /// Applies Skip and Take pagination to a list of selected indices.
     /// Returns a new list with pagination applied, or the original list if no pagination is specified.
     /// </summary>
-    /// <param name="alreadyApplied">True if pagination was already applied during evaluation (PaginationBeforePredicates)</param>
+    /// <param name="alreadyApplied">True if inner pagination was already applied during evaluation (PaginationBeforePredicates)</param>
     private static List<int> ApplyPagination(List<int> selectedIndices, QueryPlan plan, bool alreadyApplied = false)
     {
-        if (!plan.Skip.HasValue && !plan.Take.HasValue)
+        // If inner pagination (Take before predicates) was already applied during evaluation,
+        // we don't re-apply it. But we DO apply outer Take (after predicates) if present.
+        if (alreadyApplied && plan.PaginationBeforePredicates)
         {
-            // No pagination - return original list
+            // Inner Take/Skip already applied during evaluation
+            // Apply outer Take if present: .Take(200).Where(...).Take(10)
+            if (plan.TakeAfterPredicates.HasValue)
+            {
+                int outerTake = plan.TakeAfterPredicates.Value;
+                if (outerTake >= selectedIndices.Count)
+                {
+                    return selectedIndices;
+                }
+                return selectedIndices.Take(outerTake).ToList();
+            }
             return selectedIndices;
         }
         
-        // If pagination was already applied during predicate evaluation,
-        // don't apply it again during materialization
-        if (alreadyApplied && plan.PaginationBeforePredicates)
+        // Normal pagination path (pagination after predicates)
+        if (!plan.Skip.HasValue && !plan.Take.HasValue && !plan.TakeAfterPredicates.HasValue)
         {
-            // For .Take(N).Where(...) or .Skip(M).Where(...) or .Skip(M).Take(N).Where(...)
-            // The evaluation was already limited to the specified row range
-            // The selectedIndices already represent the filtered results from that range
-            // No further pagination needed
+            // No pagination - return original list
             return selectedIndices;
         }
 
         int skip = plan.Skip ?? 0;
         int take = plan.Take ?? int.MaxValue;
+        
+        // Apply outer Take if it's more restrictive
+        if (plan.TakeAfterPredicates.HasValue)
+        {
+            take = Math.Min(take, plan.TakeAfterPredicates.Value);
+        }
 
         // Clamp skip to valid range
         if (skip >= selectedIndices.Count)
@@ -1236,13 +1276,18 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
 
     // Pagination support
     private int? _skip;
-    private int? _take;
+    private int? _takeBeforePredicates;  // Inner Take: .Take(N).Where(...) - limits evaluation
+    private int? _takeAfterPredicates;   // Outer Take: .Where(...).Take(N) - limits results
     private bool _paginationBeforePredicates = false; // Default: pagination comes after predicates
     private bool _seenPredicate = false; // Track if we've seen a Where clause yet
 
     public QueryPlan Analyze(Expression expression)
     {
         Visit(expression);
+
+        // Combine inner and outer Takes for backward compatibility
+        // If both exist, Take represents the inner (before predicates) one
+        int? take = _takeBeforePredicates ?? _takeAfterPredicates;
 
         return new QueryPlan
         {
@@ -1262,10 +1307,12 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
             ToDictionaryValueAggregation = _toDictionaryValueAggregation,
             EstimatedSelectivity = EstimateSelectivity(),
             Skip = _skip,
-            Take = _take,
+            Take = take,
+            TakeAfterPredicates = _takeAfterPredicates,  // NEW: Track outer Take separately
             PaginationBeforePredicates = _paginationBeforePredicates
         };
     }
+
 
 
     protected override Expression VisitMethodCall(MethodCallExpression node)
@@ -1382,12 +1429,21 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
             {
                 if (node.Arguments[1] is ConstantExpression takeConst && takeConst.Value is int takeValue)
                 {
-                    _take = takeValue;
-                    // If we HAVE seen a predicate (Where is on the outside, Take is inner/earlier)
-                    // then pagination comes BEFORE predicates logically: .Take(N).Where(...)
+                    // Distinguish between inner Take (before predicates) and outer Take (after predicates)
+                    // Expression tree is visited outside-in, so:
+                    // - If _seenPredicate is FALSE: this is an OUTER Take (comes after Where in execution)
+                    // - If _seenPredicate is TRUE: this is an INNER Take (comes before Where in execution)
+                    
                     if (_seenPredicate)
                     {
+                        // Inner Take: .Take(N).Where(...) - limit evaluation
+                        _takeBeforePredicates = takeValue;
                         _paginationBeforePredicates = true;
+                    }
+                    else
+                    {
+                        // Outer Take: .Where(...).Take(N) - limit results
+                        _takeAfterPredicates = takeValue;
                     }
                 }
             }

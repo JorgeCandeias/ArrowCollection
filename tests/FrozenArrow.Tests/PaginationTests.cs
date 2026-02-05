@@ -583,7 +583,7 @@ public class PaginationTests
         Assert.Equal(50, count);
     }
 
-    [Fact(Skip = "Multiple Take operations in a chain not yet supported. Workaround: Use single Take with the minimum value.")]
+    [Fact]
     public void OperationOrder_ComplexChain_TakeWhereTakeCount()
     {
         // Arrange
@@ -597,8 +597,6 @@ public class PaginationTests
             .Count();
 
         // Assert - First Take limits to 200, Where filters those, second Take limits to 10
-        // NOTE: Currently only the first Take(200) is applied
-        // TODO: Support multiple Take operations by tracking all pagination operations
         Assert.Equal(10, count);
     }
 
