@@ -1,0 +1,1477 @@
+  Determining projects to restore...
+  Restored C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\FrozenArrow.csproj (in 313 ms).
+  Restored C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\FrozenArrow.Tests.csproj (in 313 ms).
+  1 of 3 projects are up-to-date for restore.
+  FrozenArrow.Generators -> C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow.Generators\bin\Release\netstandard2.0\FrozenArrow.Generators.dll
+  FrozenArrow -> C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\bin\Release\net10.0\FrozenArrow.dll
+  FrozenArrow.Tests -> C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\bin\Release\net10.0\FrozenArrow.Tests.dll
+Test run for C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\bin\Release\net10.0\FrozenArrow.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.2)
+[xUnit.net 00:00:00.18]   Discovering: FrozenArrow.Tests
+[xUnit.net 00:00:00.28]   Discovered:  FrozenArrow.Tests
+[xUnit.net 00:00:00.34]   Starting:    FrozenArrow.Tests
+  Passed FrozenArrow.Tests.SelectionBitmapTests.Not_InvertsBitmap [89 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.ClearRange_UnalignedStart_ClearsCorrectly [1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.Indexer_SetAndGet_WorksCorrectly [< 1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.GetSelectedIndices_EmptyBitmap_NoIterations [6 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.ClearRange_LargeBitmap_PerformsWell [< 1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.ClearRange_EmptyRange_DoesNothing [< 1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.Create_InitializedToFalse_NoBitsSet [< 1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.GetSelectedIndices_EnumeratesSetBits [29 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.Set_SetsBit [1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.ClearRange_FullChunk_ClearsEntireRange [< 1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.ClearRange_SingleBlock_ClearsCorrectBits [1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.ClearRange_BlockAligned_ClearsEfficiently [1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.ClearRange_EntireBitmap_ClearsAll [25 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.And_CombinesBitmaps [2 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.ClearRange_UnalignedEnd_ClearsCorrectly [< 1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.MemoryEfficiency_8xSmallerThanBoolArray [< 1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.Not_HandlesPartialLastBlock [1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.Or_CombinesBitmaps [1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.ClearRange_MultipleBlocks_ClearsCorrectBits [1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.Clear_RemovesBit [1 ms]
+  Passed FrozenArrow.Tests.PositionalRecordTests.ToFrozenArrow_WithReadonlyRecordStruct_Works [215 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.CountSet_UsesPopcount_ForEfficiency [8 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.Create_InitializedToTrue_AllBitsSet [1 ms]
+  Passed FrozenArrow.Tests.SelectionBitmapTests.GetSelectedIndices_AllSet_ReturnsAllIndices [5 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.RaceConditionStressTest_ShouldNotCorrupt [216 ms]
+  Passed FrozenArrow.Tests.RunLengthEncodingTests.PreSortedByColumn_ShowsRleBenefit [254 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Query_ReturnsArrowQueryWithExplainAccess [257 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.SinglePredicate_DifferentDataSizes_ParallelMatchesSequential(rowCount: 100) [97 ms]
+  Passed FrozenArrow.Tests.DictionaryEncodingTests.LowCardinalityDoubles_ShouldUseDictionaryEncoding [272 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithNullableStruct_HandlesNullsCorrectly [274 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_FirstAndLastElements_AccessibleCorrectly [275 ms]
+  Passed FrozenArrow.Tests.DictionaryEncodingTests.BuildStatistics_ReportsCorrectEstimatedSavings [13 ms]
+  Passed FrozenArrow.Tests.PositionalRecordTests.ToFrozenArrow_WithLargeRecordStructDataset_Works [69 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ChunkBoundaries_NoDataLost(rowCount: 16384) [12 ms]
+  Passed FrozenArrow.Tests.DictionaryEncodingTests.HighCardinalityStrings_ShouldUsePrimitiveEncoding [4 ms]
+  Passed FrozenArrow.Tests.PositionalRecordTests.ToFrozenArrow_WithPositionalRecord_Works [4 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithLargeReadonlyStructDataset_HandlesCorrectly [17 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ChunkBoundaries_NoDataLost(rowCount: 16383) [5 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.ConcurrentClearRange_NonOverlappingRanges_ShouldBeCorrect(bitCount: 100000) [43 ms]
+  Passed FrozenArrow.Tests.RunLengthEncodingTests.SortedLowCardinalityStrings_ShouldBeRleCandidate [44 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ChunkBoundaries_NoDataLost(rowCount: 16385) [5 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_ChunkProcessing_NoDataLostAtBoundaries(rowCount: 16384) [301 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithFieldStruct_CanEnumerateAll [12 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithReadonlyStruct_CanEnumerateAll [< 1 ms]
+[xUnit.net 00:00:00.70]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(size: 2) [FAIL]
+[xUnit.net 00:00:00.71]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:00.71]       Stack Trace:
+[xUnit.net 00:00:00.71]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:00.71]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(170,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Int32 size)
+[xUnit.net 00:00:00.71]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+[xUnit.net 00:00:00.71]            at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.ConcurrentReads_SameBitmap_ShouldBeThreadSafe(bitCount: 10000) [20 ms]
+  Passed FrozenArrow.Tests.RunLengthEncodingTests.UnsortedData_ShouldNotBeRleCandidate [18 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithStruct_CanEnumerateMultipleTimes [14 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithReadonlyStruct_CanEnumerateMultipleTimes [< 1 ms]
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(size: 2) [3 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Int32 size) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 170
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithDefaultStruct_HandlesDefaults [< 1 ms]
+[xUnit.net 00:00:00.72]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:00.72]       Stack Trace:
+[xUnit.net 00:00:00.72]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:00.72]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(170,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Int32 size)
+[xUnit.net 00:00:00.72]            at InvokeStub_EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Object, Span`1)
+[xUnit.net 00:00:00.72]            at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+[xUnit.net 00:00:00.72]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:00.72]       Stack Trace:
+[xUnit.net 00:00:00.72]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:00.72]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(size: 10) [FAIL]
+[xUnit.net 00:00:00.72]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(size: 1) [FAIL]
+[xUnit.net 00:00:00.72]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(170,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Int32 size)
+[xUnit.net 00:00:00.72]            at InvokeStub_EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Object, Span`1)
+[xUnit.net 00:00:00.72]            at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+[xUnit.net 00:00:00.72]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:00.72]       Stack Trace:
+[xUnit.net 00:00:00.72]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:00.72]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(170,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Int32 size)
+[xUnit.net 00:00:00.72]            at InvokeStub_EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Object, Span`1)
+[xUnit.net 00:00:00.72]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(size: 100) [FAIL]
+[xUnit.net 00:00:00.72]            at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Passed FrozenArrow.Tests.DictionaryEncodingTests.LowCardinalityStrings_ShouldUseDictionaryEncoding [32 ms]
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(size: 10) [< 1 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Int32 size) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 170
+   at InvokeStub_EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.Dispose_WithStruct_PreventsEnumeration [1 ms]
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(size: 1) [< 1 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Int32 size) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 170
+   at InvokeStub_EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.Dispose_WithStruct_CanBeCalledMultipleTimes [< 1 ms]
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(size: 100) [< 1 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Int32 size) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 170
+   at InvokeStub_EdgeCaseTests.EdgeCase_VerySmallDatasets_HandledCorrectly(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithSimpleStruct_CanEnumerateAll [< 1 ms]
+[xUnit.net 00:00:00.72]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(frequency: 2) [FAIL]
+[xUnit.net 00:00:00.72]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'Equal' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:00.72]       Stack Trace:
+[xUnit.net 00:00:00.72]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:00.72]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(236,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Int32 frequency)
+[xUnit.net 00:00:00.72]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+[xUnit.net 00:00:00.72]            at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.72]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(frequency: 100) [FAIL]
+[xUnit.net 00:00:00.72]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'Equal' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:00.72]       Stack Trace:
+[xUnit.net 00:00:00.72]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:00.73]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(236,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Int32 frequency)
+[xUnit.net 00:00:00.73]            at InvokeStub_EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Object, Span`1)
+[xUnit.net 00:00:00.73]            at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Passed FrozenArrow.Tests.RunLengthEncodingTests.BuildStatistics_ReportsRleCandidates [7 ms]
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(frequency: 2) [5 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'Equal' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Int32 frequency) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 236
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithLargeStructDataset_HandlesCorrectly [6 ms]
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(frequency: 100) [4 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'Equal' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Int32 frequency) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 236
+   at InvokeStub_EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Passed FrozenArrow.Tests.PositionalRecordTests.ToFrozenArrow_WithLargePositionalRecordDataset_Works [44 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_ChunkProcessing_NoDataLostAtBoundaries(rowCount: 16383) [34 ms]
+[xUnit.net 00:00:00.73]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(frequency: 1000) [FAIL]
+[xUnit.net 00:00:00.73]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'Equal' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:00.73]       Stack Trace:
+[xUnit.net 00:00:00.73]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:00.73]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(236,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Int32 frequency)
+[xUnit.net 00:00:00.73]            at InvokeStub_EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Object, Span`1)
+[xUnit.net 00:00:00.73]            at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+[xUnit.net 00:00:00.73]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(frequency: 1) [FAIL]
+[xUnit.net 00:00:00.73]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'Equal' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:00.73]       Stack Trace:
+[xUnit.net 00:00:00.73]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:00.73]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(236,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Int32 frequency)
+[xUnit.net 00:00:00.73]            at InvokeStub_EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Object, Span`1)
+[xUnit.net 00:00:00.73]            at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+[xUnit.net 00:00:00.73]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(frequency: 10) [FAIL]
+[xUnit.net 00:00:00.73]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'Equal' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:00.73]       Stack Trace:
+[xUnit.net 00:00:00.73]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:00.73]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(236,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Int32 frequency)
+[xUnit.net 00:00:00.73]            at InvokeStub_EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Object, Span`1)
+[xUnit.net 00:00:00.73]            at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(frequency: 1000) [5 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'Equal' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Int32 frequency) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 236
+   at InvokeStub_EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Passed FrozenArrow.Tests.PositionalRecordTests.ToFrozenArrow_WithPositionalRecordAndNullables_PreservesNulls [10 ms]
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(frequency: 1) [4 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'Equal' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Int32 frequency) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 236
+   at InvokeStub_EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Passed FrozenArrow.Tests.RunLengthEncodingTests.SortedSparseIntegers_ShouldBeRleCandidate [23 ms]
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(frequency: 10) [7 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'Equal' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Int32 frequency) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 236
+   at InvokeStub_EdgeCaseTests.EdgeCase_VariableSelectivity_HandledCorrectly(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Passed FrozenArrow.Tests.PositionalRecordTests.ToFrozenArrow_WithNamedRecordStruct_Works [10 ms]
+  Passed FrozenArrow.Tests.PositionalRecordTests.ToFrozenArrow_WithPositionalRecordStruct_Works [1 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.ConcurrentReads_SameBitmap_ShouldBeThreadSafe(bitCount: 100000) [35 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 64) [8 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_DuplicateValues_HandledCorrectly [10 ms]
+  Passed FrozenArrow.Tests.Concurrency.MemoryPressureTests.RapidAllocationDeallocation_ConcurrentQueries_ShouldHandleCorrectly(rowCount: 50000, iterations: 200) [363 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 63) [1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 32) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 3) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 16) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 8) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 31) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 65) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 33) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 5) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 4) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 7) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 1) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 2) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 15) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_SmallDataSizes_HandledCorrectly(rowCount: 17) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_SingleElement_AllOperationsCorrect [5 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_BitmapBlockBoundaries_HandledCorrectly(rowCount: 64) [1 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ZeroValues_HandledCorrectly [1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_BitmapBlockBoundaries_HandledCorrectly(rowCount: 63) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_BitmapBlockBoundaries_HandledCorrectly(rowCount: 65) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_BitmapBlockBoundaries_HandledCorrectly(rowCount: 128) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_BitmapBlockBoundaries_HandledCorrectly(rowCount: 256) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_BitmapBlockBoundaries_HandledCorrectly(rowCount: 257) [< 1 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_ChunkProcessing_NoDataLostAtBoundaries(rowCount: 16385) [96 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_BitmapBlockBoundaries_HandledCorrectly(rowCount: 255) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_BitmapBlockBoundaries_HandledCorrectly(rowCount: 127) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_BitmapBlockBoundaries_HandledCorrectly(rowCount: 129) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_ExactVectorSizes_HandledCorrectly(vectorSize: 4) [1 ms]
+  Passed FrozenArrow.Tests.DictionaryEncodingTests.LowCardinalityIntegers_ShouldUseDictionaryEncoding [113 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_ExactVectorSizes_HandledCorrectly(vectorSize: 8) [1 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_AlternatingPredicates_SparseResults [67 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_ExactVectorSizes_HandledCorrectly(vectorSize: 16) [3 ms]
+[xUnit.net 00:00:00.82]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeDoubleValues_HandledCorrectly(extremeValue: 0) [FAIL]
+[xUnit.net 00:00:00.82]       Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:00.82]       Expected: 2
+[xUnit.net 00:00:00.82]       Actual:   3
+[xUnit.net 00:00:00.82]       Stack Trace:
+[xUnit.net 00:00:00.82]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(114,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeDoubleValues_HandledCorrectly(Double extremeValue)
+[xUnit.net 00:00:00.82]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+[xUnit.net 00:00:00.82]            at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_ZoneMapSkipping_NeverSkipsTooMuch(rowCount: 10000) [8 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_ZoneMapSkipping_NeverSkipsTooMuch(rowCount: 100) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_MediumDataSizes_HandledCorrectly(rowCount: 512) [1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_MediumDataSizes_HandledCorrectly(rowCount: 255) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_MediumDataSizes_HandledCorrectly(rowCount: 1024) [1 ms]
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeDoubleValues_HandledCorrectly(extremeValue: 0) [3 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 2
+Actual:   3
+  Stack Trace:
+     at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeDoubleValues_HandledCorrectly(Double extremeValue) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 114
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeDoubleValues_HandledCorrectly(extremeValue: 4.9406564584124654E-324) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeDoubleValues_HandledCorrectly(extremeValue: 1.7976931348623157E+308) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_MediumDataSizes_HandledCorrectly(rowCount: 1025) [1 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeDoubleValues_HandledCorrectly(extremeValue: -Ôê×) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeDoubleValues_HandledCorrectly(extremeValue: -1.7976931348623157E+308) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeDoubleValues_HandledCorrectly(extremeValue: Ôê×) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_MediumDataSizes_HandledCorrectly(rowCount: 256) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_MediumDataSizes_HandledCorrectly(rowCount: 511) [< 1 ms]
+[xUnit.net 00:00:00.83]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(extremeValue: 2147483647) [FAIL]
+[xUnit.net 00:00:00.83]       System.OverflowException : Value was either too large or too small for an Int32.
+[xUnit.net 00:00:00.83]       Stack Trace:
+[xUnit.net 00:00:00.83]            at System.Convert.ThrowInt32OverflowException()
+[xUnit.net 00:00:00.83]            at System.Convert.ToInt32(Int64 value)
+[xUnit.net 00:00:00.83]            at System.Convert.ChangeType(Object value, Type conversionType, IFormatProvider provider)
+[xUnit.net 00:00:00.83]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\SimdBlockAggregator.cs(1271,0): at FrozenArrow.Query.SimdBlockAggregator.ConvertResult(Object value, Type targetType)
+[xUnit.net 00:00:00.83]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\SimdBlockAggregator.cs(1214,0): at FrozenArrow.Query.SimdBlockAggregator.ExecuteSum(IArrowArray column, SelectionBitmap& selection, Type resultType)
+[xUnit.net 00:00:00.84]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ColumnAggregator.cs(476,0): at FrozenArrow.Query.ColumnAggregator.ExecuteSum(IArrowArray column, SelectionBitmap& selection, Type resultType)
+[xUnit.net 00:00:00.84]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ParallelAggregator.cs(39,0): at FrozenArrow.Query.ParallelAggregator.ExecuteSumParallel(IArrowArray column, SelectionBitmap& selection, Type resultType, ParallelQueryOptions options)
+[xUnit.net 00:00:00.84]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(501,0): at FrozenArrow.Query.ArrowQueryProvider.ExecuteSimpleAggregate[TResult](SimpleAggregateOperation aggregate, SelectionBitmap& selection)
+[xUnit.net 00:00:00.84]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(302,0): at FrozenArrow.Query.ArrowQueryProvider.ExecutePlan[TResult](QueryPlan plan, Expression expression)
+[xUnit.net 00:00:00.84]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(209,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:00.84]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(77,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(Int32 extremeValue)
+[xUnit.net 00:00:00.84]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+[xUnit.net 00:00:00.84]            at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.84]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(extremeValue: 0) [FAIL]
+[xUnit.net 00:00:00.84]       Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:00.84]       Expected: 2
+[xUnit.net 00:00:00.84]       Actual:   3
+[xUnit.net 00:00:00.84]       Stack Trace:
+[xUnit.net 00:00:00.84]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(80,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(Int32 extremeValue)
+[xUnit.net 00:00:00.84]            at InvokeStub_EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(Object, Span`1)
+[xUnit.net 00:00:00.84]            at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+[xUnit.net 00:00:00.85]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(extremeValue: -2147483648) [FAIL]
+[xUnit.net 00:00:00.85]       System.OverflowException : Value was either too large or too small for an Int32.
+[xUnit.net 00:00:00.86]       Stack Trace:
+[xUnit.net 00:00:00.86]            at System.Convert.ThrowInt32OverflowException()
+[xUnit.net 00:00:00.86]            at System.Convert.ToInt32(Int64 value)
+[xUnit.net 00:00:00.86]            at System.Convert.ChangeType(Object value, Type conversionType, IFormatProvider provider)
+[xUnit.net 00:00:00.86]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\SimdBlockAggregator.cs(1271,0): at FrozenArrow.Query.SimdBlockAggregator.ConvertResult(Object value, Type targetType)
+[xUnit.net 00:00:00.86]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\SimdBlockAggregator.cs(1214,0): at FrozenArrow.Query.SimdBlockAggregator.ExecuteSum(IArrowArray column, SelectionBitmap& selection, Type resultType)
+[xUnit.net 00:00:00.87]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ColumnAggregator.cs(476,0): at FrozenArrow.Query.ColumnAggregator.ExecuteSum(IArrowArray column, SelectionBitmap& selection, Type resultType)
+[xUnit.net 00:00:00.87]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ParallelAggregator.cs(39,0): at FrozenArrow.Query.ParallelAggregator.ExecuteSumParallel(IArrowArray column, SelectionBitmap& selection, Type resultType, ParallelQueryOptions options)
+[xUnit.net 00:00:00.87]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(501,0): at FrozenArrow.Query.ArrowQueryProvider.ExecuteSimpleAggregate[TResult](SimpleAggregateOperation aggregate, SelectionBitmap& selection)
+[xUnit.net 00:00:00.87]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(302,0): at FrozenArrow.Query.ArrowQueryProvider.ExecutePlan[TResult](QueryPlan plan, Expression expression)
+[xUnit.net 00:00:00.87]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(209,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:00.87]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(77,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(Int32 extremeValue)
+[xUnit.net 00:00:00.87]            at InvokeStub_EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(Object, Span`1)
+[xUnit.net 00:00:00.87]            at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(extremeValue: 2147483647) [1 ms]
+  Error Message:
+   System.OverflowException : Value was either too large or too small for an Int32.
+  Stack Trace:
+     at System.Convert.ThrowInt32OverflowException()
+   at System.Convert.ToInt32(Int64 value)
+   at System.Convert.ChangeType(Object value, Type conversionType, IFormatProvider provider)
+   at FrozenArrow.Query.SimdBlockAggregator.ConvertResult(Object value, Type targetType) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\SimdBlockAggregator.cs:line 1271
+   at FrozenArrow.Query.SimdBlockAggregator.ExecuteSum(IArrowArray column, SelectionBitmap& selection, Type resultType) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\SimdBlockAggregator.cs:line 1214
+   at FrozenArrow.Query.ColumnAggregator.ExecuteSum(IArrowArray column, SelectionBitmap& selection, Type resultType) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ColumnAggregator.cs:line 476
+   at FrozenArrow.Query.ParallelAggregator.ExecuteSumParallel(IArrowArray column, SelectionBitmap& selection, Type resultType, ParallelQueryOptions options) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ParallelAggregator.cs:line 39
+   at FrozenArrow.Query.ArrowQueryProvider.ExecuteSimpleAggregate[TResult](SimpleAggregateOperation aggregate, SelectionBitmap& selection) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 501
+   at FrozenArrow.Query.ArrowQueryProvider.ExecutePlan[TResult](QueryPlan plan, Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 302
+   at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 209
+   at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(Int32 extremeValue) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 77
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_MediumDataSizes_HandledCorrectly(rowCount: 1023) [1 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(extremeValue: -1) [< 1 ms]
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(extremeValue: 0) [< 1 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 2
+Actual:   3
+  Stack Trace:
+     at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(Int32 extremeValue) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 80
+   at InvokeStub_EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(extremeValue: 1) [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_MediumDataSizes_HandledCorrectly(rowCount: 513) [1 ms]
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(extremeValue: -2147483648) [< 1 ms]
+  Error Message:
+   System.OverflowException : Value was either too large or too small for an Int32.
+  Stack Trace:
+     at System.Convert.ThrowInt32OverflowException()
+   at System.Convert.ToInt32(Int64 value)
+   at System.Convert.ChangeType(Object value, Type conversionType, IFormatProvider provider)
+   at FrozenArrow.Query.SimdBlockAggregator.ConvertResult(Object value, Type targetType) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\SimdBlockAggregator.cs:line 1271
+   at FrozenArrow.Query.SimdBlockAggregator.ExecuteSum(IArrowArray column, SelectionBitmap& selection, Type resultType) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\SimdBlockAggregator.cs:line 1214
+   at FrozenArrow.Query.ColumnAggregator.ExecuteSum(IArrowArray column, SelectionBitmap& selection, Type resultType) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ColumnAggregator.cs:line 476
+   at FrozenArrow.Query.ParallelAggregator.ExecuteSumParallel(IArrowArray column, SelectionBitmap& selection, Type resultType, ParallelQueryOptions options) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ParallelAggregator.cs:line 39
+   at FrozenArrow.Query.ArrowQueryProvider.ExecuteSimpleAggregate[TResult](SimpleAggregateOperation aggregate, SelectionBitmap& selection) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 501
+   at FrozenArrow.Query.ArrowQueryProvider.ExecutePlan[TResult](QueryPlan plan, Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 302
+   at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 209
+   at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(Int32 extremeValue) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 77
+   at InvokeStub_EdgeCaseTests.EdgeCase_ExtremeIntValues_HandledCorrectly(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_MediumDataSizes_HandledCorrectly(rowCount: 257) [< 1 ms]
+[xUnit.net 00:00:00.95]     FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_EmptyDataset_AllOperationsHandled [FAIL]
+[xUnit.net 00:00:00.95]       System.InvalidOperationException : Sequence contains no elements.
+[xUnit.net 00:00:00.95]       Stack Trace:
+[xUnit.net 00:00:00.95]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(327,0): at FrozenArrow.Query.ArrowQueryProvider.ExecutePlan[TResult](QueryPlan plan, Expression expression)
+[xUnit.net 00:00:00.95]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(209,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:00.95]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs(35,0): at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_EmptyDataset_AllOperationsHandled()
+[xUnit.net 00:00:00.95]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+[xUnit.net 00:00:00.95]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_NoRecordsMatchPredicate_HandledCorrectly [3 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_AllRecordsMatchPredicate_HandledCorrectly [5 ms]
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ConsecutiveFiltersAllEmpty_HandledCorrectly [5 ms]
+  Failed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_EmptyDataset_AllOperationsHandled [3 ms]
+  Error Message:
+   System.InvalidOperationException : Sequence contains no elements.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.ExecutePlan[TResult](QueryPlan plan, Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 327
+   at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 209
+   at FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_EmptyDataset_AllOperationsHandled() in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\EdgeCaseTests.cs:line 35
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Passed FrozenArrow.Tests.Advanced.EdgeCaseTests.EdgeCase_ComplexNestedPredicates_EvaluatedCorrectly [3 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.ConcurrentReads_SameBitmap_ShouldBeThreadSafe(bitCount: 1000000) [110 ms]
+  Passed FrozenArrow.Tests.SerializationTests.ReadFrom_WithEmptyData_ThrowsInvalidOperationException [173 ms]
+  Passed FrozenArrow.Tests.FrozenArrowTests.ToFrozenArrow_WithComplexTypes_PreservesAllDataTypes [215 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithComplexStruct_PreservesAllDataTypes [330 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_Count_ViaMultiplePaths(rowCount: 100000) [668 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_ChunkSizeBoundaries_HandledCorrectly(rowCount: 32769) [219 ms]
+  Passed FrozenArrow.Tests.FrozenArrowTests.ToFrozenArrow_WithEmptyCollection_ReturnsEmptyFrozenArrow [11 ms]
+  Passed FrozenArrow.Tests.FrozenArrowTests.ToFrozenArrow_WithSimpleItems_CanEnumerateAll [< 1 ms]
+  Passed FrozenArrow.Tests.FrozenArrowTests.ToFrozenArrow_IsImmutable_OriginalDataChangesDoNotAffectFrozenArrow [1 ms]
+  Passed FrozenArrow.Tests.FrozenArrowTests.Dispose_CanBeCalledMultipleTimes [< 1 ms]
+  Passed FrozenArrow.Tests.FrozenArrowTests.ToFrozenArrow_WithNullSource_ThrowsArgumentNullException [< 1 ms]
+  Passed FrozenArrow.Tests.FrozenArrowTests.Dispose_PreventsEnumeration [1 ms]
+  Passed FrozenArrow.Tests.FrozenArrowTests.ToFrozenArrow_CanEnumerateMultipleTimes [< 1 ms]
+  Passed FrozenArrow.Tests.FrozenArrowTests.ToFrozenArrow_WithLargeDataset_HandlesCorrectly [2 ms]
+  Passed FrozenArrow.Tests.FrozenArrowTests.ToFrozenArrow_WithNullableValues_HandlesNullsCorrectly [10 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithReadonlyNullableStruct_HandlesNullsCorrectly [81 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithEmptyReadonlyStructCollection_ReturnsEmpty [3 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_ChunkSizeBoundaries_HandledCorrectly(rowCount: 32768) [95 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_Count_ViaMultiplePaths(rowCount: 10000) [104 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_Count_ViaMultiplePaths(rowCount: 100) [1 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_WithEmptyStructCollection_ReturnsEmpty [31 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_ChunkSizeBoundaries_HandledCorrectly(rowCount: 16384) [12 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructTests.ToFrozenArrow_StructIsImmutable_OriginalDataChangesDoNotAffect [7 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_ZoneMapSkipping_NeverSkipsTooMuch(rowCount: 100000) [349 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ParallelAggregation_MaxInt_ProducesCorrectResult [539 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.First_WithMatchingPredicate_ReturnsFirstMatch [11 ms]
+  Passed FrozenArrow.Tests.PositionalRecordTests.RoundTripAsync_WithPositionalRecord_PreservesData [454 ms]
+  Passed FrozenArrow.Tests.PositionalRecordTests.RoundTrip_WithPositionalRecord_PreservesData [1 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTrip_WithLargeCollection_PreservesData [157 ms]
+  Passed FrozenArrow.Tests.SerializationTests.ReadFrom_WithDefaultOptions_UseDefaultForMissingColumns [1 ms]
+  Passed FrozenArrow.Tests.SerializationTests.WriteTo_WhenDisposed_ThrowsObjectDisposedException [< 1 ms]
+  Passed FrozenArrow.Tests.SerializationTests.ArrowWriteOptions_Default_Exists [< 1 ms]
+  Passed FrozenArrow.Tests.PositionalRecordTests.RoundTrip_WithReadonlyRecordStruct_PreservesData [7 ms]
+  Passed FrozenArrow.Tests.SerializationTests.WriteToAsync_WithNullStream_ThrowsArgumentNullException [8 ms]
+  Passed FrozenArrow.Tests.PositionalRecordTests.ToFrozenArrow_WithMixedPositionalAndAdditionalProperties_Works [12 ms]
+  Passed FrozenArrow.Tests.PositionalRecordTests.RoundTrip_WithPositionalRecordStruct_PreservesData [8 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTrip_WithPositionalRecordStruct_PreservesData [17 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTripAsync_WithStream_PreservesData [2 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_AnyIsTrueWhenCountIsNonZero(rowCount: 10000, seed: 123) [366 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTrip_WithSimpleRecord_PreservesData [1 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_AnyIsTrueWhenCountIsNonZero(rowCount: 100, seed: 42) [1 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_Average_ViaMultiplePaths(rowCount: 10000) [74 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_CountEqualsToListCount(rowCount: 100, seed: 42) [3 ms]
+  Passed FrozenArrow.Tests.PositionalRecordTests.ToFrozenArrow_WithPositionalRecordAndExplicitNames_Works [10 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTrip_WithPositionalRecordClass_PreservesData [6 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_ChunkSizeBoundaries_HandledCorrectly(rowCount: 32767) [88 ms]
+  Passed FrozenArrow.Tests.SerializationTests.ArrowReadOptions_Default_HasExpectedValues [19 ms]
+  Passed FrozenArrow.Tests.SerializationTests.ReadFromAsync_WithCancellation_CanBeCancelled [2 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTripAsync_WithPositionalRecordClass_PreservesData [2 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_CountEqualsToListCount(rowCount: 10000, seed: 123) [27 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.ConcurrentCountSet_ShouldReturnConsistentResults(bitCount: 100000, concurrentReads: 10) [295 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_ChunkSizeBoundaries_HandledCorrectly(rowCount: 16385) [69 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTrip_WithStruct_PreservesData [68 ms]
+  Passed FrozenArrow.Tests.SerializationTests.WriteTo_WithNullWriter_ThrowsArgumentNullException [< 1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_ChunkSizeBoundaries_HandledCorrectly(rowCount: 16383) [25 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTrip_WithReadonlyPositionalRecordStruct_PreservesData [17 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTrip_WithPositionalRecordClassAndExplicitNames_PreservesData [7 ms]
+  Passed FrozenArrow.Tests.SerializationTests.WriteToAsync_WithCancellation_CanBeCancelled [4 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTripAsync_WithPositionalRecordStruct_PreservesData [6 ms]
+  Passed FrozenArrow.Tests.SerializationTests.WriteToAsync_WhenDisposed_ThrowsObjectDisposedException [1 ms]
+  Passed FrozenArrow.Tests.SerializationTests.WriteTo_WithDefaultOptions_Succeeds [< 1 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_FilterMonotonicity_MoreRestrictiveFewerResults(rowCount: 100000) [195 ms]
+  Passed FrozenArrow.Tests.SerializationTests.ReadFromAsync_WithNullStream_ThrowsArgumentNullException [1 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTrip_WithEmptyCollection_PreservesEmpty [< 1 ms]
+  Passed FrozenArrow.Tests.SerializationTests.ArrowReadOptions_CanBeCustomized [< 1 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTrip_WithNullableValues_PreservesNulls [10 ms]
+  Passed FrozenArrow.Tests.SerializationTests.ReadFrom_WithDefaultOptions_IgnoresUnknownColumns [< 1 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTrip_WithExplicitNames_PreservesData [8 ms]
+  Passed FrozenArrow.Tests.SerializationTests.RoundTrip_WithReadOnlySequence_PreservesData [2 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.ConcurrentCountSet_ShouldReturnConsistentResults(bitCount: 500000, concurrentReads: 20) [100 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ParallelExecution_ProducesSameResultsAsSequential_Count [239 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Count_WithPredicate_ReturnsCorrectCount [< 1 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.LargeBitmap_ConcurrentCountSet_ShouldUseHardwareAcceleration(bitCount: 1000000) [11 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.ChunkBoundary_ConcurrentReads_ShouldBeCorrect(bitCount: 16383) [12 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.ChunkBoundary_ConcurrentReads_ShouldBeCorrect(bitCount: 16385) [8 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_WithMultipleAggregates_ComputesAllAggregates [30 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Sum_IntColumn_ComputesCorrectly [1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Where_StringContains_FiltersCorrectly [3 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_PredicateReordering_PreservesSemantics(rowCount: 100000) [99 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Where_NegatedBoolean_FiltersCorrectly [2 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.ChunkBoundary_ConcurrentReads_ShouldBeCorrect(bitCount: 16384) [5 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ToFrozenSet_WorksWithArrowQuery [8 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.SinglePredicate_DifferentDataSizes_ParallelMatchesSequential(rowCount: 100000) [829 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Sum_OnFilteredData_ComputesDirectlyOnColumn [4 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ToDictionary_WorksWithArrowQuery [3 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Average_OnFilteredData_ComputesDirectlyOnColumn [1 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_CountEqualsToListCount(rowCount: 100000, seed: 456) [251 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_SumIsCommutative(rowCount: 100, seed: 42) [4 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_Average_ViaMultiplePaths(rowCount: 100000) [285 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_Int32Comparisons_VectorBoundaries(rowCount: 100000) [190 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_SumIsCommutative(rowCount: 10000, seed: 123) [29 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_AverageIsWithinRange(rowCount: 10000, seed: 123) [26 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_AverageIsWithinRange(rowCount: 100, seed: 42) [2 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_FilterResultsAreSubsetOfOriginal(rowCount: 100, seed: 42) [1 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_DoubleComparisons_VectorBoundaries(rowCount: 100000) [47 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_BitmapOperations_VectorAligned(rowCount: 10000) [104 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_UnalignedData_HandledCorrectly [8 ms]
+  Passed FrozenArrow.Tests.Advanced.SimdBoundaryTests.SimdBoundary_TailProcessing_AllSizesHandled [8 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_ComplexQuery_OptimizedVsNaive(rowCount: 10000) [189 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_FilterResultsAreSubsetOfOriginal(rowCount: 100000, seed: 789) [310 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_FilterResultsAreSubsetOfOriginal(rowCount: 10000, seed: 456) [18 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_FilterResultsAreSubsetOfOriginal(rowCount: 1000, seed: 123) [40 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ParallelAggregation_Min_ProducesCorrectResult [561 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructEdgeCaseTests.ToFrozenArrow_WithStructContainingBooleans_PreservesBoolValues [12 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.ConcurrentBlockIteration_ShouldNotSkipBits [575 ms]
+  Passed FrozenArrow.Tests.Concurrency.PredicateReorderingTests.DifferentPredicateOrder_SameLogic_ShouldProduceSameResults(rowCount: 100000) [1 s]
+  Passed FrozenArrow.Tests.FrozenArrowStructEdgeCaseTests.ToFrozenArrow_WithLinqQueryOnStruct_Works [265 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_LargeDataset_OptimizedMatchesNaive(rowCount: 100000) [705 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructEdgeCaseTests.ToFrozenArrow_WithSingleFieldReadonlyStruct_Works [144 ms]
+  Passed FrozenArrow.Tests.FrozenArrowStructEdgeCaseTests.ToFrozenArrow_WithSingleFieldStruct_Works [< 1 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.ConcurrentDispose_ShouldHandleGracefully [401 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_SingleResult_AllPathsAgree(rowCount: 10000) [60 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_FilterChain_DifferentOrders(rowCount: 10000) [43 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_PredicateOrderDoesNotMatterForCount(rowCount: 1000, seed: 123, iterations: 100) [595 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_PredicateOrderDoesNotMatterForCount(rowCount: 100, seed: 42, iterations: 50) [46 ms]
+  Passed FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.SortedData_ConcurrentRangeQueries_ShouldSkipChunksCorrectly(rowCount: 500000, concurrentQueries: 100) [2 s]
+  Passed FrozenArrow.Tests.FrozenArrowStructEdgeCaseTests.ToFrozenArrow_WithAllNumericTypes_PreservesValues [129 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ParallelExecution_WithCustomChunkSize_ProducesCorrectResults [757 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_RandomizedFuzzTesting(rowCount: 100, seed: 42, iterations: 100) [253 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Where_WithCapturedVariable_FiltersCorrectly [52 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Aggregate_JustCountAndSum_WorksWithPartialAggregates [6 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_WithFilter_FiltersBeforeGrouping [2 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Any_WithMatchingPredicate_ReturnsTrue [< 1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Sum_OnAllData_ComputesDirectlyOnColumn [< 1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Explain_ShowsAggregateInPlan [1 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_Sum_ViaMultiplePaths(rowCount: 100000) [362 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_Sum_ViaMultiplePaths(rowCount: 10000) [20 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_Determinism_SameInputSameOutput(rowCount: 100000, repetitions: 10) [1 s]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_BooleanPredicates_AllPathsAgree(rowCount: 10000) [247 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_First_ViaMultiplePaths(rowCount: 10000) [26 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_EmptyResults_AllPathsAgree(rowCount: 10000) [37 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_Any_ViaMultiplePaths(rowCount: 10000) [19 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ParallelAggregation_MinInt_ProducesCorrectResult [395 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.FusedExecution_Average_ProducesCorrectResult [9 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_WithAverage_ComputesAveragePerGroup [1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Where_BooleanProperty_FiltersCorrectly [< 1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_WithCount_GroupsByKeyAndCountsPerGroup [1 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_MemorySafety_NoBufferOverruns(rowCount: 100000) [135 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Where_StringContainsChar_FiltersCorrectly [< 1 ms]
+  Passed FrozenArrow.Tests.Concurrency.SelectionBitmapConcurrencyTests.LargeBitmap_ConcurrentOperations_ShouldNotLeak [752 ms]
+  Passed FrozenArrow.Tests.Concurrency.MemoryPressureTests.MemoryPressureSimulation_ConcurrentQueries_ShouldRecoverGracefully [2 s]
+  Passed FrozenArrow.Tests.Concurrency.PredicateReorderingTests.MultiPredicateQuery_ConcurrentExecution_ShouldBeDeterministic(rowCount: 100000, concurrentQueries: 50) [1 s]
+  Passed FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.SortedData_ConcurrentRangeQueries_ShouldSkipChunksCorrectly(rowCount: 100000, concurrentQueries: 50) [722 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.FusedExecution_Sum_ProducesCorrectResult [57 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_QueryPlanCaching_DoesNotAffectResults(rowCount: 100000) [262 ms]
+  Passed FrozenArrow.Tests.Concurrency.QueryPlanCacheTests.SameQuery_ConcurrentExecution_ShouldUseCachedPlan(rowCount: 100000, concurrentQueries: 100) [2 s]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_RandomizedFuzzTesting(rowCount: 1000, seed: 123, iterations: 200) [728 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ParallelExecution_ProducesSameResultsAsSequential_Sum [569 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_ToDictionary_WithCount_ReturnsCorrectDictionary [16 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ToImmutableArray_WorksWithArrowQuery [2 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Aggregate_IntegerColumns_ComputesCorrectly [2 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Aggregate_MultipleAggregates_ComputesAllInSinglePass [2 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Aggregate_WithCategoryFilter_ComputesCorrectly [2 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Min_IntColumn_ComputesCorrectly [1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_ToDictionary_WithFilter_FiltersBeforeGrouping [1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_ByIntegerColumn_WorksCorrectly [7 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Where_StringStartsWith_FiltersCorrectly [< 1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_WithAnonymousType_WorksCorrectly [3 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_MultipleFiltersAreConjunctive(rowCount: 1000, seed: 123, iterations: 100) [581 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_MultipleFiltersAreConjunctive(rowCount: 100, seed: 42, iterations: 50) [20 ms]
+  Passed FrozenArrow.Tests.Correctness.CrossValidationTests.CrossValidation_RandomQueries_AlwaysAgree(rowCount: 10000, iterations: 100) [976 ms]
+  Passed FrozenArrow.Tests.Advanced.StressTestSuite.Stress_ShortCircuitOperations_HighFrequency(rowCount: 100000, iterations: 100) [2 s]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.RepeatedExecution_SameData_ShouldProduceDeterministicResults(iterations: 10) [3 s]
+  Passed FrozenArrow.Tests.Concurrency.QueryPlanCacheTests.SameQuery_ConcurrentExecution_ShouldUseCachedPlan(rowCount: 50000, concurrentQueries: 50) [736 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_ParallelExecution_PreservesSingleThreadedSemantics(rowCount: 100000) [896 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ParallelExecution_ProducesSameResultsAsSequential_MultiplePredicates [859 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_BitmapOperations_PreserveSetSemantics(rowCount: 100000) [521 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_SelectionBitmap_AccurateBitCounting(rowCount: 100000) [357 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ParallelAggregation_SumInt_ProducesCorrectResult [763 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Max_OnFilteredData_ComputesDirectlyOnColumn [2 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_WithSum_ComputesSumPerGroup [1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Any_WithNoMatchingPredicate_ReturnsFalse [< 1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_ToDictionary_WithAverage_ReturnsAveragePerGroup [3 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.AllowFallback_DisablesStrictMode [< 1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Max_IntColumn_ComputesCorrectly [1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Explain_ReturnsQueryPlan [< 1 ms]
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_Aggregations_AssociativeProperty(rowCount: 100000) [1 s]
+[xUnit.net 00:00:07.53]     FrozenArrow.Tests.Concurrency.MemoryPressureTests.LargeDataset_MemoryIntensiveOperations_ShouldNotExhaustMemory(rowCount: 500000, concurrentQueries: 50) [FAIL]
+[xUnit.net 00:00:07.53]       Assert.All() Failure: 50 out of 50 items in the collection did not pass.
+[xUnit.net 00:00:07.53]       [0]:  Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [1]:  Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [2]:  Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [3]:  Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [4]:  Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [5]:  Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [6]:  Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [7]:  Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [8]:  Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [9]:  Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [10]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [11]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [12]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [13]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [14]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [15]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [16]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [17]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [18]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [19]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [20]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [21]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [22]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [23]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.53]       [24]: Item:  249794
+[xUnit.net 00:00:07.53]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.53]                    Expected: True
+[xUnit.net 00:00:07.53]                    Actual:   False
+[xUnit.net 00:00:07.54]       [25]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [26]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [27]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [28]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [29]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [30]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [31]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [32]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [33]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [34]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [35]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [36]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [37]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [38]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [39]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [40]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [41]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [42]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [43]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [44]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [45]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [46]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [47]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [48]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       [49]: Item:  249794
+[xUnit.net 00:00:07.54]             Error: Assert.True() Failure
+[xUnit.net 00:00:07.54]                    Expected: True
+[xUnit.net 00:00:07.54]                    Actual:   False
+[xUnit.net 00:00:07.54]       Stack Trace:
+[xUnit.net 00:00:07.54]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\MemoryPressureTests.cs(169,0): at FrozenArrow.Tests.Concurrency.MemoryPressureTests.LargeDataset_MemoryIntensiveOperations_ShouldNotExhaustMemory(Int32 rowCount, Int32 concurrentQueries)
+[xUnit.net 00:00:07.54]         --- End of stack trace from previous location ---
+  Passed FrozenArrow.Tests.Correctness.OptimizationInvariantTests.Invariant_FusedOperations_MatchUnfusedResults(rowCount: 50000) [549 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ParallelAggregation_Max_ProducesCorrectResult [1 s]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Where_StringEquality_FiltersCorrectly [1 ms]
+  Passed FrozenArrow.Tests.Concurrency.QueryPlanCacheTests.MixedOperations_ConcurrentCacheAccess_ShouldBeThreadSafe(rowCount: 50000, operations: 50) [3 s]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ParallelAggregation_Average_ProducesCorrectResult [266 ms]
+  Failed FrozenArrow.Tests.Concurrency.MemoryPressureTests.LargeDataset_MemoryIntensiveOperations_ShouldNotExhaustMemory(rowCount: 500000, concurrentQueries: 50) [4 s]
+  Error Message:
+   Assert.All() Failure: 50 out of 50 items in the collection did not pass.
+[0]:  Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[1]:  Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[2]:  Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[3]:  Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[4]:  Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[5]:  Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[6]:  Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[7]:  Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[8]:  Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[9]:  Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[10]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[11]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[12]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[13]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[14]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[15]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[16]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[17]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[18]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[19]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[20]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[21]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[22]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[23]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[24]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[25]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[26]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[27]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[28]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[29]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[30]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[31]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[32]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[33]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[34]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[35]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[36]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[37]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[38]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[39]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[40]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[41]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[42]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[43]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[44]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[45]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[46]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[47]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[48]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+[49]: Item:  249794
+      Error: Assert.True() Failure
+             Expected: True
+             Actual:   False
+  Stack Trace:
+     at FrozenArrow.Tests.Concurrency.MemoryPressureTests.LargeDataset_MemoryIntensiveOperations_ShouldNotExhaustMemory(Int32 rowCount, Int32 concurrentQueries) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\MemoryPressureTests.cs:line 169
+--- End of stack trace from previous location ---
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_Explain_ShowsGroupByInPlan [16 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.AsQueryable_ReturnsArrowQuery [< 1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_ToDictionary_ByIntegerColumn_WorksCorrectly [5 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_ToDictionary_WithMin_ReturnsMinPerGroup [5 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.FusedExecution_WithMultiplePredicates_ProducesCorrectResult [7 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Min_OnFilteredData_ComputesDirectlyOnColumn [1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Where_MultipleWhereClauses_CombinesCorrectly [1 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.MixedOperations_ConcurrentExecution_ShouldAllComplete(rowCount: 100000, operationCount: 50) [3 s]
+  Passed FrozenArrow.Tests.ArrowQueryTests.FusedExecution_ParallelMode_ProducesCorrectResult [207 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.FusedExecution_Max_ProducesCorrectResult [4 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.FusedExecution_Min_ProducesCorrectResult [5 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_ToDictionary_WithMax_ReturnsMaxPerGroup [2 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Where_CombinedWithAnd_FiltersCorrectly [< 1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Where_DecimalComparison_FiltersCorrectly [1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ParallelExecution_ToList_ReturnsCorrectItems [69 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Where_SimpleIntComparison_FiltersCorrectly [< 1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ToHashSet_WorksWithArrowQuery [< 1 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Where_IntEquality_FiltersCorrectly [< 1 ms]
+[xUnit.net 00:00:08.54]       Cache warmup should not deadlock
+[xUnit.net 00:00:08.54]       Stack Trace:
+[xUnit.net 00:00:08.54]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\QueryPlanCacheTests.cs(221,0): at FrozenArrow.Tests.Concurrency.QueryPlanCacheTests.CacheWarmup_ParallelQueries_ShouldNotDeadlock()
+[xUnit.net 00:00:08.54]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:08.54]     FrozenArrow.Tests.Concurrency.QueryPlanCacheTests.CacheWarmup_ParallelQueries_ShouldNotDeadlock [FAIL]
+  Passed FrozenArrow.Tests.ArrowQueryTests.ParallelAggregation_Sum_ProducesCorrectResult [479 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.Aggregate_WithFilter_ComputesAggregatesOnFilteredData [2 ms]
+  Passed FrozenArrow.Tests.ArrowQueryTests.GroupBy_ToDictionary_WithSum_ReturnsSumPerGroup [1 ms]
+  Failed FrozenArrow.Tests.Concurrency.QueryPlanCacheTests.CacheWarmup_ParallelQueries_ShouldNotDeadlock [1 s]
+  Error Message:
+   Cache warmup should not deadlock
+  Stack Trace:
+     at FrozenArrow.Tests.Concurrency.QueryPlanCacheTests.CacheWarmup_ParallelQueries_ShouldNotDeadlock() in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\QueryPlanCacheTests.cs:line 221
+--- End of stack trace from previous location ---
+  Passed FrozenArrow.Tests.Concurrency.PredicateReorderingTests.MultiPredicateQuery_ConcurrentExecution_ShouldBeDeterministic(rowCount: 500000, concurrentQueries: 100) [5 s]
+  Passed FrozenArrow.Tests.Concurrency.MemoryPressureTests.MixedOperations_MemoryPressure_ShouldMaintainCorrectness(rowCount: 100000, operations: 50) [1 s]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.SinglePredicate_DifferentDataSizes_ParallelMatchesSequential(rowCount: 1000000) [7 s]
+  Passed FrozenArrow.Tests.Concurrency.MemoryPressureTests.ConcurrentBitmapCreationDisposal_HighThroughput_ShouldHandleCorrectly(bitCount: 100000, operations: 100) [11 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.SinglePredicate_DifferentDataSizes_ParallelMatchesSequential(rowCount: 1000) [6 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.SinglePredicate_DifferentDataSizes_ParallelMatchesSequential(rowCount: 10000) [14 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.BooleanPredicates_ParallelMatchesSequential(rowCount: 100000) [299 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.DifferentParallelismDegrees_ShouldProduceIdenticalResults(rowCount: 100000, degreeOfParallelism: 2) [1 s]
+  Passed FrozenArrow.Tests.Concurrency.PredicateReorderingTests.RepeatedReordering_SamePredicates_ShouldBeDeterministic(rowCount: 200000, repetitions: 100) [921 ms]
+[xUnit.net 00:00:09.58]       Memory grew by 28MB, possible leak
+[xUnit.net 00:00:09.59]       Stack Trace:
+[xUnit.net 00:00:09.59]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\MemoryPressureTests.cs(339,0): at FrozenArrow.Tests.Concurrency.MemoryPressureTests.LongRunningQueries_MemoryStability_ShouldNotLeak(Int32 rowCount, Int32 durationMilliseconds)
+[xUnit.net 00:00:09.59]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:09.58]     FrozenArrow.Tests.Concurrency.MemoryPressureTests.LongRunningQueries_MemoryStability_ShouldNotLeak(rowCount: 100000, durationMilliseconds: 100) [FAIL]
+  Failed FrozenArrow.Tests.Concurrency.MemoryPressureTests.LongRunningQueries_MemoryStability_ShouldNotLeak(rowCount: 100000, durationMilliseconds: 100) [947 ms]
+  Error Message:
+   Memory grew by 28MB, possible leak
+  Stack Trace:
+     at FrozenArrow.Tests.Concurrency.MemoryPressureTests.LongRunningQueries_MemoryStability_ShouldNotLeak(Int32 rowCount, Int32 durationMilliseconds) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\MemoryPressureTests.cs:line 339
+--- End of stack trace from previous location ---
+  Passed FrozenArrow.Tests.Concurrency.QueryPlanCacheTests.LongRunningQueries_ConcurrentCacheAccess_ShouldNotBlock [1 s]
+  Passed FrozenArrow.Tests.Concurrency.PredicateReorderingTests.SelectivityEstimation_ConcurrentQueries_ShouldBeConsistent(rowCount: 50000, concurrentQueries: 50) [75 ms]
+  Passed FrozenArrow.Tests.Advanced.StressTestSuite.Stress_RapidQuerySwitching_NoErrors(rowCount: 100000, switchCount: 50) [5 s]
+  Passed FrozenArrow.Tests.Concurrency.QueryPlanCacheTests.DeterministicResults_WithCaching_ShouldBeConsistent(rowCount: 100000, repetitions: 100) [655 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.DifferentParallelismDegrees_ShouldProduceIdenticalResults(rowCount: 100000, degreeOfParallelism: 16) [1 s]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.MultiplePredicates_ComplexQuery_ParallelMatchesSequential(rowCount: 500000) [1 s]
+  Passed FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.RaceCondition_ZoneMapAccess_ShouldNotCorrupt(rowCount: 500000, iterations: 100) [7 s]
+  Passed FrozenArrow.Tests.Advanced.StressTestSuite.Stress_ComplexAggregations_LargeDataset(rowCount: 500000) [719 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.DifferentParallelismDegrees_ShouldProduceIdenticalResults(rowCount: 100000, degreeOfParallelism: 1) [175 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.MultiplePredicates_ComplexQuery_ParallelMatchesSequential(rowCount: 100000) [477 ms]
+  Passed FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.ChunkedRanges_SelectiveQueries_ShouldSkipMostChunks(chunkSize: 16384, chunkCount: 10) [552 ms]
+[xUnit.net 00:00:11.31]     FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.LowSelectivity_ConcurrentExecution_ZoneMapsMinimalSkip(rowCount: 100000) [FAIL]
+[xUnit.net 00:00:11.31]       Assert.All() Failure: 30 out of 30 items in the collection did not pass.
+[xUnit.net 00:00:11.31]       [0]:  Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [1]:  Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [2]:  Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [3]:  Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [4]:  Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [5]:  Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [6]:  Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [7]:  Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [8]:  Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [9]:  Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [10]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [11]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [12]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [13]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [14]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [15]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [16]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [17]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [18]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [19]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [20]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [21]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [22]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [23]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [24]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [25]: Item:  99899
+[xUnit.net 00:00:11.31]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.31]                    Expected: 99900
+[xUnit.net 00:00:11.31]                    Actual:   99899
+[xUnit.net 00:00:11.31]       [26]: Item:  99899
+[xUnit.net 00:00:11.32]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.32]                    Expected: 99900
+[xUnit.net 00:00:11.32]                    Actual:   99899
+[xUnit.net 00:00:11.32]       [27]: Item:  99899
+[xUnit.net 00:00:11.32]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.32]                    Expected: 99900
+[xUnit.net 00:00:11.32]                    Actual:   99899
+[xUnit.net 00:00:11.32]       [28]: Item:  99899
+[xUnit.net 00:00:11.32]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.32]                    Expected: 99900
+[xUnit.net 00:00:11.32]                    Actual:   99899
+[xUnit.net 00:00:11.32]       [29]: Item:  99899
+[xUnit.net 00:00:11.32]             Error: Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:11.32]                    Expected: 99900
+[xUnit.net 00:00:11.32]                    Actual:   99899
+[xUnit.net 00:00:11.32]       Stack Trace:
+[xUnit.net 00:00:11.32]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\ZoneMapThreadSafetyTests.cs(186,0): at FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.LowSelectivity_ConcurrentExecution_ZoneMapsMinimalSkip(Int32 rowCount)
+[xUnit.net 00:00:11.32]         --- End of stack trace from previous location ---
+  Passed FrozenArrow.Tests.Concurrency.MemoryPressureTests.GCDuringExecution_ConcurrentQueries_ShouldNotCorrupt [1 s]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.MultiplePredicates_ComplexQuery_ParallelMatchesSequential(rowCount: 50000) [198 ms]
+  Failed FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.LowSelectivity_ConcurrentExecution_ZoneMapsMinimalSkip(rowCount: 100000) [109 ms]
+  Error Message:
+   Assert.All() Failure: 30 out of 30 items in the collection did not pass.
+[0]:  Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[1]:  Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[2]:  Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[3]:  Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[4]:  Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[5]:  Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[6]:  Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[7]:  Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[8]:  Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[9]:  Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[10]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[11]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[12]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[13]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[14]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[15]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[16]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[17]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[18]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[19]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[20]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[21]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[22]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[23]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[24]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[25]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[26]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[27]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[28]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+[29]: Item:  99899
+      Error: Assert.Equal() Failure: Values differ
+             Expected: 99900
+             Actual:   99899
+  Stack Trace:
+     at FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.LowSelectivity_ConcurrentExecution_ZoneMapsMinimalSkip(Int32 rowCount) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\ZoneMapThreadSafetyTests.cs:line 186
+--- End of stack trace from previous location ---
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.DifferentParallelismDegrees_ShouldProduceIdenticalResults(rowCount: 100000, degreeOfParallelism: 4) [643 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.CombinedPredicates_MultipleAnd_ParallelMatchesSequential(rowCount: 100000) [140 ms]
+  Passed FrozenArrow.Tests.Advanced.StressTestSuite.Stress_FullDatasetScan_Performance(rowCount: 1000000) [966 ms]
+[xUnit.net 00:00:11.66]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'LessThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:11.66]       Stack Trace:
+[xUnit.net 00:00:11.66]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:11.66]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\ZoneMapThreadSafetyTests.cs(293,0): at FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.<>c__DisplayClass10_1.<ChunkBoundary_ZoneMapDecisions_ShouldBeCorrect>b__1()
+[xUnit.net 00:00:11.66]            at System.Threading.Tasks.Task`1.InnerInvoke()
+[xUnit.net 00:00:11.66]            at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+[xUnit.net 00:00:11.66]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:11.66]            at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+[xUnit.net 00:00:11.66]            at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+[xUnit.net 00:00:11.66]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:11.66]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\ZoneMapThreadSafetyTests.cs(300,0): at FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.ChunkBoundary_ZoneMapDecisions_ShouldBeCorrect(Int32 chunkSize, Int32 chunkCount)
+[xUnit.net 00:00:11.66]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:11.66]     FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.ChunkBoundary_ZoneMapDecisions_ShouldBeCorrect(chunkSize: 16384, chunkCount: 5) [FAIL]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.ShortCircuit_Any_ParallelMatchesSequential(rowCount: 100000) [205 ms]
+  Failed FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.ChunkBoundary_ZoneMapDecisions_ShouldBeCorrect(chunkSize: 16384, chunkCount: 5) [346 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'LessThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.<>c__DisplayClass10_1.<ChunkBoundary_ZoneMapDecisions_ShouldBeCorrect>b__1() in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\ZoneMapThreadSafetyTests.cs:line 293
+   at System.Threading.Tasks.Task`1.InnerInvoke()
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.ChunkBoundary_ZoneMapDecisions_ShouldBeCorrect(Int32 chunkSize, Int32 chunkCount) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\ZoneMapThreadSafetyTests.cs:line 300
+--- End of stack trace from previous location ---
+  Passed FrozenArrow.Tests.Concurrency.MemoryPressureTests.HighMemoryPressure_ConcurrentBitmapAllocations_ShouldNotLeak(rowCount: 100000, operations: 100) [371 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.Aggregations_Sum_ParallelMatchesSequential(rowCount: 100000) [81 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.ChunkBoundaries_ParallelMatchesSequential(rowCount: 16384) [34 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.ChunkBoundaries_ParallelMatchesSequential(rowCount: 16383) [44 ms]
+[xUnit.net 00:00:11.96]     FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.EmptyResultZoneMap_ConcurrentQueries_ShouldSkipAllChunks(rowCount: 200000) [FAIL]
+[xUnit.net 00:00:11.96]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:11.96]       Stack Trace:
+[xUnit.net 00:00:11.96]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:11.96]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\ZoneMapThreadSafetyTests.cs(265,0): at FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.<>c__DisplayClass9_0.<EmptyResultZoneMap_ConcurrentQueries_ShouldSkipAllChunks>b__2()
+[xUnit.net 00:00:11.96]            at System.Threading.Tasks.Task`1.InnerInvoke()
+[xUnit.net 00:00:11.96]            at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+[xUnit.net 00:00:11.96]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:11.96]            at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+[xUnit.net 00:00:11.96]            at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+[xUnit.net 00:00:11.96]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:11.96]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\ZoneMapThreadSafetyTests.cs(271,0): at FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.EmptyResultZoneMap_ConcurrentQueries_ShouldSkipAllChunks(Int32 rowCount)
+[xUnit.net 00:00:11.96]         --- End of stack trace from previous location ---
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.ChunkBoundaries_ParallelMatchesSequential(rowCount: 32768) [54 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.DifferentParallelismDegrees_ShouldProduceIdenticalResults(rowCount: 100000, degreeOfParallelism: 8) [531 ms]
+  Failed FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.EmptyResultZoneMap_ConcurrentQueries_ShouldSkipAllChunks(rowCount: 200000) [193 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.<>c__DisplayClass9_0.<EmptyResultZoneMap_ConcurrentQueries_ShouldSkipAllChunks>b__2() in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\ZoneMapThreadSafetyTests.cs:line 265
+   at System.Threading.Tasks.Task`1.InnerInvoke()
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.EmptyResultZoneMap_ConcurrentQueries_ShouldSkipAllChunks(Int32 rowCount) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\ZoneMapThreadSafetyTests.cs:line 271
+--- End of stack trace from previous location ---
+  Passed FrozenArrow.Tests.Concurrency.MemoryPressureTests.ArrayPoolExhaustion_ConcurrentAccess_ShouldHandleGracefully [275 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.ChunkBoundaries_ParallelMatchesSequential(rowCount: 49152) [280 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.ChunkBoundaries_ParallelMatchesSequential(rowCount: 16385) [70 ms]
+  Passed FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.HighSelectivity_ConcurrentExecution_ZoneMapsEffective(rowCount: 200000, concurrentQueries: 50) [331 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.Aggregations_Average_ParallelMatchesSequential(rowCount: 100000) [148 ms]
+  Passed FrozenArrow.Tests.Concurrency.PredicateReorderingTests.PredicateReordering_HighConcurrency_ShouldNotCauseRaceConditions(rowCount: 100000, iterations: 100) [3 s]
+  Passed FrozenArrow.Tests.Concurrency.QueryPlanCacheTests.RepeatedQueries_HighConcurrency_ShouldNotCauseCacheCorruption(rowCount: 100000, iterations: 100) [2 s]
+  Passed FrozenArrow.Tests.Concurrency.QueryPlanCacheTests.DifferentQueries_ConcurrentExecution_ShouldCacheSeparately(rowCount: 50000, queryVariations: 20) [276 ms]
+  Passed FrozenArrow.Tests.Concurrency.PredicateReorderingTests.ComplexPredicateChain_ConcurrentReordering_ShouldComplete [302 ms]
+  Passed FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.LargeDataset_ConcurrentZoneMapQueries_ShouldScale(rowCount: 1000000) [826 ms]
+[xUnit.net 00:00:13.32]     FrozenArrow.Tests.Concurrency.PredicateReorderingTests.ZoneMapIntegration_PredicateReordering_ShouldOptimizeSkipping(rowCount: 100000, concurrentQueries: 20) [FAIL]
+[xUnit.net 00:00:13.32]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.; Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:13.32]       Stack Trace:
+[xUnit.net 00:00:13.32]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:13.32]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\PredicateReorderingTests.cs(329,0): at FrozenArrow.Tests.Concurrency.PredicateReorderingTests.<>c__DisplayClass10_0.<ZoneMapIntegration_PredicateReordering_ShouldOptimizeSkipping>b__3()
+[xUnit.net 00:00:13.32]            at System.Threading.Tasks.Task`1.InnerInvoke()
+[xUnit.net 00:00:13.32]            at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+[xUnit.net 00:00:13.32]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:13.32]            at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+[xUnit.net 00:00:13.32]            at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+[xUnit.net 00:00:13.32]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:13.32]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\PredicateReorderingTests.cs(336,0): at FrozenArrow.Tests.Concurrency.PredicateReorderingTests.ZoneMapIntegration_PredicateReordering_ShouldOptimizeSkipping(Int32 rowCount, Int32 concurrentQueries)
+[xUnit.net 00:00:13.32]         --- End of stack trace from previous location ---
+  Passed FrozenArrow.Tests.Concurrency.QueryPlanCacheTests.ComplexQuery_ConcurrentFirstExecution_ShouldCacheCorrectly [56 ms]
+  Passed FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.MultiplePredicates_ConcurrentZoneMapTests_ShouldBeCorrect [44 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.LargeDataset_ConcurrentAggregation_ShouldBeCorrect(rowCount: 1000000) [1 s]
+  Passed FrozenArrow.Tests.Concurrency.PredicateReorderingTests.RaceCondition_PredicateAnalysis_ShouldNotCorruptState [152 ms]
+  Passed FrozenArrow.Tests.Concurrency.ZoneMapThreadSafetyTests.MixedQueryPatterns_ConcurrentZoneMapUsage_ShouldBeThreadSafe [107 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ConcurrentReads_HighContention_NoDataCorruption(rowCount: 50000, concurrentQueries: 200) [60 ms]
+  Failed FrozenArrow.Tests.Concurrency.PredicateReorderingTests.ZoneMapIntegration_PredicateReordering_ShouldOptimizeSkipping(rowCount: 100000, concurrentQueries: 20) [49 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.; Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Concurrency.PredicateReorderingTests.<>c__DisplayClass10_0.<ZoneMapIntegration_PredicateReordering_ShouldOptimizeSkipping>b__3() in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\PredicateReorderingTests.cs:line 329
+   at System.Threading.Tasks.Task`1.InnerInvoke()
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at FrozenArrow.Tests.Concurrency.PredicateReorderingTests.ZoneMapIntegration_PredicateReordering_ShouldOptimizeSkipping(Int32 rowCount, Int32 concurrentQueries) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Concurrency\PredicateReorderingTests.cs:line 336
+--- End of stack trace from previous location ---
+  Passed FrozenArrow.Tests.Concurrency.PredicateReorderingTests.MixedQueryComplexity_ConcurrentReordering_ShouldBeThreadSafe(rowCount: 100000, operations: 50) [59 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ConcurrentReads_HighContention_NoDataCorruption(rowCount: 100000, concurrentQueries: 100) [100 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ChunkBoundaryConditions_ConcurrentAccess_ShouldBeCorrect(rowCount: 16384) [10 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ChunkBoundaryConditions_ConcurrentAccess_ShouldBeCorrect(rowCount: 32769) [13 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.FuzzTest_RandomQueries_ParallelMatchesSequential [1 s]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ChunkBoundaryConditions_ConcurrentAccess_ShouldBeCorrect(rowCount: 49152) [16 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ChunkBoundaryConditions_ConcurrentAccess_ShouldBeCorrect(rowCount: 32768) [13 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_MultipleFiltersAreConjunctive(rowCount: 10000, seed: 456, iterations: 500) [9 s]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ChunkBoundaryConditions_ConcurrentAccess_ShouldBeCorrect(rowCount: 16385) [7 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_MonotonicityOfFilters(rowCount: 1000, seed: 123) [1 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_MonotonicityOfFilters(rowCount: 100, seed: 42) [< 1 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ChunkBoundaryConditions_ConcurrentAccess_ShouldBeCorrect(rowCount: 16383) [46 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_FirstIsFirstElementOfToList(rowCount: 100, seed: 42, iterations: 20) [45 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ConcurrentReads_MultipleTasks_ShouldProduceSameResults(rowCount: 10000, concurrentTasks: 2) [10 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.EmptyResultSet_ParallelMatchesSequential(rowCount: 100000) [89 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_FirstIsFirstElementOfToList(rowCount: 1000, seed: 123, iterations: 50) [37 ms]
+  Passed FrozenArrow.Tests.Correctness.PropertyBasedTests.Property_IdempotenceOfReadOperations(rowCount: 10000, seed: 42) [7 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.HighSelectivity_MostRowsMatch_ParallelMatchesSequential(rowCount: 100000) [39 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.NegativePredicates_ParallelMatchesSequential(rowCount: 100000) [37 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.ShortCircuit_First_ParallelMatchesSequential(rowCount: 100000) [35 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.Aggregations_Count_ParallelMatchesSequential(rowCount: 100000) [47 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.LowSelectivity_FewRowsMatch_ParallelMatchesSequential(rowCount: 100000) [136 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.StringPredicates_ParallelMatchesSequential(rowCount: 100000) [104 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ConcurrentReads_MultipleTasks_ShouldProduceSameResults(rowCount: 500000, concurrentTasks: 16) [800 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ConcurrentReads_MultipleTasks_ShouldProduceSameResults(rowCount: 50000, concurrentTasks: 4) [31 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ConcurrentReads_MultipleTasks_ShouldProduceSameResults(rowCount: 100000, concurrentTasks: 8) [114 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.ConcurrentFirstAny_ShouldNotThrow [32 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.RaceConditionStress_RandomDelay_ShouldNotCauseDataCorruption [191 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.MultiplePredicates_ConcurrentExecution_ShouldBeThreadSafe [37 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelQueryExecutorTests.EmptyResult_ConcurrentQueries_ShouldNotThrow [20 ms]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.LargeDataset_ComplexQuery_ParallelMatchesSequential(rowCount: 1000000) [997 ms]
+  Passed FrozenArrow.Tests.Advanced.StressTestSuite.Stress_RepeatedQueries_NoPerformanceDegradation(rowCount: 100000, iterations: 1000) [3 s]
+  Passed FrozenArrow.Tests.Concurrency.ParallelCorrectnessTests.RepeatedExecution_ShouldBeDeterministic(rowCount: 100000, repetitions: 10) [485 ms]
+  Passed FrozenArrow.Tests.Advanced.StressTestSuite.Stress_LargeDatasets_QueriesComplete(rowCount: 1000000) [579 ms]
+  Passed FrozenArrow.Tests.Advanced.StressTestSuite.Stress_LargeDatasets_QueriesComplete(rowCount: 5000000) [2 s]
+  Passed FrozenArrow.Tests.Advanced.StressTestSuite.Stress_HighConcurrency_SustainedLoad(rowCount: 1000000, concurrentTasks: 10) [5 s]
+[xUnit.net 00:00:23.32]     FrozenArrow.Tests.Advanced.StressTestSuite.Stress_DeepFilterChains_HandledCorrectly(rowCount: 100000) [FAIL]
+[xUnit.net 00:00:23.32]       System.NotSupportedException : Query contains operations that cannot be optimized: OR expressions are not yet supported for column pushdown.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:23.32]       Stack Trace:
+[xUnit.net 00:00:23.32]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:23.32]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\StressTestSuite.cs(142,0): at FrozenArrow.Tests.Advanced.StressTestSuite.Stress_DeepFilterChains_HandledCorrectly(Int32 rowCount)
+[xUnit.net 00:00:23.32]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+[xUnit.net 00:00:23.32]            at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+[xUnit.net 00:00:23.88]     FrozenArrow.Tests.Advanced.StressTestSuite.Stress_VariedQueries_AllComplete(rowCount: 500000, queryCount: 100) [FAIL]
+[xUnit.net 00:00:23.88]       System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+[xUnit.net 00:00:23.88]       Stack Trace:
+[xUnit.net 00:00:23.88]         C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs(203,0): at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression)
+[xUnit.net 00:00:23.88]         C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\StressTestSuite.cs(123,0): at FrozenArrow.Tests.Advanced.StressTestSuite.Stress_VariedQueries_AllComplete(Int32 rowCount, Int32 queryCount)
+[xUnit.net 00:00:23.88]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+[xUnit.net 00:00:23.88]            at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+[xUnit.net 00:00:23.88]   Finished:    FrozenArrow.Tests
+  Failed FrozenArrow.Tests.Advanced.StressTestSuite.Stress_DeepFilterChains_HandledCorrectly(rowCount: 100000) [32 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: OR expressions are not yet supported for column pushdown.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Advanced.StressTestSuite.Stress_DeepFilterChains_HandledCorrectly(Int32 rowCount) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\StressTestSuite.cs:line 142
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+  Passed FrozenArrow.Tests.Advanced.StressTestSuite.Stress_MemoryPressure_MultipleDatasets [392 ms]
+  Failed FrozenArrow.Tests.Advanced.StressTestSuite.Stress_VariedQueries_AllComplete(rowCount: 500000, queryCount: 100) [166 ms]
+  Error Message:
+   System.NotSupportedException : Query contains operations that cannot be optimized: Binary expression 'GreaterThan' is not supported.. Set ArrowQueryProvider.StrictMode = false to allow fallback materialization, or modify the query to use supported operations.
+  Stack Trace:
+     at FrozenArrow.Query.ArrowQueryProvider.Execute[TResult](Expression expression) in C:\Git\JorgeCandeias\FrozenArrow\src\FrozenArrow\Query\ArrowQuery.cs:line 203
+   at FrozenArrow.Tests.Advanced.StressTestSuite.Stress_VariedQueries_AllComplete(Int32 rowCount, Int32 queryCount) in C:\Git\JorgeCandeias\FrozenArrow\tests\FrozenArrow.Tests\Advanced\StressTestSuite.cs:line 123
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+
+Test Run Failed.
+Total tests: 430
+     Passed: 407
+     Failed: 23
+ Total time: 24.7123 Seconds
