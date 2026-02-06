@@ -31,6 +31,7 @@
 | [17](17-lazy-bitmap-materialization.md) | **Lazy Bitmap Materialization** | ? Complete | **Theoretical 2-5× sparse** | Algorithm/Memory |
 | [18](18-pagination-skip-take-early-termination.md) | **Pagination Skip/Take Early Termination** | ? Complete | **2× pagination queries** | Algorithm |
 | [19](19-null-bitmap-batch-processing.md) | **Null Bitmap Batch Processing (Boolean)** | ? Complete | **5-10% nullable columns** | Algorithm/Memory |
+| [20](20-logical-plan-architecture.md) | **Logical Plan Architecture** | ? Complete | **Foundation for future** | Architecture |
 
 ---
 
@@ -101,6 +102,7 @@ See: `docs/optimizations/TEMPLATE.md`
 ---
 
 **Last Updated**: January 2025  
-**Total Optimizations**: 15  
+**Total Optimizations**: 20  
 **Documentation Coverage**: 100%  
 **Status**: Production-Ready ?
+
