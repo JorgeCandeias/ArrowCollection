@@ -6,27 +6,17 @@ namespace FrozenArrow.Query.LogicalPlan;
 /// Translates LINQ Expression trees to logical plans.
 /// This is a thin adapter layer that decouples LINQ from the query engine.
 /// </summary>
-public sealed class LinqToLogicalPlanTranslator
+public sealed class LinqToLogicalPlanTranslator(
+    object source,
+    Type elementType,
+    IReadOnlyDictionary<string, Type> schema,
+    Dictionary<string, int> columnIndexMap,
+    long rowCount)
 {
-    private readonly object _source;
-    private readonly Type _elementType;
-    private readonly IReadOnlyDictionary<string, Type> _schema;
-    private readonly Dictionary<string, int> _columnIndexMap;
-    private readonly long _rowCount;
-
-    public LinqToLogicalPlanTranslator(
-        object source,
-        Type elementType,
-        IReadOnlyDictionary<string, Type> schema,
-        Dictionary<string, int> columnIndexMap,
-        long rowCount)
-    {
-        _source = source ?? throw new ArgumentNullException(nameof(source));
-        _elementType = elementType ?? throw new ArgumentNullException(nameof(elementType));
-        _schema = schema ?? throw new ArgumentNullException(nameof(schema));
-        _columnIndexMap = columnIndexMap ?? throw new ArgumentNullException(nameof(columnIndexMap));
-        _rowCount = rowCount;
-    }
+    private readonly object _source = source ?? throw new ArgumentNullException(nameof(source));
+    private readonly Type _elementType = elementType ?? throw new ArgumentNullException(nameof(elementType));
+    private readonly IReadOnlyDictionary<string, Type> _schema = schema ?? throw new ArgumentNullException(nameof(schema));
+    private readonly Dictionary<string, int> _columnIndexMap = columnIndexMap ?? throw new ArgumentNullException(nameof(columnIndexMap));
 
     /// <summary>
     /// Translates a LINQ expression tree to a logical plan.
@@ -35,7 +25,7 @@ public sealed class LinqToLogicalPlanTranslator
     {
         // Start with a scan of the source table
         var tableName = _elementType.Name;
-        var plan = new ScanPlan(tableName, _source, _schema, _rowCount);
+        var plan = new ScanPlan(tableName, _source, _schema, rowCount);
 
         // Walk the expression tree and build up the logical plan
         return TranslateExpression(expression, plan);
@@ -89,7 +79,7 @@ public sealed class LinqToLogicalPlanTranslator
         throw new NotSupportedException($"Expression type '{expression.NodeType}' is not supported");
     }
 
-    private LogicalPlanNode TranslateWhere(MethodCallExpression methodCall, LogicalPlanNode input)
+    private FilterPlan TranslateWhere(MethodCallExpression methodCall, LogicalPlanNode input)
     {
         // Extract the predicate lambda
         var lambda = (LambdaExpression)((UnaryExpression)methodCall.Arguments[1]).Operand;
@@ -131,7 +121,7 @@ public sealed class LinqToLogicalPlanTranslator
         return input;
     }
 
-    private LogicalPlanNode TranslateTake(MethodCallExpression methodCall, LogicalPlanNode input)
+    private LimitPlan TranslateTake(MethodCallExpression methodCall, LogicalPlanNode input)
     {
         // Extract count
         var countExpr = methodCall.Arguments[1];
@@ -143,7 +133,7 @@ public sealed class LinqToLogicalPlanTranslator
         throw new NotSupportedException("Take count must be a constant integer");
     }
 
-    private LogicalPlanNode TranslateSkip(MethodCallExpression methodCall, LogicalPlanNode input)
+    private OffsetPlan TranslateSkip(MethodCallExpression methodCall, LogicalPlanNode input)
     {
         // Extract count
         var countExpr = methodCall.Arguments[1];
@@ -155,7 +145,7 @@ public sealed class LinqToLogicalPlanTranslator
         throw new NotSupportedException("Skip count must be a constant integer");
     }
 
-    private LogicalPlanNode TranslateAggregate(
+    private AggregatePlan TranslateAggregate(
         MethodCallExpression methodCall, 
         LogicalPlanNode input, 
         AggregationOperation operation)
@@ -175,7 +165,7 @@ public sealed class LinqToLogicalPlanTranslator
         return new AggregatePlan(input, operation, columnName, outputType);
     }
 
-    private LogicalPlanNode TranslateCount(MethodCallExpression methodCall, LogicalPlanNode input)
+    private AggregatePlan TranslateCount(MethodCallExpression methodCall, LogicalPlanNode input)
     {
         return new AggregatePlan(input, AggregationOperation.Count, null, typeof(long));
     }

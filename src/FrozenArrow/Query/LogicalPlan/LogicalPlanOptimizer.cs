@@ -1,4 +1,4 @@
-namespace FrozenArrow.Query.LogicalPlan;
+﻿namespace FrozenArrow.Query.LogicalPlan;
 
 /// <summary>
 /// Transforms logical plans to improve performance without changing semantics.
@@ -10,15 +10,8 @@ namespace FrozenArrow.Query.LogicalPlan;
 /// - Fused operations (filter + aggregate in one pass)
 /// - Zone map utilization
 /// </remarks>
-public sealed class LogicalPlanOptimizer
+public sealed class LogicalPlanOptimizer(ZoneMap? zoneMap = null)
 {
-    private readonly ZoneMap? _zoneMap;
-
-    public LogicalPlanOptimizer(ZoneMap? zoneMap = null)
-    {
-        _zoneMap = zoneMap;
-    }
-
     /// <summary>
     /// Optimizes a logical plan.
     /// Returns a new optimized plan (original is unchanged).
@@ -39,7 +32,7 @@ public sealed class LogicalPlanOptimizer
     /// </summary>
     private LogicalPlanNode OptimizePredicates(LogicalPlanNode plan)
     {
-        return plan.Accept(new PredicateReorderingVisitor(_zoneMap));
+        return plan.Accept(new PredicateReorderingVisitor(zoneMap));
     }
 
     /// <summary>
@@ -47,7 +40,7 @@ public sealed class LogicalPlanOptimizer
     /// </summary>
     private LogicalPlanNode OptimizeFusedOperations(LogicalPlanNode plan)
     {
-        // Pattern: Filter ? Aggregate can become FusedFilterAggregate
+        // Pattern: Filter → Aggregate can become FusedFilterAggregate
         if (plan is AggregatePlan agg && agg.Input is FilterPlan filter)
         {
             // Mark this pattern for fused execution (physical planner will handle)
@@ -61,14 +54,9 @@ public sealed class LogicalPlanOptimizer
     /// <summary>
     /// Visitor that reorders predicates in FilterPlan nodes.
     /// </summary>
-    private sealed class PredicateReorderingVisitor : ILogicalPlanVisitor<LogicalPlanNode>
+    private sealed class PredicateReorderingVisitor(ZoneMap? zoneMap) : ILogicalPlanVisitor<LogicalPlanNode>
     {
-        private readonly ZoneMap? _zoneMap;
-
-        public PredicateReorderingVisitor(ZoneMap? zoneMap)
-        {
-            _zoneMap = zoneMap;
-        }
+        private readonly ZoneMap? _zoneMap = zoneMap;
 
         public LogicalPlanNode Visit(ScanPlan plan) => plan;
 

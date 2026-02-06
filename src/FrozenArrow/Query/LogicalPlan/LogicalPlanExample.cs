@@ -1,6 +1,4 @@
-using FrozenArrow.Query.LogicalPlan;
-
-namespace FrozenArrow.Query;
+﻿namespace FrozenArrow.Query.LogicalPlan;
 
 /// <summary>
 /// Example demonstrating the new logical plan architecture.
@@ -133,7 +131,7 @@ public static class LogicalPlanExample
         ");
         
         // Behind the scenes:
-        // 1. Parse SQL ? Logical plan (same as LINQ produces)
+        // 1. Parse SQL → Logical plan (same as LINQ produces)
         // 2. Optimize logical plan (same optimizer!)
         // 3. Execute physical plan (same executor!)
         */
@@ -176,16 +174,16 @@ internal class LogicalPlanExplainer : ILogicalPlanVisitor<string>
         return plan.Accept(this);
     }
 
-    private string Indent() => new string(' ', _indent * 2);
+    private string Indent() => new(' ', _indent * 2);
 
     public string Visit(ScanPlan plan)
     {
-        return $"{Indent()}{plan.Description} ? {plan.EstimatedRowCount:N0} rows";
+        return $"{Indent()}{plan.Description} → {plan.EstimatedRowCount:N0} rows";
     }
 
     public string Visit(FilterPlan plan)
     {
-        var result = $"{Indent()}{plan.Description} ? {plan.EstimatedRowCount:N0} rows\n";
+        var result = $"{Indent()}{plan.Description} → {plan.EstimatedRowCount:N0} rows\n";
         _indent++;
         result += plan.Input.Accept(this);
         _indent--;
@@ -194,7 +192,7 @@ internal class LogicalPlanExplainer : ILogicalPlanVisitor<string>
 
     public string Visit(ProjectPlan plan)
     {
-        var result = $"{Indent()}{plan.Description} ? {plan.EstimatedRowCount:N0} rows\n";
+        var result = $"{Indent()}{plan.Description} → {plan.EstimatedRowCount:N0} rows\n";
         _indent++;
         result += plan.Input.Accept(this);
         _indent--;
@@ -203,7 +201,7 @@ internal class LogicalPlanExplainer : ILogicalPlanVisitor<string>
 
     public string Visit(AggregatePlan plan)
     {
-        var result = $"{Indent()}{plan.Description} ? {plan.EstimatedRowCount:N0} rows\n";
+        var result = $"{Indent()}{plan.Description} → {plan.EstimatedRowCount:N0} rows\n";
         _indent++;
         result += plan.Input.Accept(this);
         _indent--;
@@ -212,7 +210,7 @@ internal class LogicalPlanExplainer : ILogicalPlanVisitor<string>
 
     public string Visit(GroupByPlan plan)
     {
-        var result = $"{Indent()}{plan.Description} ? {plan.EstimatedRowCount:N0} groups\n";
+        var result = $"{Indent()}{plan.Description} → {plan.EstimatedRowCount:N0} groups\n";
         _indent++;
         result += plan.Input.Accept(this);
         _indent--;
@@ -221,7 +219,7 @@ internal class LogicalPlanExplainer : ILogicalPlanVisitor<string>
 
     public string Visit(LimitPlan plan)
     {
-        var result = $"{Indent()}{plan.Description} ? {plan.EstimatedRowCount:N0} rows\n";
+        var result = $"{Indent()}{plan.Description} → {plan.EstimatedRowCount:N0} rows\n";
         _indent++;
         result += plan.Input.Accept(this);
         _indent--;
@@ -230,7 +228,7 @@ internal class LogicalPlanExplainer : ILogicalPlanVisitor<string>
 
     public string Visit(OffsetPlan plan)
     {
-        var result = $"{Indent()}{plan.Description} ? {plan.EstimatedRowCount:N0} rows\n";
+        var result = $"{Indent()}{plan.Description} → {plan.EstimatedRowCount:N0} rows\n";
         _indent++;
         result += plan.Input.Accept(this);
         _indent--;
