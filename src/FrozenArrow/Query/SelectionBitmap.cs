@@ -690,6 +690,47 @@ public struct SelectionBitmap : IDisposable
     }
 
     /// <summary>
+    /// Applies a 16-bit mask to 16 consecutive bits (used for Int32 comparisons with AVX-512).
+    /// This is 2x wider than the AVX2 path, processing 16 Int32s per vector operation.
+    /// </summary>
+    /// <param name="startIndex">The starting bit index.</param>
+    /// <param name="mask">16-bit mask where 1 = keep current, 0 = force clear.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void AndMask16(int startIndex, ushort mask)
+    {
+        var blockIndex = startIndex >> 6;
+        var bitOffset = startIndex & 63;
+        
+        // If the 16 bits fit entirely within one ulong block (bitOffset <= 48)
+        if (bitOffset <= 48)
+        {
+            var preserveMask = ~((ulong)0xFFFF << bitOffset);
+            var andMask = (ulong)mask << bitOffset;
+            
+            _buffer![blockIndex] = (_buffer[blockIndex] & preserveMask) | (_buffer[blockIndex] & andMask);
+        }
+        else
+        {
+            // The 16 bits span two ulong blocks
+            // Split the mask across the boundary
+            var bitsInFirstBlock = 64 - bitOffset;
+            var bitsInSecondBlock = 16 - bitsInFirstBlock;
+            
+            // First block: handle high bits of the mask
+            var firstBlockMask = mask & ((1u << bitsInFirstBlock) - 1);
+            var preserveMask1 = ~((ulong)((1UL << bitsInFirstBlock) - 1) << bitOffset);
+            var andMask1 = (ulong)firstBlockMask << bitOffset;
+            _buffer![blockIndex] = (_buffer[blockIndex] & preserveMask1) | (_buffer[blockIndex] & andMask1);
+            
+            // Second block: handle low bits of the mask
+            var secondBlockMask = mask >> bitsInFirstBlock;
+            var preserveMask2 = ~((ulong)((1UL << bitsInSecondBlock) - 1));
+            var andMask2 = (ulong)secondBlockMask;
+            _buffer![blockIndex + 1] = (_buffer[blockIndex + 1] & preserveMask2) | (_buffer[blockIndex + 1] & andMask2);
+        }
+    }
+
+    /// <summary>
     /// Applies a 4-bit mask to 4 consecutive bits (used for double comparisons with AVX2).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
