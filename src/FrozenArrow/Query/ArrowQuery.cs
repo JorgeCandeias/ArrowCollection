@@ -202,6 +202,14 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
     /// </summary>
     public bool UseLogicalPlanExecution { get; set; } = false;
 
+    /// <summary>
+    /// Gets or sets whether to use direct logical plan execution (Phase 5).
+    /// When true, logical plans are executed directly without converting to QueryPlan.
+    /// When false, uses the bridge pattern (convert to QueryPlan then execute).
+    /// Only applies when UseLogicalPlanExecution is true.
+    /// </summary>
+    public bool UseDirectLogicalPlanExecution { get; set; } = false;
+
     public TResult Execute<TResult>(Expression expression)
     {
         // NEW PATH: Try logical plan execution if enabled

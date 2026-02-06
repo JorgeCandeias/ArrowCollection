@@ -42,15 +42,50 @@ public sealed partial class ArrowQueryProvider
         var optimizer = new LogicalPlanOptimizer(_zoneMap);
         var optimizedPlan = optimizer.Optimize(logicalPlan);
 
-        // Step 4: Execute the optimized plan (bridge to existing execution)
-        return ExecuteLogicalPlan<TResult>(optimizedPlan, expression);
+        // Step 4: Execute - choose between direct execution or bridge
+        if (UseDirectLogicalPlanExecution)
+        {
+            // Phase 5: Direct execution without bridge
+            return ExecuteLogicalPlanDirect<TResult>(optimizedPlan);
+        }
+        else
+        {
+            // Phase 3-4: Bridge to existing execution (maintain compatibility)
+            return ExecuteLogicalPlanViaBridge<TResult>(optimizedPlan, expression);
+        }
     }
 
     /// <summary>
-    /// Executes an optimized logical plan by bridging to the existing execution infrastructure.
+    /// Executes a logical plan directly without converting to QueryPlan (Phase 5).
+    /// Falls back to bridge on any errors for stability.
+    /// </summary>
+    private TResult ExecuteLogicalPlanDirect<TResult>(LogicalPlanNode plan)
+    {
+        try
+        {
+            var executor = new LogicalPlanExecutor(
+                _recordBatch,
+                _count,
+                _columnIndexMap,
+                _createItem,
+                _zoneMap,
+                ParallelOptions);
+
+            return executor.Execute<TResult>(plan);
+        }
+        catch (Exception)
+        {
+            // Fall back to bridge on any error
+            // This ensures stability while we're perfecting direct execution
+            return ExecuteLogicalPlanViaBridge<TResult>(plan, Expression.Constant(null));
+        }
+    }
+
+    /// <summary>
+    /// Executes an optimized logical plan by bridging to the existing execution infrastructure (Phase 3-4).
     /// This maintains compatibility while using the new plan representation.
     /// </summary>
-    private TResult ExecuteLogicalPlan<TResult>(LogicalPlanNode plan, Expression expression)
+    private TResult ExecuteLogicalPlanViaBridge<TResult>(LogicalPlanNode plan, Expression expression)
     {
         // For now, convert logical plan back to QueryPlan and use existing execution
         // Future: Execute logical plans directly with a new executor
