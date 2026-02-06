@@ -164,7 +164,7 @@ public static class LogicalPlanExample
 /// <summary>
 /// Simple plan explainer for visualization.
 /// </summary>
-internal class LogicalPlanExplainer : ILogicalPlanVisitor<string>
+public class LogicalPlanExplainer : ILogicalPlanVisitor<string>
 {
     private int _indent = 0;
 

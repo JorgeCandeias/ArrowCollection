@@ -103,11 +103,34 @@ public sealed class LinqToLogicalPlanTranslator(
 
     private LogicalPlanNode TranslateSelect(MethodCallExpression methodCall, LogicalPlanNode input)
     {
-        // For now, we only support simple column projections
-        // Full expression support would require more analysis
+        // Extract the selector lambda
+        var selector = (LambdaExpression)((UnaryExpression)methodCall.Arguments[1]).Operand;
         
-        // TODO: Analyze selector lambda to extract projections
-        // For MVP, just pass through (project all columns)
+        // Special case: GroupBy followed by Select with aggregations
+        // Pattern: .GroupBy(x => x.Category).Select(g => new { g.Key, Total = g.Sum(x => x.Sales) })
+        if (input is GroupByPlan existingGroupBy 
+            && ExpressionHelper.TryExtractAggregations(selector, out var aggregations, out var groupKeyProperty)
+            && aggregations is not null)
+        {
+            // Create a new GroupByPlan with the extracted aggregations
+            var groupByWithAggs = new GroupByPlan(
+                existingGroupBy.Input,
+                existingGroupBy.GroupByColumn,
+                existingGroupBy.GroupByKeyType,
+                aggregations);
+            
+            return groupByWithAggs;
+        }
+        
+        // Regular Select: Try to extract projections
+        if (ExpressionHelper.TryExtractProjections(selector, input.OutputSchema, out var projections) 
+            && projections is not null)
+        {
+            return new ProjectPlan(input, projections);
+        }
+
+        // If we can't extract projections, just pass through (project all columns)
+        // This happens with complex selectors we don't support yet
         return input;
     }
 
@@ -116,9 +139,23 @@ public sealed class LinqToLogicalPlanTranslator(
         // Extract key selector
         var keySelector = (LambdaExpression)((UnaryExpression)methodCall.Arguments[1]).Operand;
         
-        // TODO: Analyze key selector to extract column name
-        // For MVP, just pass through
-        return input;
+        // Try to extract column name from key selector
+        if (!ExpressionHelper.TryExtractColumnName(keySelector, out var groupByColumn) 
+            || groupByColumn is null)
+        {
+            throw new NotSupportedException("GroupBy key selector must be a simple property access (e.g., x => x.Category)");
+        }
+
+        // Get the key type from input schema
+        if (!input.OutputSchema.TryGetValue(groupByColumn, out var keyType))
+        {
+            throw new InvalidOperationException($"GroupBy column '{groupByColumn}' not found in input schema");
+        }
+
+        // If there's no subsequent Select with aggregations, just return the GroupBy
+        // The aggregations will be added when we encounter the Select
+        // For now, return a placeholder GroupBy with no aggregations
+        return new GroupByPlan(input, groupByColumn, keyType, []);
     }
 
     private LimitPlan TranslateTake(MethodCallExpression methodCall, LogicalPlanNode input)
@@ -152,14 +189,36 @@ public sealed class LinqToLogicalPlanTranslator(
     {
         // Check if there's a selector lambda (e.g., Sum(x => x.Price))
         string? columnName = null;
-        Type outputType = typeof(long); // Default
+        Type outputType = operation switch
+        {
+            AggregationOperation.Count => typeof(long),
+            AggregationOperation.Sum => typeof(long), // Simplified - would need actual column type
+            AggregationOperation.Average => typeof(double),
+            AggregationOperation.Min => typeof(object), // Would need actual column type
+            AggregationOperation.Max => typeof(object), // Would need actual column type
+            _ => typeof(object)
+        };
 
         if (methodCall.Arguments.Count > 1)
         {
             var selector = (LambdaExpression)((UnaryExpression)methodCall.Arguments[1]).Operand;
-            // TODO: Extract column name from selector
-            // For MVP, throw if selector is present
-            throw new NotSupportedException("Aggregate with selector not yet supported in logical plan");
+            
+            // Try to extract column name
+            if (ExpressionHelper.TryExtractColumnName(selector, out var extractedColumn))
+            {
+                columnName = extractedColumn;
+                
+                // Try to get more accurate output type from input schema
+                if (columnName is not null && input.OutputSchema.TryGetValue(columnName, out var columnType))
+                {
+                    outputType = operation switch
+                    {
+                        AggregationOperation.Average => typeof(double),
+                        AggregationOperation.Count => typeof(long),
+                        _ => columnType
+                    };
+                }
+            }
         }
 
         return new AggregatePlan(input, operation, columnName, outputType);
