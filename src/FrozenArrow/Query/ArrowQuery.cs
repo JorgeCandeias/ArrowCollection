@@ -330,15 +330,9 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
     /// Expression visitor that rewrites expressions to work with a fallback queryable.
     /// This replaces references to ArrowQuery with the materialized queryable.
     /// </summary>
-    private sealed class FallbackExpressionRewriter : ExpressionVisitor
+    private sealed class FallbackExpressionRewriter(IQueryable fallbackQueryable) : ExpressionVisitor
     {
-        private readonly IQueryable _fallbackQueryable;
         private ConstantExpression? _sourceConstant;
-
-        public FallbackExpressionRewriter(IQueryable fallbackQueryable)
-        {
-            _fallbackQueryable = fallbackQueryable;
-        }
 
         protected override Expression VisitConstant(ConstantExpression node)
         {
@@ -350,14 +344,14 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
                 if (genericType == typeof(ArrowQuery<>))
                 {
                     _sourceConstant = node;
-                    return Expression.Constant(_fallbackQueryable, _fallbackQueryable.GetType());
+                    return Expression.Constant(fallbackQueryable, fallbackQueryable.GetType());
                 }
             }
 
             // If we've already found the source, replace any references to it
             if (_sourceConstant != null && node == _sourceConstant)
             {
-                return Expression.Constant(_fallbackQueryable, _fallbackQueryable.GetType());
+                return Expression.Constant(fallbackQueryable, fallbackQueryable.GetType());
             }
 
             return base.VisitConstant(node);
@@ -957,11 +951,9 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         QueryPlan plan) where TKey : notnull
     {
         // Get the aggregation descriptor for the value
-        var valueAggregation = plan.ToDictionaryValueAggregation ?? plan.Aggregations.FirstOrDefault();
-        if (valueAggregation is null)
-        {
-            throw new InvalidOperationException("No aggregation found for ToDictionary value.");
-        }
+        var valueAggregation = plan.ToDictionaryValueAggregation
+            ?? (plan.Aggregations.Count > 0 ? plan.Aggregations[0] : null)
+            ?? throw new InvalidOperationException("No aggregation found for ToDictionary value.");
 
         // Create the dictionary using reflection for the value type
         var dictType = typeof(Dictionary<,>).MakeGenericType(typeof(TKey), valueType);
@@ -1069,10 +1061,10 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         return method.Invoke(this, [selectedIndices])!;
     }
 
-    private IEnumerable<T> CreateBatchedEnumerableTyped<T>(List<int> selectedIndices)
+    private MaterializedResultCollection<T> CreateBatchedEnumerableTyped<T>(List<int> selectedIndices)
     {
-        Func<RecordBatch, int, T> createItemFunc = (batch, index) => (T)_createItem(batch, index);
-        return new MaterializedResultCollection<T>(_recordBatch, selectedIndices, createItemFunc, ParallelOptions);
+        T CreateItemFunc(RecordBatch batch, int index) => (T)_createItem(batch, index);
+        return new MaterializedResultCollection<T>(_recordBatch, selectedIndices, CreateItemFunc, ParallelOptions);
     }
 
     /// <summary>
@@ -1113,8 +1105,8 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         }
 
         // Use pooled materialization
-        Func<RecordBatch, int, T> createItemFunc = (batch, index) => (T)_createItem(batch, index);
-        return PooledBatchMaterializer.MaterializeToArray(_recordBatch, selectedIndices, createItemFunc, ParallelOptions);
+        T CreateItemFunc(RecordBatch batch, int index) => (T)_createItem(batch, index);
+        return PooledBatchMaterializer.MaterializeToArray(_recordBatch, selectedIndices, CreateItemFunc, ParallelOptions);
     }
 
     /// <summary>
@@ -1197,7 +1189,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
                 {
                     return selectedIndices;
                 }
-                return selectedIndices.Take(outerTake).ToList();
+                return [.. selectedIndices.Take(outerTake)];
             }
             return selectedIndices;
         }

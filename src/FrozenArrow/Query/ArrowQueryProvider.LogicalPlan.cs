@@ -1,4 +1,4 @@
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using FrozenArrow.Query.LogicalPlan;
 
 namespace FrozenArrow.Query;
@@ -11,7 +11,7 @@ public sealed partial class ArrowQueryProvider
 {
     /// <summary>
     /// Executes a query using the logical plan architecture.
-    /// This is the new execution path that translates LINQ ? Logical Plan ? Optimized Plan ? Results.
+    /// This is the new execution path that translates LINQ → Logical Plan → Optimized Plan → Results.
     /// </summary>
     private TResult ExecuteWithLogicalPlan<TResult>(Expression expression)
     {
@@ -146,7 +146,7 @@ public sealed partial class ArrowQueryProvider
                         PaginationBeforePredicates = paginationBeforePredicates,
                         GroupByColumn = groupBy.GroupByColumn,
                         GroupByKeyType = groupBy.GroupByKeyType,
-                        Aggregations = groupBy.Aggregations.ToList()
+                        Aggregations = [.. groupBy.Aggregations]
                     };
 
                 default:

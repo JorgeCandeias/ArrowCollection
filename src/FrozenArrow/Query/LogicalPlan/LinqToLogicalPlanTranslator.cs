@@ -96,7 +96,7 @@ public sealed class LinqToLogicalPlanTranslator(
         // Analyze the predicate to extract column-level operations
         var analyzeMethod = typeof(PredicateAnalyzer).GetMethod(nameof(PredicateAnalyzer.Analyze))!
             .MakeGenericMethod(_elementType);
-        var analysis = (PredicateAnalysisResult)analyzeMethod.Invoke(null, new object[] { typedLambda, _columnIndexMap })!;
+        var analysis = (PredicateAnalysisResult)analyzeMethod.Invoke(null, [typedLambda, _columnIndexMap])!;
 
         if (!analysis.IsFullySupported || analysis.Predicates.Count == 0)
         {
@@ -113,20 +113,11 @@ public sealed class LinqToLogicalPlanTranslator(
     /// <summary>
     /// Expression visitor that replaces parameter references.
     /// </summary>
-    private sealed class ParameterReplacer : ExpressionVisitor
+    private sealed class ParameterReplacer(ParameterExpression oldParameter, ParameterExpression newParameter) : ExpressionVisitor
     {
-        private readonly ParameterExpression _oldParameter;
-        private readonly ParameterExpression _newParameter;
-
-        public ParameterReplacer(ParameterExpression oldParameter, ParameterExpression newParameter)
-        {
-            _oldParameter = oldParameter;
-            _newParameter = newParameter;
-        }
-
         protected override Expression VisitParameter(ParameterExpression node)
         {
-            return node == _oldParameter ? _newParameter : base.VisitParameter(node);
+            return node == oldParameter ? newParameter : base.VisitParameter(node);
         }
     }
 
@@ -163,7 +154,7 @@ public sealed class LinqToLogicalPlanTranslator(
         return input;
     }
 
-    private LogicalPlanNode TranslateGroupBy(MethodCallExpression methodCall, LogicalPlanNode input)
+    private GroupByPlan TranslateGroupBy(MethodCallExpression methodCall, LogicalPlanNode input)
     {
         // Extract key selector
         var keySelector = (LambdaExpression)((UnaryExpression)methodCall.Arguments[1]).Operand;
