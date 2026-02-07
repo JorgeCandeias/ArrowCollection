@@ -16,7 +16,7 @@ public class SqlDistinctTests
     }
 
     [Fact]
-    public void SqlQuery_Distinct_ParsesCorrectly()
+    public void SqlQuery_Distinct_RemovesDuplicates()
     {
         // Arrange
         var data = new List<DistinctTestData>
@@ -28,27 +28,46 @@ public class SqlDistinctTests
             new() { Category = "C", Value = 300 }
         }.ToFrozenArrow();
 
-        // Act - This should parse successfully even if execution isn't implemented
-        try
-        {
-            var result = data.ExecuteSql<DistinctTestData, DistinctTestData>(
-                "SELECT DISTINCT Category FROM data");
+        // Act
+        var result = data.ExecuteSql<DistinctTestData, DistinctTestData>(
+            "SELECT DISTINCT Category, Value FROM data");
 
-            // If we get here, DISTINCT execution is implemented!
-            // Check that it actually deduplicated
-            var list = result.ToList();
-            // Should have 3 unique categories: A, B, C
-            // (actual deduplication depends on execution implementation)
-        }
-        catch (NotSupportedException ex)
-        {
-            // Expected for now - DISTINCT parsing works but execution doesn't
-            Assert.Contains("DistinctPlan", ex.Message);
-            return;
-        }
+        // Assert
+        var list = result.ToList();
+        
+        // Should have 3 unique records: A/100, B/200, C/300
+        Assert.Equal(3, list.Count);
+        Assert.Contains(list, r => r.Category == "A" && r.Value == 100);
+        Assert.Contains(list, r => r.Category == "B" && r.Value == 200);
+        Assert.Contains(list, r => r.Category == "C" && r.Value == 300);
+    }
 
-        // If execution works, that's a bonus!
-        Assert.True(true, "DISTINCT either parsed successfully or execution is implemented");
+    [Fact]
+    public void SqlQuery_DistinctWithWhere_WorksCorrectly()
+    {
+        // Arrange
+        var data = new List<DistinctTestData>
+        {
+            new() { Category = "A", Value = 100 },
+            new() { Category = "A", Value = 100 }, // Duplicate
+            new() { Category = "B", Value = 200 },
+            new() { Category = "A", Value = 150 }, // Different value
+            new() { Category = "C", Value = 300 }
+        }.ToFrozenArrow();
+
+        // Act - DISTINCT with WHERE clause
+        var result = data.ExecuteSql<DistinctTestData, DistinctTestData>(
+            "SELECT DISTINCT Category, Value FROM data WHERE Value >= 150");
+
+        // Assert
+        var list = result.ToList();
+        
+        // Should have 3 unique records: A/150, B/200, C/300
+        // (A/100 is filtered out by WHERE)
+        Assert.Equal(3, list.Count);
+        Assert.Contains(list, r => r.Category == "A" && r.Value == 150);
+        Assert.Contains(list, r => r.Category == "B" && r.Value == 200);
+        Assert.Contains(list, r => r.Category == "C" && r.Value == 300);
     }
 
     [Fact]

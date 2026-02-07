@@ -24,9 +24,10 @@ public sealed class DistinctPlan(LogicalPlanNode input) : LogicalPlanNode
 
     public override TResult Accept<TResult>(ILogicalPlanVisitor<TResult> visitor)
     {
-        // For now, visitors don't handle DistinctPlan
-        // This will need to be implemented when DISTINCT execution is added
-        throw new NotSupportedException("DistinctPlan execution not yet implemented");
+        // DistinctPlan doesn't need special optimization
+        // Just return the plan as-is (cast to TResult)
+        // This assumes TResult is LogicalPlanNode for optimizer visitors
+        return (TResult)(object)this;
     }
 
     public override string ToString()

@@ -537,7 +537,7 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
     [GeneratedRegex(@"OFFSET\s+(\d+)", RegexOptions.IgnoreCase, "en-GB")]
     private static partial Regex OffsetRegex();
 
-    [GeneratedRegex(@"(\w+)\s*(=|>|<|>=|<=|!=|<>|LIKE)\s*(.+)", RegexOptions.IgnoreCase, "en-GB")]
+    [GeneratedRegex(@"(\w+)\s*(>=|<=|!=|<>|LIKE|=|>|<)\s*(.+)", RegexOptions.IgnoreCase, "en-GB")]
     private static partial Regex OperatorRegex();
 
     [GeneratedRegex(@"(COUNT|SUM|AVG|MIN|MAX)\((\w+)\)", RegexOptions.IgnoreCase, "en-GB")]

@@ -40,6 +40,7 @@ internal sealed class LogicalPlanExecutor(
             LimitPlan limit => ExecuteLimit<TResult>(limit),
             OffsetPlan offset => ExecuteOffset<TResult>(offset),
             ProjectPlan project => ExecuteProject<TResult>(project),
+            DistinctPlan distinct => ExecuteDistinct<TResult>(distinct),
             _ => throw new NotSupportedException($"Logical plan node type '{plan.GetType().Name}' is not yet supported for direct execution")
         };
     }
@@ -362,6 +363,80 @@ internal sealed class LogicalPlanExecutor(
         // For now, project just passes through to input
         // Full projection support will be added in future phases
         return Execute<TResult>(project.Input);
+    }
+
+    /// <summary>
+    /// Executes DISTINCT operation - removes duplicate rows.
+    /// Phase B: DISTINCT support.
+    /// </summary>
+    private TResult ExecuteDistinct<TResult>(DistinctPlan distinct)
+    {
+        // Execute the input plan to get all rows
+        var inputResult = Execute<IEnumerable<object>>(distinct.Input);
+        
+        // Deduplicate using HashSet
+        // This preserves insertion order in .NET (since .NET Core 3.0)
+        var seen = new HashSet<object>(new ObjectEqualityComparer());
+        var distinctResults = new List<object>();
+        
+        foreach (var item in inputResult)
+        {
+            if (seen.Add(item))
+            {
+                distinctResults.Add(item);
+            }
+        }
+
+        // Return based on result type
+        var resultType = typeof(TResult);
+        
+        if (resultType == typeof(int))
+        {
+            return (TResult)(object)distinctResults.Count;
+        }
+        
+        if (resultType == typeof(long))
+        {
+            return (TResult)(object)(long)distinctResults.Count;
+        }
+        
+        if (resultType.IsGenericType)
+        {
+            var genericType = resultType.GetGenericTypeDefinition();
+            if (genericType == typeof(IEnumerable<>) || genericType == typeof(IQueryable<>))
+            {
+                // Return the distinct list as IEnumerable<T>
+                return (TResult)(object)distinctResults;
+            }
+        }
+
+        // Single element result
+        if (distinctResults.Count > 0)
+        {
+            return (TResult)distinctResults[0];
+        }
+
+        throw new InvalidOperationException("Sequence contains no elements.");
+    }
+
+    /// <summary>
+    /// Equality comparer for DISTINCT that compares objects by their property values.
+    /// </summary>
+    private sealed class ObjectEqualityComparer : IEqualityComparer<object>
+    {
+        public new bool Equals(object? x, object? y)
+        {
+            if (ReferenceEquals(x, y)) return true;
+            if (x == null || y == null) return false;
+            
+            // For records, default Equals should work (value-based equality)
+            return x.Equals(y);
+        }
+
+        public int GetHashCode(object obj)
+        {
+            return obj?.GetHashCode() ?? 0;
+        }
     }
 
     private object CreateBatchedEnumerable(List<int> selectedIndices)
