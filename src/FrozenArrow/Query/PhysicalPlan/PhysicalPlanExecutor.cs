@@ -45,14 +45,15 @@ public sealed class PhysicalPlanExecutor
         // This demonstrates the architecture - actual strategy-specific execution is future work
         var logicalPlan = ConvertToLogicalPlan(plan);
         
-        // Use existing logical plan executor
+        // Use existing logical plan executor (Phase 5) with compilation support (Phase 9)
         var logicalExecutor = new LogicalPlan.LogicalPlanExecutor(
             _recordBatch,
             _count,
             _columnIndexMap,
             _createItem,
             _zoneMap,
-            _parallelOptions);
+            _parallelOptions,
+            useCompiledQueries: false);  // Phase 9: Can enable compilation here too
 
         return logicalExecutor.Execute<TResult>(logicalPlan);
     }

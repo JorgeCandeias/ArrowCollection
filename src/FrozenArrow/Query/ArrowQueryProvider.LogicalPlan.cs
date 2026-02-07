@@ -115,6 +115,7 @@ public sealed partial class ArrowQueryProvider
 
     /// <summary>
     /// Executes a logical plan directly without converting to QueryPlan (Phase 5).
+    /// Phase 9: Supports compiled query execution.
     /// Falls back to bridge on any errors for stability.
     /// </summary>
     private TResult ExecuteLogicalPlanDirect<TResult>(LogicalPlanNode plan)
@@ -127,7 +128,8 @@ public sealed partial class ArrowQueryProvider
                 _columnIndexMap,
                 _createItem,
                 _zoneMap,
-                ParallelOptions);
+                ParallelOptions,
+                UseCompiledQueries);  // Phase 9: Pass compilation flag
 
             return executor.Execute<TResult>(plan);
         }

@@ -5,7 +5,8 @@ namespace FrozenArrow.Query.LogicalPlan;
 
 /// <summary>
 /// Executes logical plans directly without converting to QueryPlan.
-/// This is the Phase 5 implementation that removes the bridge pattern.
+/// Phase 5: Direct execution without bridge.
+/// Phase 9: Integrated compiled query execution.
 /// </summary>
 internal sealed class LogicalPlanExecutor(
     RecordBatch recordBatch,
@@ -13,11 +14,16 @@ internal sealed class LogicalPlanExecutor(
     Dictionary<string, int> columnIndexMap,
     Func<RecordBatch, int, object> createItem,
     ZoneMap? zoneMap,
-    ParallelQueryOptions? parallelOptions)
+    ParallelQueryOptions? parallelOptions,
+    bool useCompiledQueries = false)
 {
     private readonly RecordBatch _recordBatch = recordBatch ?? throw new ArgumentNullException(nameof(recordBatch));
     private readonly Dictionary<string, int> _columnIndexMap = columnIndexMap ?? throw new ArgumentNullException(nameof(columnIndexMap));
     private readonly Func<RecordBatch, int, object> _createItem = createItem ?? throw new ArgumentNullException(nameof(createItem));
+    private readonly bool _useCompiledQueries = useCompiledQueries;
+    private readonly Compilation.CompiledQueryExecutor? _compiledExecutor = useCompiledQueries 
+        ? new Compilation.CompiledQueryExecutor(recordBatch, count) 
+        : null;
 
     /// <summary>
     /// Executes a logical plan and returns results.
@@ -61,6 +67,63 @@ internal sealed class LogicalPlanExecutor(
     }
 
     private TResult ExecuteFilter<TResult>(FilterPlan filter)
+    {
+        // Phase 9: Use compiled execution if enabled
+        if (_useCompiledQueries && _compiledExecutor != null && filter.Predicates.Count > 0)
+        {
+            return ExecuteFilterCompiled<TResult>(filter);
+        }
+
+        // Default: Interpreted execution (Phase 5)
+        return ExecuteFilterInterpreted<TResult>(filter);
+    }
+
+    private TResult ExecuteFilterCompiled<TResult>(FilterPlan filter)
+    {
+        var resultType = typeof(TResult);
+
+        // For Count() - use optimized compiled path
+        if (resultType == typeof(int))
+        {
+            var count = _compiledExecutor!.ExecuteFilterCount(filter);
+            return (TResult)(object)count;
+        }
+
+        // For other operations - get matching indices
+        var selectedIndices = _compiledExecutor!.ExecuteFilter(filter);
+        var selectedCount = selectedIndices.Count;
+
+        if (resultType == typeof(long))
+        {
+            return (TResult)(object)(long)selectedCount;
+        }
+
+        if (resultType == typeof(bool))
+        {
+            return (TResult)(object)(selectedCount > 0);
+        }
+
+        if (resultType.IsGenericType)
+        {
+            var genericType = resultType.GetGenericTypeDefinition();
+            
+            if (genericType == typeof(IEnumerable<>) || genericType == typeof(IQueryable<>))
+            {
+                var enumerable = CreateBatchedEnumerable(selectedIndices);
+                return (TResult)enumerable;
+            }
+        }
+
+        // Single element (First, etc.)
+        if (selectedIndices.Count > 0)
+        {
+            return (TResult)_createItem(_recordBatch, selectedIndices[0]);
+        }
+        
+        throw new InvalidOperationException("Sequence contains no elements.");
+    }
+
+    private TResult ExecuteFilterInterpreted<TResult>(FilterPlan filter)
     {
         // Build selection bitmap from predicates
         using var selection = SelectionBitmap.Create(count, initialValue: true);
