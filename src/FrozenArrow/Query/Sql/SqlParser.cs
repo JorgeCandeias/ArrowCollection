@@ -369,6 +369,60 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
             var value = double.Parse(valueStr);
             return new DoubleComparisonPredicate(columnName, columnIndex, op, value);
         }
+        else if (columnType == typeof(bool))
+        {
+            // Phase B Quick Win: Boolean predicate support
+            // Support: true, false, TRUE, FALSE, 1, 0
+            bool value;
+            if (bool.TryParse(valueStr, out var boolValue))
+            {
+                value = boolValue;
+            }
+            else if (valueStr == "1")
+            {
+                value = true;
+            }
+            else if (valueStr == "0")
+            {
+                value = false;
+            }
+            else
+            {
+                throw new ArgumentException($"Invalid boolean value: '{valueStr}'. Use true/false or 1/0");
+            }
+            
+            // Only Equal and NotEqual make sense for boolean
+            if (op != ComparisonOperator.Equal && op != ComparisonOperator.NotEqual)
+            {
+                throw new NotSupportedException($"Operator {op} not supported for boolean columns. Use = or !=");
+            }
+            
+            return new BooleanComparisonPredicate(columnName, columnIndex, op, value);
+        }
+        else if (columnType == typeof(DateTime))
+        {
+            // Phase B Quick Win: DateTime predicate support
+            // Support ISO 8601 format: 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS'
+            if (!DateTime.TryParse(valueStr, out var dateValue))
+            {
+                throw new ArgumentException($"Invalid DateTime value: '{valueStr}'. Use format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS");
+            }
+            
+            return new DateTimeComparisonPredicate(columnName, columnIndex, op, dateValue);
+        }
+        else if (columnType == typeof(DateTimeOffset))
+        {
+            // Phase B Quick Win: DateTimeOffset is used by Arrow generator
+            // Convert to DateTime for comparison
+            if (!DateTime.TryParse(valueStr, out var dateValue))
+            {
+                throw new ArgumentException($"Invalid DateTime value: '{valueStr}'. Use format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS");
+            }
+            
+            // For DateTimeOffset columns, we'll still use DateTimeComparisonPredicate
+            // The predicate will need to handle DateTimeOffset
+            return new DateTimeComparisonPredicate(columnName, columnIndex, op, dateValue);
+        }
         else if (columnType == typeof(string))
         {
             // Phase 8 Enhancement: String predicate support
