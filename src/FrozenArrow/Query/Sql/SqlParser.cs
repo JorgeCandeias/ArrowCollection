@@ -104,19 +104,197 @@ public sealed class SqlParser
     {
         var predicates = new List<ColumnPredicate>();
 
-        // Split by AND (simple approach - doesn't handle OR or complex expressions)
-        var conditions = whereClause.Split(new[] { " AND ", " and " }, StringSplitOptions.RemoveEmptyEntries);
+        // Phase 8 Enhancement (Part 2): Handle OR and NOT operators
+        // Parse the expression tree with proper precedence: NOT > AND > OR
+
+        // For now, handle simple cases:
+        // 1. Simple AND: "a AND b" -> list of predicates
+        // 2. Simple OR: "a OR b" -> single OrPredicate
+        // 3. NOT: "NOT a" -> single NotPredicate
+
+        // Check if we have OR at the top level (outside parentheses)
+        if (ContainsOperatorAtTopLevel(whereClause, "OR"))
+        {
+            // Split by OR and create OrPredicate
+            var orParts = SplitByTopLevelOperator(whereClause, "OR");
+            
+            if (orParts.Count == 2)
+            {
+                // Binary OR: left OR right
+                var leftPredicates = ParseWhereClause(orParts[0]);
+                var rightPredicates = ParseWhereClause(orParts[1]);
+
+                if (leftPredicates.Count == 1 && rightPredicates.Count == 1)
+                {
+                    predicates.Add(new OrPredicate(leftPredicates[0], rightPredicates[0]));
+                    return predicates;
+                }
+                else
+                {
+                    throw new NotSupportedException(
+                        "Complex OR expressions with multiple AND conditions not yet fully supported. " +
+                        "Use parentheses for now: (a AND b) OR (c AND d)");
+                }
+            }
+            else if (orParts.Count > 2)
+            {
+                // Multiple ORs: a OR b OR c
+                // Build as nested: (a OR (b OR c))
+                var result = ParseWhereClause(orParts[^1])[0]; // Last item
+                for (int i = orParts.Count - 2; i >= 0; i--)
+                {
+                    var left = ParseWhereClause(orParts[i])[0];
+                    result = new OrPredicate(left, result);
+                }
+                predicates.Add(result);
+                return predicates;
+            }
+        }
+
+        // Check for NOT at the beginning
+        var trimmed = whereClause.Trim();
+        if (trimmed.StartsWith("NOT ", StringComparison.OrdinalIgnoreCase))
+        {
+            // Parse the inner expression
+            var inner = trimmed.Substring(4).Trim();
+            
+            // Handle parentheses
+            if (inner.StartsWith("(") && inner.EndsWith(")"))
+            {
+                inner = inner.Substring(1, inner.Length - 2);
+            }
+
+            var innerPredicates = ParseWhereClause(inner);
+            if (innerPredicates.Count == 1)
+            {
+                predicates.Add(new NotPredicate(innerPredicates[0]));
+                return predicates;
+            }
+            else
+            {
+                throw new NotSupportedException("NOT with multiple AND conditions not yet supported");
+            }
+        }
+
+        // Simple AND case - split and parse each condition
+        var conditions = SplitByTopLevelOperator(whereClause, "AND");
 
         foreach (var condition in conditions)
         {
-            var predicate = ParseCondition(condition.Trim());
-            if (predicate != null)
+            var conditionTrimmed = condition.Trim();
+            
+            // Remove outer parentheses if present
+            if (conditionTrimmed.StartsWith("(") && conditionTrimmed.EndsWith(")"))
             {
-                predicates.Add(predicate);
+                conditionTrimmed = conditionTrimmed.Substring(1, conditionTrimmed.Length - 2).Trim();
+                
+                // Recursively parse the inner expression
+                var innerPredicates = ParseWhereClause(conditionTrimmed);
+                predicates.AddRange(innerPredicates);
+            }
+            else
+            {
+                var predicate = ParseCondition(conditionTrimmed);
+                if (predicate != null)
+                {
+                    predicates.Add(predicate);
+                }
             }
         }
 
         return predicates;
+    }
+
+    /// <summary>
+    /// Checks if an operator exists at the top level (outside parentheses).
+    /// </summary>
+    private bool ContainsOperatorAtTopLevel(string expression, string op)
+    {
+        int parenDepth = 0;
+        var upper = expression.ToUpper();
+        var opUpper = " " + op.ToUpper() + " ";
+
+        for (int i = 0; i <= expression.Length - opUpper.Length; i++)
+        {
+            if (expression[i] == '(')
+            {
+                parenDepth++;
+            }
+            else if (expression[i] == ')')
+            {
+                parenDepth--;
+            }
+            else if (parenDepth == 0)
+            {
+                var window = upper.Substring(i, Math.Min(opUpper.Length, upper.Length - i));
+                if (window == opUpper)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Splits an expression by a top-level operator (respecting parentheses).
+    /// </summary>
+    private List<string> SplitByTopLevelOperator(string expression, string op)
+    {
+        var result = new List<string>();
+        var current = new System.Text.StringBuilder();
+        int parenDepth = 0;
+        var upper = expression.ToUpper();
+        var opUpper = " " + op.ToUpper() + " ";
+
+        for (int i = 0; i < expression.Length; i++)
+        {
+            if (expression[i] == '(')
+            {
+                parenDepth++;
+                current.Append(expression[i]);
+            }
+            else if (expression[i] == ')')
+            {
+                parenDepth--;
+                current.Append(expression[i]);
+            }
+            else if (parenDepth == 0 && i <= expression.Length - opUpper.Length)
+            {
+                var window = upper.Substring(i, Math.Min(opUpper.Length, upper.Length - i));
+                if (window == opUpper)
+                {
+                    // Found operator at top level
+                    result.Add(current.ToString().Trim());
+                    current.Clear();
+                    i += opUpper.Length - 1; // Skip the operator
+                    continue;
+                }
+                else
+                {
+                    current.Append(expression[i]);
+                }
+            }
+            else
+            {
+                current.Append(expression[i]);
+            }
+        }
+
+        // Add the last part
+        if (current.Length > 0)
+        {
+            result.Add(current.ToString().Trim());
+        }
+
+        // If no operator found, return the whole expression
+        if (result.Count == 0)
+        {
+            result.Add(expression.Trim());
+        }
+
+        return result;
     }
 
     private ColumnPredicate? ParseCondition(string condition)
