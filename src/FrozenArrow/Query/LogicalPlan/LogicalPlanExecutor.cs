@@ -361,9 +361,165 @@ internal sealed class LogicalPlanExecutor(
 
     private TResult ExecuteProject<TResult>(ProjectPlan project)
     {
-        // For now, project just passes through to input
-        // Full projection support will be added in future phases
-        return Execute<TResult>(project.Input);
+        // Execute input to get all rows
+        var inputResult = Execute<IEnumerable<object>>(project.Input);
+        
+        // If no specific projections or projecting all columns, just pass through
+        if (project.Projections.Count == 0)
+        {
+            return (TResult)(object)inputResult;
+        }
+        
+        // Apply projection to each row
+        var projectedResults = new List<object>();
+        
+        foreach (var item in inputResult)
+        {
+            var projected = ProjectRow(item, project.Projections);
+            projectedResults.Add(projected);
+        }
+        
+        // Return based on result type
+        var resultType = typeof(TResult);
+        
+        if (resultType == typeof(int))
+        {
+            return (TResult)(object)projectedResults.Count;
+        }
+        
+        if (resultType == typeof(long))
+        {
+            return (TResult)(object)(long)projectedResults.Count;
+        }
+        
+        if (resultType.IsGenericType)
+        {
+            var genericType = resultType.GetGenericTypeDefinition();
+            if (genericType == typeof(IEnumerable<>) || genericType == typeof(IQueryable<>))
+            {
+                return (TResult)(object)projectedResults;
+            }
+        }
+
+        // Single element result
+        if (projectedResults.Count > 0)
+        {
+            return (TResult)projectedResults[0];
+        }
+
+        throw new InvalidOperationException("Sequence contains no elements.");
+    }
+
+    /// <summary>
+    /// Projects a single row to include only selected columns.
+    /// Phase B: Column projection support.
+    /// </summary>
+    private static object ProjectRow(object sourceRow, IReadOnlyList<ProjectionColumn> projections)
+    {
+        // For simple pass-through projections, we need to create a new object
+        // with only the selected properties
+        
+        // If all columns are projected in the same order, return as-is
+        var sourceType = sourceRow.GetType();
+        var sourceProps = sourceType.GetProperties();
+        
+        // Check if this is a subset projection
+        if (projections.Count == sourceProps.Length)
+        {
+            // Check if all properties match
+            bool allMatch = true;
+            for (int i = 0; i < projections.Count; i++)
+            {
+                if (projections[i].Kind != ProjectionKind.Column ||
+                    projections[i].SourceColumn != sourceProps[i].Name)
+                {
+                    allMatch = false;
+                    break;
+                }
+            }
+            
+            if (allMatch)
+            {
+                return sourceRow; // No projection needed
+            }
+        }
+        
+        // Need to create projected object
+        // For now, create an anonymous type-like object using a dictionary
+        // This is a simplified implementation
+        
+        // In a full implementation, you'd use:
+        // 1. Runtime code generation (System.Reflection.Emit)
+        // 2. Anonymous types
+        // 3. Dynamic objects
+        
+        // For Phase B, we'll create a ProjectedRow wrapper
+        var projectedValues = new Dictionary<string, object?>();
+        
+        foreach (var proj in projections)
+        {
+            if (proj.Kind == ProjectionKind.Column && proj.SourceColumn != null)
+            {
+                var sourceProp = sourceType.GetProperty(proj.SourceColumn);
+                if (sourceProp != null)
+                {
+                    var value = sourceProp.GetValue(sourceRow);
+                    projectedValues[proj.OutputName] = value;
+                }
+            }
+        }
+        
+        return new ProjectedRow(projectedValues);
+    }
+
+    /// <summary>
+    /// Represents a projected row with selected columns.
+    /// </summary>
+    private sealed class ProjectedRow(Dictionary<string, object?> values)
+    {
+        private readonly Dictionary<string, object?> _values = values;
+
+        public object? GetValue(string columnName)
+        {
+            return _values.TryGetValue(columnName, out var value) ? value : null;
+        }
+
+        public override string ToString()
+        {
+            return $"{{ {string.Join(", ", _values.Select(kv => $"{kv.Key}={kv.Value}"))} }}";
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is ProjectedRow other)
+            {
+                if (_values.Count != other._values.Count) return false;
+                
+                foreach (var kv in _values)
+                {
+                    if (!other._values.TryGetValue(kv.Key, out var otherValue))
+                        return false;
+                    
+                    if (!Equals(kv.Value, otherValue))
+                        return false;
+                }
+                
+                return true;
+            }
+            
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            foreach (var kv in _values.OrderBy(kv => kv.Key))
+            {
+                hash.Add(kv.Key);
+                hash.Add(kv.Value);
+            }
+            return hash.ToHashCode();
+        }
     }
 
     /// <summary>

@@ -74,12 +74,20 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
             var (operation, columnName, outputType) = ParseSimpleAggregation(selectClause);
             plan = new AggregatePlan(plan, operation, columnName, outputType);
         }
-        else
+        else if (selectClause != "*")
         {
-            // Regular SELECT (projection) - for now just return scan
-            // Full projection support would map columns to ProjectionColumn list
-            // Phase B will add column projection support
-            // plan = new ProjectPlan(plan, columns);
+            // Regular SELECT with specific columns (Phase B: Column Projection)
+            var projections = ParseProjections(selectClause);
+            
+            // Only add ProjectPlan if we're selecting a proper subset of columns
+            // If selecting all columns in any order, it's effectively SELECT * and we skip projection
+            // This avoids type conversion issues when all columns are selected
+            bool isSubset = projections.Count < _schema.Count;
+            
+            if (isSubset)
+            {
+                plan = new ProjectPlan(plan, projections);
+            }
         }
 
         // 4. Add DISTINCT if present (Phase B)
@@ -500,6 +508,53 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
         }
     }
 
+    /// <summary>
+    /// Parses projection columns from SELECT clause.
+    /// Phase B: Column projection support.
+    /// Supports: column1, column2, column1 AS alias
+    /// </summary>
+    private List<ProjectionColumn> ParseProjections(string selectClause)
+    {
+        var projections = new List<ProjectionColumn>();
+        
+        // Split by comma (simple approach - doesn't handle commas in expressions)
+        var columns = selectClause.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (var col in columns)
+        {
+            var trimmed = col.Trim();
+            
+            // Check for alias: "column AS alias" or "column alias"
+            string sourceColumn;
+            string outputName;
+            
+            // Match "column AS alias"
+            var asMatch = ProjectionRegex().Match(trimmed);
+            
+            if (asMatch.Success)
+            {
+                sourceColumn = asMatch.Groups[1].Value;
+                outputName = asMatch.Groups[2].Value;
+            }
+            else
+            {
+                // Simple column name (no alias)
+                sourceColumn = trimmed;
+                outputName = trimmed;
+            }
+            
+            // Validate column exists in schema
+            if (!_schema.TryGetValue(sourceColumn, out var columnType))
+            {
+                throw new ArgumentException($"Column '{sourceColumn}' not found in schema");
+            }
+            
+            projections.Add(new ProjectionColumn(sourceColumn, outputName, columnType));
+        }
+        
+        return projections;
+    }
+
     private static double EstimateSelectivity(List<ColumnPredicate> predicates)
     {
         // Simple heuristic: assume each predicate filters 50%
@@ -579,4 +634,7 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
 
     [GeneratedRegex(@"(COUNT|SUM|AVG|MIN|MAX)\((\w+|\*)\)", RegexOptions.IgnoreCase, "en-GB")]
     private static partial Regex AggregationRegex();
+
+    [GeneratedRegex(@"^(\w+)\s+AS\s+(\w+)$", RegexOptions.IgnoreCase, "en-GB")]
+    private static partial Regex ProjectionRegex();
 }
