@@ -95,9 +95,6 @@ The project focuses on:
 - Ask: "Is this object fully constructed before being shared?"
 - Ask: "Can this design eliminate the need for locks?"
 
-**Historical Context:**
-In 2026, we eliminated mutable `ColumnIndex` properties that caused intermittent concurrency bugs. All predicates are now fully immutable, initialized at construction. This principle should be maintained for all future data structures.
-
 ---
 
 ### Performance First
@@ -127,7 +124,8 @@ Every optimization requires:
 
 **This project welcomes radical ideas and unconventional approaches.**
 
-The guidelines in this document focus on *verification* (ensuring changes work), not on *limiting what you try*. As a frontier AI model, your ability to make novel connections and challenge assumptions is one of your greatest strengths.
+The guidelines in this document focus on *verification* (ensuring changes work), not on *limiting what you try*.
+As a frontier AI model, your ability to make novel connections and challenge assumptions is one of your greatest strengths.
 
 **When proposing optimizations, explore unconventional ideas:**
 
@@ -511,7 +509,6 @@ docs/patterns/{pattern-name}-pattern.md                  # Pattern (IF REUSABLE)
 
 ### .NET Version Features
 - **Prefer .NET 10 features** for performance code (main library)
-- **Maintain .NET Standard 2.0 compatibility** where required
 - Use modern C# (C# 14.0): `ref struct`, `Span<T>`, pattern matching
 
 ### Performance Patterns
@@ -571,95 +568,14 @@ else
 
 ---
 
-## Query Engine Architecture
-
-### Core Concepts
-
-**Column-Oriented Processing**
-- Never materialize rows until final enumeration
-- Operate on entire columns with SIMD
-- Push predicates down to column level
-
-**Chunk-Based Parallelism**
-- Default chunk size: 16,384 rows (L2 cache optimized)
-- Each thread processes independent chunks
-- No synchronization required (lock-free)
-
-**Optimization Layers**
-1. **Zone Maps** - Skip entire chunks based on min/max
-2. **Predicate Evaluation** - SIMD vectorized comparisons
-3. **Fused Operations** - Single-pass filter+aggregate
-4. **Parallel Execution** - Multi-core utilization
-
-### Key Classes
-
-| Class | Purpose | Optimization Points |
-|-------|---------|---------------------|
-| `SelectionBitmap` | Compact row selection (1 bit/row) | SIMD AND/OR, hardware popcount |
-| `ColumnPredicate` | Pushdown predicates | SIMD comparisons, zone map testing |
-| `ParallelQueryExecutor` | Chunk-based parallel eval | Work distribution, zone map skip |
-| `FusedAggregator` | Single-pass filter+aggregate | Eliminate bitmap materialization |
-| `ZoneMap` | Min/max per chunk | Skip-scanning for selective queries |
-
----
-
-## Optimization Catalog
-
-### Implemented ?
-- SIMD predicate evaluation (Int32, Double)
-- Parallel chunk-based execution
-- Fused filter+aggregate operations
-- Block-based bitmap iteration with TrailingZeroCount
-- Hardware popcount for bit counting
-- ArrayPool for temporary allocations
-- Zone maps (min-max indices) for skip-scanning
-
-### High Priority ??
-1. **Null Bitmap Batch Processing** (Priority 2)
-   - AND null bitmap with selection bitmap in bulk
-   - Eliminate per-element IsNull checks
-   - Expected: 5-10% improvement
-
-2. **Predicate Reordering** (Priority 3)
-   - Evaluate low-selectivity predicates first
-   - Use zone map statistics for ordering
-   - Expected: 10-20% for multi-predicate
-
-3. **Expression Plan Caching** (Priority 4)
-   - Cache analyzed query plans by expression
-   - Eliminate repeated reflection
-   - Expected: Faster query startup
-
-### Medium Priority ??
-4. **Bloom Filters for Strings**
-   - Complement zone maps for string equality
-   - Probabilistic skip-scanning
-   
-5. **Lazy Bitmap Materialization**
-   - Stream evaluation for Any/First
-   - Sparse index list for highly selective
-
-6. **Vectorized Multi-Predicate**
-   - Fuse multiple predicates in single SIMD pass
-   - Reduce memory traffic
-
-### Experimental ??
-7. **Morsel-Driven Execution**
-   - Pipeline parallelism with morsels (~1K-10K rows)
-   - Overlap filter/aggregate stages
-   
-8. **JIT-Compiled Query Kernels**
-   - Generate IL for repeated queries
-   - Eliminate virtual calls
-
----
-
 ## Testing Guidelines
 
 ### Unit Tests
 - Test correctness first, performance second
 - Cover edge cases: empty, single element, large datasets
 - Test with nullable and non-nullable columns
+- Cover concurrency scenarios if applicable
+- Cover race conditions if mutable state is involved
 
 ### Benchmarks (BenchmarkDotNet)
 - Compare against `List<T>` LINQ as baseline
@@ -747,10 +663,6 @@ What could be improved further?
 ? **Allocating in Hot Paths**
 - Use `ArrayPool`, `stackalloc`, or `Span<T>`
 - Avoid LINQ in performance-critical code
-
-? **Forgetting Documentation**
-- Code without docs is incomplete
-- Future maintainers will thank you
 
 ---
 

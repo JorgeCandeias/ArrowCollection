@@ -1,19 +1,33 @@
 using BenchmarkDotNet.Running;
 using FrozenArrow.Benchmarks;
 
-// Use BenchmarkSwitcher for flexible benchmark selection
-// Run with --help to see all options, or --list to see available benchmarks
-
-var switcher = BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly);
-
-if (args.Length == 0)
+// Check if user wants quick benchmark (custom) or full BenchmarkDotNet
+if (args.Length > 0 && args[0] == "--quick")
 {
-    Console.WriteLine("FrozenArrow Benchmark Runner");
-    Console.WriteLine("================================");
     Console.WriteLine();
-    Console.WriteLine("Benchmarks are organized by operation type, with all technologies competing side-by-side.");
+    Console.WriteLine("Running Quick Performance Benchmarks...");
     Console.WriteLine();
-    Console.WriteLine("User-Facing Benchmarks:");
+    
+    PhasePerformanceBenchmark.Run();
+    
+    Console.WriteLine();
+    Console.WriteLine("Press any key to exit...");
+    Console.ReadKey();
+}
+else
+{
+    // Use BenchmarkDotNet for rigorous benchmarking
+    // Run with --help to see all options, or --list to see available benchmarks
+    var switcher = BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly);
+
+    if (args.Length == 0)
+    {
+        Console.WriteLine("FrozenArrow Benchmark Runner");
+        Console.WriteLine("================================");
+        Console.WriteLine();
+        Console.WriteLine("Benchmarks are organized by operation type, with all technologies competing side-by-side.");
+        Console.WriteLine();
+        Console.WriteLine("User-Facing Benchmarks:");
     Console.WriteLine("  - FilterBenchmarks          : Where clauses at various selectivities");
     Console.WriteLine("  - AggregationBenchmarks     : Sum, Average, Min, Max operations");
     Console.WriteLine("  - GroupByBenchmarks         : Grouped aggregations (Count, Sum, Avg per group)");
@@ -43,6 +57,8 @@ if (args.Length == 0)
     Console.WriteLine();
 }
 
-switcher.Run(args);
+    switcher.Run(args);
+}
+
 
 
