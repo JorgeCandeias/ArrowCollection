@@ -364,6 +364,7 @@ public sealed partial class ArrowQueryProvider
     {
         return arrowType switch
         {
+            Apache.Arrow.Types.DictionaryType dictionaryType => GetClrTypeFromArrowType(dictionaryType.ValueType),
             Apache.Arrow.Types.Int32Type => typeof(int),
             Apache.Arrow.Types.Int64Type => typeof(long),
             Apache.Arrow.Types.FloatType => typeof(float),
@@ -373,7 +374,17 @@ public sealed partial class ArrowQueryProvider
             Apache.Arrow.Types.Date32Type => typeof(DateTime),
             Apache.Arrow.Types.Date64Type => typeof(DateTime),
             Apache.Arrow.Types.TimestampType => typeof(DateTimeOffset),
-            _ => typeof(object)
+            Apache.Arrow.Types.Int8Type => typeof(sbyte),
+            Apache.Arrow.Types.Int16Type => typeof(short),
+            Apache.Arrow.Types.UInt8Type => typeof(byte),
+            Apache.Arrow.Types.UInt16Type => typeof(ushort),
+            Apache.Arrow.Types.UInt32Type => typeof(uint),
+            Apache.Arrow.Types.UInt64Type => typeof(ulong),
+            Apache.Arrow.Types.Decimal128Type => typeof(decimal),
+            Apache.Arrow.Types.Decimal256Type => typeof(decimal),
+            _ => throw new NotSupportedException(
+                $"Arrow type '{arrowType.GetType().Name}' (TypeId: {arrowType.TypeId}) is not yet supported for SQL queries. " +
+                $"Please use LINQ queries or add support for this type.")
         };
     }
 }

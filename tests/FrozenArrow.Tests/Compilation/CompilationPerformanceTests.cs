@@ -40,7 +40,7 @@ public class CompilationPerformanceTests
         return records.ToFrozenArrow();
     }
 
-    [Fact(Skip = "Performance test - run manually")]
+    [Fact]
     public void CompilationPerformance_SimpleFilter_ShowsImprovement()
     {
         // Arrange
@@ -84,7 +84,7 @@ public class CompilationPerformanceTests
         Assert.True(true, $"Interpreted: {interpretedMs}ms, Compiled: {compiledMs}ms, Speedup: {speedup:F2}×");
     }
 
-    [Fact(Skip = "Performance test - run manually")]
+    [Fact]
     public void CompilationPerformance_MultiplePredicates_ShowsGreaterImprovement()
     {
         // Arrange

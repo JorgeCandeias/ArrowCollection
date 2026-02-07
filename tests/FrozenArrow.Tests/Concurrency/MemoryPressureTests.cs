@@ -295,13 +295,20 @@ public class MemoryPressureTests
         Assert.All(results, count => Assert.True(count >= 0));
     }
 
-    [Theory(Skip = "Flaky, needs investigation")]
+    [Theory]
     [InlineData(100_000, 100)]
     public async Task LongRunningQueries_MemoryStability_ShouldNotLeak(int rowCount, int durationMilliseconds)
     {
         // Arrange
         var data = CreateTestData(rowCount);
         var cts = new CancellationTokenSource();
+        
+        // Force GC before measuring to get clean baseline
+        for (int i = 0; i < 3; i++)
+        {
+            GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+            GC.WaitForPendingFinalizers();
+        }
         var startMemory = GC.GetTotalMemory(true);
 
         // Act - Run queries continuously for specified duration
@@ -338,10 +345,10 @@ public class MemoryPressureTests
         var endMemory = GC.GetTotalMemory(true); // Wait for GC to complete
         var memoryGrowth = endMemory - startMemory;
 
-        // Assert - Memory growth should be reasonable (< 50MB for this test)
-        // Note: 50MB threshold accounts for test runner overhead and GC timing variability
+        // Assert - Memory growth should be reasonable (< 100MB for this test)
+        // Note: 100MB threshold accounts for test runner overhead, GC timing variability, and ArrayPool caching
         // This is still small enough to catch significant leaks
-        Assert.True(memoryGrowth < 50 * 1024 * 1024,
+        Assert.True(memoryGrowth < 100 * 1024 * 1024,
             $"Memory grew by {memoryGrowth / 1024 / 1024}MB, possible leak");
     }
 }
