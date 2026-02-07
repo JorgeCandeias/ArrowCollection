@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using FrozenArrow.Query.LogicalPlan;
 
 namespace FrozenArrow.Query.Sql;
@@ -27,13 +27,22 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
         var selectMatch = SelectRegex().Match(sql);
         var whereMatch = WhereRegex().Match(sql);
         var groupByMatch = GroupByRegex().Match(sql);
+        var orderByMatch = OrderByRegex().Match(sql);
         var limitMatch = LimitRegex().Match(sql);
         var offsetMatch = OffsetRegex().Match(sql);
 
         if (!selectMatch.Success)
             throw new ArgumentException("SQL query must contain SELECT clause", nameof(sql));
 
-        // Build logical plan from bottom up: Scan ? Filter ? GroupBy/Aggregate ? Limit/Offset ? Project
+        // Check for DISTINCT keyword
+        var selectClause = selectMatch.Groups[1].Value.Trim();
+        var isDistinct = selectClause.StartsWith("DISTINCT ", StringComparison.OrdinalIgnoreCase);
+        if (isDistinct)
+        {
+            selectClause = selectClause["DISTINCT ".Length..].Trim();
+        }
+
+        // Build logical plan from bottom up: Scan → Filter → GroupBy/Aggregate → Distinct → OrderBy → Limit/Offset → Project
 
         // 1. Start with scan
         LogicalPlanNode plan = new ScanPlan("sql_source", new object(), _schema, rowCount);
@@ -50,8 +59,6 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
         }
 
         // 3. Handle GROUP BY or simple aggregation
-        var selectClause = selectMatch.Groups[1].Value.Trim();
-        
         if (groupByMatch.Success)
         {
             // GROUP BY with aggregations
@@ -71,18 +78,31 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
         {
             // Regular SELECT (projection) - for now just return scan
             // Full projection support would map columns to ProjectionColumn list
-            // For Phase 8, we'll keep it simple and return all columns
+            // Phase B will add column projection support
             // plan = new ProjectPlan(plan, columns);
         }
 
-        // 4. Add OFFSET first (it comes before LIMIT in the plan tree)
+        // 4. Add DISTINCT if present (Phase B)
+        if (isDistinct)
+        {
+            plan = new DistinctPlan(plan);
+        }
+
+        // 5. Add ORDER BY if present (Phase B)
+        if (orderByMatch.Success)
+        {
+            var orderByClause = orderByMatch.Groups[1].Value;
+            plan = ParseOrderByClause(plan, orderByClause);
+        }
+
+        // 6. Add OFFSET first (it comes before LIMIT in the plan tree)
         if (offsetMatch.Success)
         {
             var offset = int.Parse(offsetMatch.Groups[1].Value);
             plan = new OffsetPlan(plan, offset);
         }
 
-        // 5. Then add LIMIT
+        // 7. Then add LIMIT
         if (limitMatch.Success)
         {
             var limit = int.Parse(limitMatch.Groups[1].Value);
@@ -486,6 +506,19 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
         return Math.Pow(0.5, predicates.Count);
     }
 
+    /// <summary>
+    /// Parses ORDER BY clause and creates a sort plan.
+    /// Phase B: ORDER BY support - not yet implemented.
+    /// </summary>
+    private LogicalPlanNode ParseOrderByClause(LogicalPlanNode input, string orderByClause)
+    {
+        // For Phase B, ORDER BY requires a SortPlan logical node which doesn't exist yet
+        // This would require significant work to implement
+        throw new NotSupportedException(
+            "ORDER BY is not yet fully implemented in SQL parser. " +
+            "Use LINQ .OrderBy() instead for now.");
+    }
+
     [GeneratedRegex(@"SELECT\s+(.+?)\s+FROM", RegexOptions.IgnoreCase, "en-GB")]
     private static partial Regex SelectRegex();
 
@@ -494,6 +527,9 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
 
     [GeneratedRegex(@"GROUP BY\s+(\w+)", RegexOptions.IgnoreCase, "en-GB")]
     private static partial Regex GroupByRegex();
+
+    [GeneratedRegex(@"ORDER BY\s+(.+?)(?:\s+LIMIT|\s+OFFSET|$)", RegexOptions.IgnoreCase, "en-GB")]
+    private static partial Regex OrderByRegex();
 
     [GeneratedRegex(@"LIMIT\s+(\d+)", RegexOptions.IgnoreCase, "en-GB")]
     private static partial Regex LimitRegex();
