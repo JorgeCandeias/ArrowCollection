@@ -1,6 +1,7 @@
+using Apache.Arrow;
+using FrozenArrow.Query.Adaptive;
 using System.Collections;
 using System.Linq.Expressions;
-using Apache.Arrow;
 
 namespace FrozenArrow.Query;
 
@@ -97,6 +98,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
     private readonly ZoneMap? _zoneMap;
     private readonly QueryPlanCache _queryPlanCache;
     private readonly LogicalPlan.LogicalPlanCache _logicalPlanCache;
+    private readonly Adaptive.AdaptiveQueryExecutor _adaptiveExecutor;
 
     /// <summary>
     /// Gets or sets whether the provider operates in strict mode.
@@ -144,15 +146,25 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
     /// </summary>
     public void ClearLogicalPlanCache() => _logicalPlanCache.Clear();
 
+    /// <summary>
+    /// Gets adaptive execution statistics (Phase 10).
+    /// </summary>
+    public AdaptiveStatisticsSummary GetAdaptiveStatistics() => _adaptiveExecutor.Statistics.GetSummary();
+
+    /// <summary>
+    /// Gets optimization recommendations based on learned patterns (Phase 10).
+    /// </summary>
+    public List<OptimizationRecommendation> GetOptimizationRecommendations() => _adaptiveExecutor.GetRecommendations();
+
     internal ArrowQueryProvider(object source)
     {
         _source = source ?? throw new ArgumentNullException(nameof(source));
-        
+
         // Extract type information
         var sourceType = source.GetType();
         var arrowCollectionType = sourceType;
-        while (arrowCollectionType != null && 
-               (!arrowCollectionType.IsGenericType || 
+        while (arrowCollectionType != null &&
+               (!arrowCollectionType.IsGenericType ||
                 arrowCollectionType.GetGenericTypeDefinition() != typeof(FrozenArrow<>)))
         {
             arrowCollectionType = arrowCollectionType.BaseType;
@@ -168,9 +180,9 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         // Use cached delegate to extract values - eliminates MakeGenericMethod + Invoke overhead
         // First call for a type pays one-time reflection cost to create delegate,
         // subsequent calls for same type use cached delegate (fast path)
-        var (recordBatch, count, columnIndexMap, createItem, zoneMap, queryPlanCache) = 
+        var (recordBatch, count, columnIndexMap, createItem, zoneMap, queryPlanCache) =
             TypedQueryProviderCache.ExtractSourceData(_elementType, source);
-        
+
         _recordBatch = recordBatch;
         _count = count;
         _columnIndexMap = columnIndexMap;
@@ -178,6 +190,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         _zoneMap = zoneMap;
         _queryPlanCache = queryPlanCache;
         _logicalPlanCache = new LogicalPlan.LogicalPlanCache();
+        _adaptiveExecutor = new Adaptive.AdaptiveQueryExecutor(enabled: false);
     }
 
     internal FrozenArrow<TElement> GetSource<TElement>()
@@ -189,7 +202,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
     {
         var elementType = GetElementType(expression.Type)
             ?? throw new ArgumentException($"Cannot determine element type from expression type '{expression.Type}'.", nameof(expression));
-        
+
         // Use cached delegate to eliminate MakeGenericMethod + Invoke overhead
         return TypedQueryProviderCache.CreateQuery(this, elementType, expression);
     }
@@ -202,7 +215,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
     public object? Execute(Expression expression)
     {
         var elementType = GetElementType(expression.Type) ?? _elementType;
-        
+
         // Use cached delegate to eliminate MakeGenericMethod + Invoke overhead
         return TypedQueryProviderCache.Execute(this, elementType, expression);
     }
@@ -246,6 +259,14 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
     /// Only applies when UseLogicalPlanExecution is true.
     /// </summary>
     public bool UseCompiledQueries { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether to use adaptive execution (Phase 10).
+    /// When true, learns from query patterns and automatically optimizes.
+    /// Collects runtime statistics and adjusts strategies dynamically.
+    /// Only applies when UseLogicalPlanExecution is true.
+    /// </summary>
+    public bool UseAdaptiveExecution { get; set; } = false;
 
     public TResult Execute<TResult>(Expression expression)
     {
@@ -449,19 +470,19 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         // We detect this by checking IsFullyOptimized - if the query has unsupported operations
         // like OrderBy, it won't be fully optimized and we skip this optimization.
         bool isPaginatedEnumeration = plan.IsFullyOptimized &&  // ? Must be fully optimized (no OrderBy, etc.)
-                                      !plan.PaginationBeforePredicates && 
-                                      plan.Take.HasValue && 
+                                      !plan.PaginationBeforePredicates &&
+                                      plan.Take.HasValue &&
                                       plan.ColumnPredicates.Count > 0 &&
-                                      (resultType.IsGenericType && 
+                                      (resultType.IsGenericType &&
                                        (resultType.GetGenericTypeDefinition() == typeof(IEnumerable<>) ||
                                         resultType.GetGenericTypeDefinition() == typeof(IQueryable<>)));
-        
+
         if (isPaginatedEnumeration)
         {
             int skipCount = plan.Skip ?? 0;
             int takeCount = plan.Take!.Value;
             int maxIndicesToCollect = skipCount + takeCount;
-            
+
             // Use sparse collection with early termination
             var matchingIndices = SparseIndexCollector.CollectMatchingIndices(
                 _recordBatch,
@@ -471,7 +492,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
                 null,  // No row range limit
                 0,     // Start from beginning
                 maxIndicesToCollect);
-            
+
             return ExecuteWithSparseIndices<TResult>(plan, matchingIndices, resultType);
         }
 
@@ -487,7 +508,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
             int sparseStartRow = 0;
             int? sparseEndRow = null;
             int? maxIndicesToCollect = null;
-            
+
             if (plan.PaginationBeforePredicates && plan.ColumnPredicates.Count > 0)
             {
                 sparseStartRow = plan.Skip ?? 0;
@@ -503,7 +524,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
                 // This enables early termination - we stop evaluating once we have enough matches
                 int skipCount = plan.Skip ?? 0;
                 int takeCount = plan.Take ?? int.MaxValue;
-                
+
                 // We need Skip + Take total matches to satisfy the query
                 // Example: .Skip(1000).Take(100) only needs 1100 matches, not all matches
                 if (takeCount < int.MaxValue)
@@ -511,7 +532,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
                     maxIndicesToCollect = skipCount + takeCount;
                 }
             }
-            
+
             var matchingIndices = SparseIndexCollector.CollectMatchingIndices(
                 _recordBatch,
                 plan.ColumnPredicates,
@@ -520,32 +541,32 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
                 sparseEndRow,
                 sparseStartRow,
                 maxIndicesToCollect);
-            
+
             return ExecuteWithSparseIndices<TResult>(plan, matchingIndices, resultType);
         }
 
         // DENSE PATH: Build selection bitmap using pooled bitfield (8x more memory efficient than bool[])
-        
+
         // Determine if we should apply pagination before predicates
         // This happens when: Skip/Take is present, has predicates, AND pagination comes before predicates
         bool applyPaginationBeforePredicates = plan.ColumnPredicates.Count > 0 && plan.PaginationBeforePredicates;
         bool hasSkipBeforePredicates = applyPaginationBeforePredicates && plan.Skip.HasValue;
         bool hasTakeBeforePredicates = applyPaginationBeforePredicates && plan.Take.HasValue;
-        
+
         // Calculate effective row range to evaluate
         int startRow = hasSkipBeforePredicates ? Math.Min(_count, plan.Skip!.Value) : 0;
         int endRow = _count;
-        
+
         if (hasTakeBeforePredicates)
         {
             // .Take(N).Where(...) or .Skip(M).Take(N).Where(...)
             // Only evaluate rows from startRow to startRow + Take
             endRow = Math.Min(_count, startRow + plan.Take!.Value);
         }
-        
+
         // Initialize bitmap: if pagination comes before predicates, only set affected range to true
         using var selection = SelectionBitmap.Create(_count, initialValue: false);
-        
+
         if (applyPaginationBeforePredicates)
         {
             // For .Skip().Where() or .Take().Where() or .Skip().Take().Where()
@@ -567,11 +588,11 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         // Apply column predicates using parallel execution when beneficial
         // Pass row range to limit evaluation for pagination-before-predicates patterns
         int? maxRowToEvaluate = applyPaginationBeforePredicates ? (int?)endRow : null;
-        
+
         if (plan.ColumnPredicates.Count > 0)
         {
             ParallelQueryExecutor.EvaluatePredicatesParallel(
-                _recordBatch, 
+                _recordBatch,
                 ref System.Runtime.CompilerServices.Unsafe.AsRef(in selection),
                 plan.ColumnPredicates,
                 ParallelOptions,
@@ -595,7 +616,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         }
 
         // IEnumerable<T> - return lazy enumeration using batched enumerator for better performance
-        if (resultType.IsGenericType && 
+        if (resultType.IsGenericType &&
             (resultType.GetGenericTypeDefinition() == typeof(IEnumerable<>) ||
              resultType.GetGenericTypeDefinition() == typeof(IQueryable<>)))
         {
@@ -605,11 +626,11 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
             {
                 selectedIndices.Add(idx);
             }
-            
+
             // Apply Skip and Take pagination
             // Pass flag indicating if pagination was already applied during evaluation
             selectedIndices = ApplyPagination(selectedIndices, plan, applyPaginationBeforePredicates);
-            
+
             var enumerable = CreateBatchedEnumerable(selectedIndices);
             return (TResult)enumerable;
         }
@@ -620,7 +641,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
             // Apply Skip for First operations if specified
             int skipCount = plan.Skip ?? 0;
             int itemsSeen = 0;
-            
+
             foreach (var i in selection.GetSelectedIndices())
             {
                 if (itemsSeen >= skipCount)
@@ -629,19 +650,19 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
                 }
                 itemsSeen++;
             }
-            
+
             // Check if this is an OrDefault variant
-            if (expression is MethodCallExpression singleMethodCall && 
+            if (expression is MethodCallExpression singleMethodCall &&
                 (singleMethodCall.Method.Name == "FirstOrDefault" || singleMethodCall.Method.Name == "SingleOrDefault"))
             {
                 return default!;
             }
-            
+
             throw new InvalidOperationException("Sequence contains no elements.");
         }
 
         // Determine if we've already applied Take before predicates
-        bool tookAlreadyApplied = plan.Take.HasValue && !plan.Skip.HasValue && 
+        bool tookAlreadyApplied = plan.Take.HasValue && !plan.Skip.HasValue &&
                                   plan.ColumnPredicates.Count > 0 && plan.PaginationBeforePredicates;
 
         // Count - needs to account for Skip and Take
@@ -661,13 +682,13 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
                     count = Math.Min(count, plan.Take.Value);
                 }
             }
-            
+
             // Apply outer Take (after predicates) if present
             if (plan.TakeAfterPredicates.HasValue)
             {
                 count = Math.Min(count, plan.TakeAfterPredicates.Value);
             }
-            
+
             return (TResult)(object)count;
         }
 
@@ -688,13 +709,13 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
                     count = Math.Min(count, plan.Take.Value);
                 }
             }
-            
+
             // Apply outer Take (after predicates) if present
             if (plan.TakeAfterPredicates.HasValue)
             {
                 count = Math.Min(count, plan.TakeAfterPredicates.Value);
             }
-            
+
             return (TResult)(object)count;
         }
 
@@ -724,7 +745,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
     private TResult ExecuteWithSparseIndices<TResult>(QueryPlan plan, List<int> matchingIndices, Type resultType)
     {
         var selectedCount = matchingIndices.Count;
-        
+
         // Handle grouped queries (GroupBy + Select with aggregates)
         if (plan.IsGroupedQuery)
         {
@@ -750,7 +771,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         }
 
         // IEnumerable<T> - return lazy enumeration
-        if (resultType.IsGenericType && 
+        if (resultType.IsGenericType &&
             (resultType.GetGenericTypeDefinition() == typeof(IEnumerable<>) ||
              resultType.GetGenericTypeDefinition() == typeof(IQueryable<>)))
         {
@@ -828,7 +849,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
     private TResult ExecuteShortCircuit<TResult>(QueryPlan plan, string operation)
     {
         var chunkSize = ParallelOptions?.ChunkSize ?? 16_384;
-        
+
         // Calculate effective row range for pagination-before-predicates patterns
         int? maxRowToEvaluate = null;
         if (plan.PaginationBeforePredicates && plan.ColumnPredicates.Count > 0)
@@ -908,12 +929,12 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
             }
             // Sum returns 0 for empty (default value)
         }
-        
+
         // Find the column by name
-        var columnIndex = _columnIndexMap.TryGetValue(aggregate.ColumnName!, out var idx) 
-            ? idx 
+        var columnIndex = _columnIndexMap.TryGetValue(aggregate.ColumnName!, out var idx)
+            ? idx
             : throw new InvalidOperationException($"Column '{aggregate.ColumnName}' not found.");
-        
+
         var column = _recordBatch.Column(columnIndex);
 
         // Use parallel aggregator when enabled
@@ -935,7 +956,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         var keyColumnIndex = _columnIndexMap.TryGetValue(plan.GroupByColumn!, out var idx)
             ? idx
             : throw new InvalidOperationException($"Group key column '{plan.GroupByColumn}' not found.");
-        
+
         var keyColumn = _recordBatch.Column(keyColumnIndex);
 
         // Execute the grouped query using reflection to handle the key type
@@ -946,7 +967,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         return (TResult)method.Invoke(this, [plan, keyColumn, selection])!;
     }
 
-    private TResult ExecuteGroupedQueryTyped<TKey, TResult>(QueryPlan plan, IArrowArray keyColumn, SelectionBitmap selection) 
+    private TResult ExecuteGroupedQueryTyped<TKey, TResult>(QueryPlan plan, IArrowArray keyColumn, SelectionBitmap selection)
         where TKey : notnull
     {
         // Execute grouped aggregation
@@ -959,14 +980,14 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
 
         // Build result objects
         var resultType = typeof(TResult);
-        
+
         // Handle Dictionary<TKey, TValue> result (from ToDictionary)
-        if (resultType.IsGenericType && 
+        if (resultType.IsGenericType &&
             resultType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
         {
             var dictKeyType = resultType.GetGenericArguments()[0];
             var dictValueType = resultType.GetGenericArguments()[1];
-            
+
             // Verify the key types match
             if (dictKeyType != typeof(TKey))
             {
@@ -978,7 +999,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         }
 
         // Handle IEnumerable<SomeProjectionType>
-        if (resultType.IsGenericType && 
+        if (resultType.IsGenericType &&
             (resultType.GetGenericTypeDefinition() == typeof(IEnumerable<>) ||
              resultType.GetGenericTypeDefinition() == typeof(IQueryable<>)))
         {
@@ -1008,7 +1029,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         {
             // Get the aggregated value from the group
             object? value = null;
-            
+
             if (group.AggregateValues.TryGetValue(valueAggregation.ResultPropertyName, out var aggValue))
             {
                 value = Convert.ChangeType(aggValue, valueType);
@@ -1238,7 +1259,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
             }
             return selectedIndices;
         }
-        
+
         // Normal pagination path (pagination after predicates)
         if (!plan.Skip.HasValue && !plan.Take.HasValue && !plan.TakeAfterPredicates.HasValue)
         {
@@ -1248,7 +1269,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
 
         int skip = plan.Skip ?? 0;
         int take = plan.Take ?? int.MaxValue;
-        
+
         // Apply outer Take if it's more restrictive
         if (plan.TakeAfterPredicates.HasValue)
         {
@@ -1326,7 +1347,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
     {
         // We need to analyze the expression to extract the aggregate calls
         // The expression is like: agg => new ResultType { Prop1 = agg.Sum(...), Prop2 = agg.Count(), ... }
-        
+
         var aggregations = new List<AggregationDescriptor>();
         var body = selector.Body;
 
@@ -1410,7 +1431,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         {
             return memberExpr.Member.Name;
         }
-        
+
         if (lambda.Body is UnaryExpression unary && unary.Operand is MemberExpression innerMember)
         {
             return innerMember.Member.Name;
@@ -1429,7 +1450,7 @@ public sealed partial class ArrowQueryProvider : IQueryProvider
         if (body is MemberInitExpression memberInit)
         {
             var result = Activator.CreateInstance(resultType)!;
-            
+
             foreach (var binding in memberInit.Bindings)
             {
                 if (binding is MemberAssignment assignment)
@@ -1518,7 +1539,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
     private string _groupByKeyResultPropertyName = "Key"; // Default to "Key"
     private readonly List<AggregationDescriptor> _aggregations = [];
     private bool _insideGroupByProjection; // Flag to allow Enumerable methods inside GroupBy projection
-    
+
     // ToDictionary support
     private bool _isToDictionaryQuery;
     private AggregationDescriptor? _toDictionaryValueAggregation;
@@ -1541,8 +1562,8 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
         return new QueryPlan
         {
             IsFullyOptimized = !_hasUnsupportedPatterns,
-            UnsupportedReason = _unsupportedReasons.Count > 0 
-                ? string.Join("; ", _unsupportedReasons) 
+            UnsupportedReason = _unsupportedReasons.Count > 0
+                ? string.Join("; ", _unsupportedReasons)
                 : null,
             ColumnsAccessed = [.. _columnsAccessed],
             ColumnPredicates = _predicates,
@@ -1624,7 +1645,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
                     AnalyzeWherePredicate(lambda);
                 }
             }
-            
+
             // Process Count/LongCount with predicate argument
             // .Count(predicate) is syntactic sugar for .Where(predicate).Count()
             if ((methodName == "Count" || methodName == "LongCount") && node.Arguments.Count >= 2)
@@ -1682,7 +1703,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
                     // Expression tree is visited outside-in, so:
                     // - If _seenPredicate is FALSE: this is an OUTER Take (comes after Where in execution)
                     // - If _seenPredicate is TRUE: this is an INNER Take (comes before Where in execution)
-                    
+
                     if (_seenPredicate)
                     {
                         // Inner Take: .Take(N).Where(...) - limit evaluation
@@ -1720,7 +1741,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
     {
         if (expression is MethodCallExpression methodCall)
         {
-            return methodCall.Method.Name == "GroupBy" && 
+            return methodCall.Method.Name == "GroupBy" &&
                    methodCall.Method.DeclaringType?.FullName == "System.Linq.Queryable";
         }
         return false;
@@ -1754,7 +1775,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
         var result = (PredicateAnalysisResult)analyzerMethod.Invoke(null, [lambda, columnIndexMap])!;
 
         _predicates.AddRange(result.Predicates);
-        
+
         foreach (var predicate in result.Predicates)
         {
             _columnsAccessed.Add(predicate.ColumnName);
@@ -1780,7 +1801,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
 
         // Extract the column name from the selector lambda
         string? columnName = null;
-        
+
         // The selector is the second argument (first is the source)
         if (node.Arguments.Count >= 2)
         {
@@ -1819,20 +1840,20 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
             if (memberExpr.Expression is ParameterExpression)
             {
                 var memberName = memberExpr.Member.Name;
-                
+
                 // Look up the column name in the map (it might be aliased via ArrowArray attribute)
                 // First try direct match, then try finding by property name
                 if (columnIndexMap.ContainsKey(memberName))
                 {
                     return memberName;
                 }
-                
+
                 // The column might be named differently - search for it
                 // For now, just return the member name and let execution handle it
                 return memberName;
             }
         }
-        
+
         // Handle unary conversion: x => (double)x.Property
         if (lambda.Body is UnaryExpression unaryExpr && unaryExpr.Operand is MemberExpression innerMember)
         {
@@ -1870,7 +1891,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
     {
         // Parse: .GroupBy(x => x.Category).ToDictionary(g => g.Key, g => g.Count())
         // or:    .GroupBy(x => x.Category).ToDictionary(g => g.Key, g => g.Sum(x => x.Salary))
-        
+
         _isToDictionaryQuery = true;
         _insideGroupByProjection = true;
 
@@ -1892,12 +1913,12 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
             // Parse the element/value selector
             var elementSelectorArg = node.Arguments[2];
             var aggregation = ParseToDictionaryElementSelector(elementSelectorArg);
-            
+
             if (aggregation is not null)
             {
                 _toDictionaryValueAggregation = aggregation;
                 _aggregations.Add(aggregation);
-                
+
                 if (aggregation.ColumnName is not null)
                 {
                     _columnsAccessed.Add(aggregation.ColumnName);
@@ -1921,7 +1942,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
     {
         // Expect: g => g.Key
         LambdaExpression? lambda = null;
-        
+
         if (keySelectorArg is UnaryExpression unary && unary.Operand is LambdaExpression lambda1)
         {
             lambda = lambda1;
@@ -1949,7 +1970,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
     {
         // Expect: g => g.Count(), g => g.Sum(x => x.Salary), etc.
         LambdaExpression? lambda = null;
-        
+
         if (elementSelectorArg is UnaryExpression unary && unary.Operand is LambdaExpression lambda1)
         {
             lambda = lambda1;
@@ -1974,8 +1995,8 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
             {
                 return new AggregationDescriptor
                 {
-                    Operation = countCall.Method.Name == "Count" 
-                        ? AggregationOperation.Count 
+                    Operation = countCall.Method.Name == "Count"
+                        ? AggregationOperation.Count
                         : AggregationOperation.LongCount,
                     ColumnName = null,
                     ResultPropertyName = "Value" // Default for dictionary value
@@ -2096,8 +2117,8 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
     private void AnalyzeProjectionMember(Expression expression, string memberName, ParameterExpression groupParam)
     {
         // Check for g.Key
-        if (expression is MemberExpression memberExpr && 
-            memberExpr.Expression == groupParam && 
+        if (expression is MemberExpression memberExpr &&
+            memberExpr.Expression == groupParam &&
             memberExpr.Member.Name == "Key")
         {
             // Track the result property name for the key (e.g., "Category" in "Category = g.Key")
@@ -2106,7 +2127,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
         }
 
         // Check for g.Count()
-        if (expression is MethodCallExpression countCall && 
+        if (expression is MethodCallExpression countCall &&
             countCall.Method.Name == "Count" &&
             countCall.Arguments.Count >= 1 &&
             IsGroupParameter(countCall.Arguments[0], groupParam))
@@ -2121,7 +2142,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
         }
 
         // Check for g.LongCount()
-        if (expression is MethodCallExpression longCountCall && 
+        if (expression is MethodCallExpression longCountCall &&
             longCountCall.Method.Name == "LongCount" &&
             longCountCall.Arguments.Count >= 1 &&
             IsGroupParameter(longCountCall.Arguments[0], groupParam))
@@ -2136,14 +2157,14 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
         }
 
         // Check for g.Sum(x => x.Salary), g.Average(...), g.Min(...), g.Max(...)
-        if (expression is MethodCallExpression aggCall && 
+        if (expression is MethodCallExpression aggCall &&
             AggregateMethods.Contains(aggCall.Method.Name) &&
             aggCall.Arguments.Count >= 2)
         {
             // The selector is the second argument
             var selectorArg = aggCall.Arguments[1];
             LambdaExpression? aggLambda = null;
-            
+
             // Handle different wrapping: UnaryExpression or direct lambda
             if (selectorArg is UnaryExpression unary && unary.Operand is LambdaExpression lambda1)
             {
@@ -2153,7 +2174,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
             {
                 aggLambda = lambda2;
             }
-            
+
             if (aggLambda is not null)
             {
                 var columnName = ExtractColumnNameFromSelector(aggLambda);
@@ -2188,7 +2209,7 @@ internal sealed class QueryExpressionAnalyzer(Dictionary<string, int> columnInde
 
     private static bool IsGroupParameter(Expression expression, ParameterExpression groupParam)
     {
-        return expression == groupParam || 
+        return expression == groupParam ||
                (expression is UnaryExpression unary && unary.Operand == groupParam);
     }
 
