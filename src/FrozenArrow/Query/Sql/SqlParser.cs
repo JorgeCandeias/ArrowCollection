@@ -1,5 +1,5 @@
-﻿using System.Text.RegularExpressions;
-using FrozenArrow.Query.LogicalPlan;
+﻿using FrozenArrow.Query.LogicalPlan;
+using System.Text.RegularExpressions;
 
 namespace FrozenArrow.Query.Sql;
 
@@ -64,7 +64,7 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
             // GROUP BY with aggregations
             var groupByColumn = groupByMatch.Groups[1].Value;
             var aggregations = ParseAggregations(selectClause);
-            
+
             var keyType = _schema.TryGetValue(groupByColumn, out var type) ? type : typeof(object);
             plan = new GroupByPlan(plan, groupByColumn, keyType, aggregations, groupByColumn);
         }
@@ -78,12 +78,12 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
         {
             // Regular SELECT with specific columns (Phase B: Column Projection)
             var projections = ParseProjections(selectClause);
-            
+
             // Only add ProjectPlan if we're selecting a proper subset of columns
             // If selecting all columns in any order, it's effectively SELECT * and we skip projection
             // This avoids type conversion issues when all columns are selected
             bool isSubset = projections.Count < _schema.Count;
-            
+
             if (isSubset)
             {
                 plan = new ProjectPlan(plan, projections);
@@ -137,7 +137,7 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
         {
             // Split by OR and create OrPredicate
             var orParts = SplitByTopLevelOperator(whereClause, "OR");
-            
+
             if (orParts.Count == 2)
             {
                 // Binary OR: left OR right
@@ -202,12 +202,12 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
         foreach (var condition in conditions)
         {
             var conditionTrimmed = condition.Trim();
-            
+
             // Remove outer parentheses if present
             if (conditionTrimmed.StartsWith('(') && conditionTrimmed.EndsWith(')'))
             {
                 conditionTrimmed = conditionTrimmed[1..^1].Trim();
-                
+
                 // Recursively parse the inner expression
                 var innerPredicates = ParseWhereClause(conditionTrimmed);
                 predicates.AddRange(innerPredicates);
@@ -321,8 +321,27 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
     {
         // Parse: column operator value
         // Examples: "Age > 30", "Name = 'Alice'", "Name LIKE 'A%'"
+        // Phase B Quick Win: Handle IS NULL / IS NOT NULL
 
-        var match = OperatorRegex().Match(condition);
+        var trimmed = condition.Trim();
+
+        // Check for IS NULL / IS NOT NULL (case-insensitive)
+        var isNullMatch = IsNullRegex().Match(trimmed);
+
+        if (isNullMatch.Success)
+        {
+            var nullColumnName = isNullMatch.Groups[1].Value;
+            var isNotNull = isNullMatch.Groups[2].Success; // "NOT " was captured
+
+            if (!_columnIndexMap.TryGetValue(nullColumnName, out var nullColumnIndex))
+                throw new ArgumentException($"Column '{nullColumnName}' not found in schema");
+
+            // Return IsNullPredicate
+            // checkForNull = true means "IS NULL", false means "IS NOT NULL"
+            return new IsNullPredicate(nullColumnName, nullColumnIndex, checkForNull: !isNotNull);
+        }
+
+        var match = OperatorRegex().Match(trimmed);
         if (!match.Success)
             return null;
 
@@ -390,13 +409,13 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
             {
                 throw new ArgumentException($"Invalid boolean value: '{valueStr}'. Use true/false or 1/0");
             }
-            
+
             // Only Equal and NotEqual make sense for boolean
             if (op != ComparisonOperator.Equal && op != ComparisonOperator.NotEqual)
             {
                 throw new NotSupportedException($"Operator {op} not supported for boolean columns. Use = or !=");
             }
-            
+
             return new BooleanComparisonPredicate(columnName, columnIndex, op, value);
         }
         else if (columnType == typeof(DateTime))
@@ -407,7 +426,7 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
             {
                 throw new ArgumentException($"Invalid DateTime value: '{valueStr}'. Use format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS");
             }
-            
+
             return new DateTimeComparisonPredicate(columnName, columnIndex, op, dateValue);
         }
         else if (columnType == typeof(DateTimeOffset))
@@ -418,7 +437,7 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
             {
                 throw new ArgumentException($"Invalid DateTime value: '{valueStr}'. Use format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS");
             }
-            
+
             // For DateTimeOffset columns, we'll still use DateTimeComparisonPredicate
             // The predicate will need to handle DateTimeOffset
             return new DateTimeComparisonPredicate(columnName, columnIndex, op, dateValue);
@@ -426,7 +445,7 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
         else if (columnType == typeof(string))
         {
             // Phase 8 Enhancement: String predicate support
-            
+
             // Handle standard comparison operators
             var stringOp = op switch
             {
@@ -438,7 +457,7 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
                 ComparisonOperator.LessThanOrEqual => StringComparisonOperator.LessThanOrEqual,
                 _ => throw new NotSupportedException($"Operator {op} not supported for strings")
             };
-            
+
             return new StringComparisonPredicate(columnName, columnIndex, stringOp, valueStr);
         }
 
@@ -448,7 +467,7 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
     private static bool IsAggregateQuery(string selectClause)
     {
         var upper = selectClause.ToUpper();
-        return upper.Contains("COUNT(") || upper.Contains("SUM(") || 
+        return upper.Contains("COUNT(") || upper.Contains("SUM(") ||
                upper.Contains("AVG(") || upper.Contains("MIN(") || upper.Contains("MAX(");
     }
 
@@ -537,7 +556,7 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
         {
             // %value% -> Contains
             var value = pattern.Trim('%');
-            return new StringComparisonPredicate(columnName, columnIndex, 
+            return new StringComparisonPredicate(columnName, columnIndex,
                 StringComparisonOperator.Contains, value);
         }
         else if (startsWithPercent)
@@ -570,21 +589,21 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
     private List<ProjectionColumn> ParseProjections(string selectClause)
     {
         var projections = new List<ProjectionColumn>();
-        
+
         // Split by comma (simple approach - doesn't handle commas in expressions)
         var columns = selectClause.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        
+
         foreach (var col in columns)
         {
             var trimmed = col.Trim();
-            
+
             // Check for alias: "column AS alias" or "column alias"
             string sourceColumn;
             string outputName;
-            
+
             // Match "column AS alias"
             var asMatch = ProjectionRegex().Match(trimmed);
-            
+
             if (asMatch.Success)
             {
                 sourceColumn = asMatch.Groups[1].Value;
@@ -596,16 +615,16 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
                 sourceColumn = trimmed;
                 outputName = trimmed;
             }
-            
+
             // Validate column exists in schema
             if (!_schema.TryGetValue(sourceColumn, out var columnType))
             {
                 throw new ArgumentException($"Column '{sourceColumn}' not found in schema");
             }
-            
+
             projections.Add(new ProjectionColumn(sourceColumn, outputName, columnType));
         }
-        
+
         return projections;
     }
 
@@ -623,17 +642,17 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
     {
         // Parse: "column1 ASC, column2 DESC, column3"
         var sortSpecs = new List<SortSpecification>();
-        
+
         var columns = orderByClause.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        
+
         foreach (var col in columns)
         {
             var trimmed = col.Trim();
-            
+
             // Check for ASC/DESC suffix
             SortDirection direction = SortDirection.Ascending;
             string columnName;
-            
+
             if (trimmed.EndsWith(" DESC", StringComparison.OrdinalIgnoreCase))
             {
                 direction = SortDirection.Descending;
@@ -649,16 +668,16 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
                 // Default to ascending if no direction specified
                 columnName = trimmed;
             }
-            
+
             // Validate column exists
             if (!_schema.ContainsKey(columnName))
             {
                 throw new ArgumentException($"ORDER BY column '{columnName}' not found in schema");
             }
-            
+
             sortSpecs.Add(new SortSpecification(columnName, direction));
         }
-        
+
         return new SortPlan(input, sortSpecs);
     }
 
@@ -691,4 +710,7 @@ public sealed partial class SqlParser(Dictionary<string, Type> schema, Dictionar
 
     [GeneratedRegex(@"^(\w+)\s+AS\s+(\w+)$", RegexOptions.IgnoreCase, "en-GB")]
     private static partial Regex ProjectionRegex();
+
+    [GeneratedRegex(@"^(\w+)\s+IS\s+(NOT\s+)?NULL$", RegexOptions.IgnoreCase, "en-GB")]
+    private static partial Regex IsNullRegex();
 }
