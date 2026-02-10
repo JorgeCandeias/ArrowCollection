@@ -173,6 +173,7 @@ public sealed class ArrowIpcRenderer : IResultRenderer<RecordBatch>
             Date32Array date32Array => FilterDate32Array(date32Array, selectedIndices),
             Date64Array date64Array => FilterDate64Array(date64Array, selectedIndices),
             TimestampArray timestampArray => FilterTimestampArray(timestampArray, selectedIndices),
+            DictionaryArray dictionaryArray => FilterDictionaryArray(dictionaryArray, selectedIndices),
             _ => throw new NotSupportedException($"Filtering for Arrow type '{sourceArray.GetType().Name}' is not yet implemented. " +
                                                  $"Please report this as an issue with your schema definition.")
         };
@@ -445,4 +446,22 @@ public sealed class ArrowIpcRenderer : IResultRenderer<RecordBatch>
 
         return builder.Build();
     }
+
+    private static DictionaryArray FilterDictionaryArray(DictionaryArray source, IReadOnlyList<int> indices)
+    {
+        // DictionaryArray is a special type that uses a dictionary (value array) 
+        // and indices to reference values. This provides compression for repeated values.
+        // We need to filter the indices and rebuild the dictionary array.
+        
+        var sourceIndices = source.Indices;
+        var valueDictionary = source.Dictionary;
+        
+        // Filter the indices array based on the actual type
+        var filteredIndices = FilterColumn(sourceIndices, indices);
+        
+        // Create new dictionary array with filtered indices
+        // The dictionary itself remains the same (we just reference different entries)
+        return new DictionaryArray((DictionaryType)source.Data.DataType, filteredIndices, valueDictionary);
+    }
 }
+

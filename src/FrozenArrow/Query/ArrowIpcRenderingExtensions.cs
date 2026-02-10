@@ -66,33 +66,10 @@ public static class ArrowIpcRenderingExtensions
         // Get the underlying query provider
         var provider = (ArrowQueryProvider)arrowQuery.Provider;
 
-        // For now, we need to execute the query using the existing path
-        // In the future, we can optimize this by adding ExecuteToQueryResult support
-        // to ArrowQueryProvider and using ArrowIpcRenderer directly
+        // Execute query to get QueryResult (selection + projection info)
+        var queryResult = provider.ExecuteToQueryResult(arrowQuery.Expression);
 
-        // Temporary implementation: Get the source RecordBatch
-        // This works for simple queries but doesn't optimize complex ones yet
-        var source = arrowQuery.Source;
-        if (source == null)
-        {
-            throw new InvalidOperationException(
-                "Cannot render to Arrow IPC - query has been transformed and no longer has a source.");
-        }
-
-        // For Phase 2, we'll use a simplified approach:
-        // Execute the query to get filtered results, then reconstruct RecordBatch
-        // Future: Integrate with LogicalPlanExecutor.ExecuteToQueryResult
-
-        // Get the RecordBatch from the source
-        var recordBatchField = typeof(FrozenArrow<T>).GetField("_recordBatch",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var recordBatch = (RecordBatch)recordBatchField!.GetValue(source)!;
-
-        // Create a simple QueryResult for full scan (filtering will be added in future commits)
-        var allIndices = Enumerable.Range(0, recordBatch.Length).ToList();
-        var queryResult = new QueryResult(recordBatch, allIndices, null, null);
-
-        // Render using ArrowIpcRenderer
+        // Render using ArrowIpcRenderer (columnar operations only!)
         var renderer = new ArrowIpcRenderer();
         return renderer.Render(queryResult);
     }
