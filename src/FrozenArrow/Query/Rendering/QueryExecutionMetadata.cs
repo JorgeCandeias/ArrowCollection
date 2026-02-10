@@ -7,7 +7,7 @@ namespace FrozenArrow.Query.Rendering;
 /// This is optional information that can be collected during query execution
 /// to help diagnose performance issues and understand query behavior.
 /// </remarks>
-internal sealed record QueryExecutionMetadata
+public sealed record QueryExecutionMetadata
 {
     /// <summary>
     /// The type of plan that was executed (Logical, Physical, Compiled, etc.).

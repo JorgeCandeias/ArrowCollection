@@ -26,7 +26,7 @@ namespace FrozenArrow.Query.Rendering;
 /// <param name="selectedIndices">The indices of selected rows (empty = all rows selected).</param>
 /// <param name="projectedColumns">The columns that are actually needed (null = all columns).</param>
 /// <param name="metadata">Optional metadata about query execution.</param>
-internal readonly struct QueryResult(
+public readonly struct QueryResult(
     RecordBatch recordBatch,
     IReadOnlyList<int> selectedIndices,
     IReadOnlyList<string>? projectedColumns = null,
