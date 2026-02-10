@@ -210,7 +210,7 @@ public sealed partial class ArrowQueryProvider
     /// Converts a logical plan to the existing QueryPlan format.
     /// This is a bridge to maintain compatibility during the migration.
     /// </summary>
-    private QueryPlan ConvertLogicalPlanToQueryPlan(LogicalPlanNode plan)
+    private static QueryPlan ConvertLogicalPlanToQueryPlan(LogicalPlanNode plan)
     {
         var predicates = new List<ColumnPredicate>();
         double selectivity = 1.0;

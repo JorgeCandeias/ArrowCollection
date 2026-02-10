@@ -1,4 +1,4 @@
-using Apache.Arrow;
+﻿using Apache.Arrow;
 using Apache.Arrow.Types;
 
 namespace FrozenArrow.Query.Rendering;
@@ -29,7 +29,7 @@ namespace FrozenArrow.Query.Rendering;
 /// Use cases:
 /// - Export to Arrow IPC files (.arrow, .feather)
 /// - Service-to-service data exchange (Arrow Flight)
-/// - Data lake exports (Arrow ? Parquet conversion)
+/// - Data lake exports (Arrow → Parquet conversion)
 /// - Analytics pipeline integration (Spark, DuckDB, etc.)
 /// </para>
 /// </remarks>
@@ -44,21 +44,21 @@ public sealed class ArrowIpcRenderer : IResultRenderer<RecordBatch>
     /// <para>
     /// Optimization paths (in order of preference):
     /// 
-    /// 1. Full scan + full projection ? ZERO-COPY
+    /// 1. Full scan + full projection → ZERO-COPY
     ///    Return the original RecordBatch (no filtering, no projection)
     ///    Performance: ~1ns (reference copy only)
     /// 
-    /// 2. Full scan + projection ? LOW-COPY
+    /// 2. Full scan + projection → LOW-COPY
     ///    Slice columns from original RecordBatch (no filtering needed)
-    ///    Performance: ~1�s per column (array reference copy)
+    ///    Performance: ~1µs per column (array reference copy)
     /// 
-    /// 3. Filtering + full projection ? COLUMNAR COPY
+    /// 3. Filtering + full projection → COLUMNAR COPY
     ///    Filter each column using selection indices
-    ///    Performance: ~1�s per 1000 rows per column
+    ///    Performance: ~1µs per 1000 rows per column
     /// 
-    /// 4. Filtering + projection ? COLUMNAR COPY + SLICE
+    /// 4. Filtering + projection → COLUMNAR COPY + SLICE
     ///    Filter and project columns
-    ///    Performance: ~1�s per 1000 rows per projected column
+    ///    Performance: ~1µs per 1000 rows per projected column
     /// </para>
     /// </remarks>
     public RecordBatch Render(QueryResult queryResult)
@@ -121,8 +121,8 @@ public sealed class ArrowIpcRenderer : IResultRenderer<RecordBatch>
         IReadOnlyList<string>? projectedColumns)
     {
         // Determine which columns to include
-        var columnsToInclude = projectedColumns ?? 
-            source.Schema.FieldsList.Select(f => f.Name).ToList();
+        var columnsToInclude = projectedColumns ??
+            [.. source.Schema.FieldsList.Select(f => f.Name)];
 
         var fields = new List<Field>(columnsToInclude.Count);
         var arrays = new List<IArrowArray>(columnsToInclude.Count);
